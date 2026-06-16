@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: ktalk-ai-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ktalk_db
+    username: postgres
+    password: your_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# AI 및 외부 API 설정
+ktalk:
+  ai:
+    azure-speech-key: ${AZURE_SPEECH_KEY}
+    azure-speech-region: koreacentral
+    openai-api-key: ${OPENAI_API_KEY}
+    openai-model: gpt-4o-mini
+  youtube:
+    api-key: ${YOUTUBE_API_KEY}
+
+server:
+  port: 8080
