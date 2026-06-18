@@ -1,40 +1,16 @@
 spring:
-  application:
-    name: ktalk-ai-backend
-
   datasource:
-    url: jdbc:postgresql://localhost:5432/ktalk_db
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://localhost:5432/ktalk
+    username: postgres
+    password: 1234
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-
-# AI 및 외부 API 설정
-ktalk:
-  ai:
-    azure-speech-key: ${AZURE_SPEECH_KEY:}
-    azure-speech-region: ${AZURE_SPEECH_REGION:koreacentral}
-    openai-api-key: ${OPENAI_API_KEY:}
-    openai-model: ${OPENAI_MODEL:gpt-4o-mini}
-
-  youtube:
-    api-key: ${YOUTUBE_API_KEY:}
-
-  // Azure Speech SDK (발음 평가용)
-  // implementation 'com.microsoft.cognitive:client-speech:1.30.0'  ← 이 줄을 주석 처리
-# 서버 설정
 server:
   port: 8080
