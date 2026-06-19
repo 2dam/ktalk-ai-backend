@@ -11,19 +11,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/contents")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")  // CORS 설정 (프론트엔드 연동용)
+@CrossOrigin(origins = "*")
 public class ContentController {
 
     private final ContentRepository contentRepository;
 
-    // 모든 콘텐츠 조회
     @GetMapping
     public ResponseEntity<List<Content>> getAllContents() {
         List<Content> contents = contentRepository.findAll();
         return ResponseEntity.ok(contents);
     }
 
-    // ID로 콘텐츠 조회
     @GetMapping("/{id}")
     public ResponseEntity<Content> getContentById(@PathVariable Long id) {
         return contentRepository.findById(id)
@@ -31,10 +29,41 @@ public class ContentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 새 콘텐츠 생성
+    @GetMapping("/category/{category}")
+    public ResponseEntity<List<Content>> getContentsByCategory(@PathVariable String category) {
+        List<Content> contents = contentRepository.findByCategory(category);
+        return ResponseEntity.ok(contents);
+    }
+
     @PostMapping
     public ResponseEntity<Content> createContent(@RequestBody Content content) {
         Content savedContent = contentRepository.save(content);
         return ResponseEntity.ok(savedContent);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Content> updateContent(
+            @PathVariable Long id,
+            @RequestBody Content contentDetails) {
+        return contentRepository.findById(id)
+                .map(content -> {
+                    content.setTitle(contentDetails.getTitle());
+                    content.setDescription(contentDetails.getDescription());
+                    content.setCategory(contentDetails.getCategory());
+                    content.setKoreanLevel(contentDetails.getKoreanLevel());
+                    Content updatedContent = contentRepository.save(content);
+                    return ResponseEntity.ok(updatedContent);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteContent(@PathVariable Long id) {
+        return contentRepository.findById(id)
+                .map(content -> {
+                    contentRepository.delete(content);
+                    return ResponseEntity.ok().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }

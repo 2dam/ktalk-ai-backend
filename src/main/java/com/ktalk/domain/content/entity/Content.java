@@ -3,11 +3,13 @@ package com.ktalk.domain.content.entity;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "content")
@@ -24,20 +26,29 @@ public class Content {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "dialogue", columnDefinition = "TEXT")
+    private String dialogue;
+
     @Column(name = "category", nullable = false)
     private String category;
 
     @Column(name = "korean_level", nullable = false)
-    private String koreanLevel;  // ⚠️ 카멜케이스 확인!
+    private String koreanLevel;
 
-    @Column(name = "video_url")
-    private String videoUrl;  // ⚠️ 카멜케이스 확인!
-
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
