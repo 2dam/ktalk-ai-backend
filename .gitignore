@@ -35,3 +35,21 @@ out/
 
 ### VS Code ###
 .vscode/
+# API 키와 민감한 정보
+application.yml
+application-secret.yml
+.env
+
+# Build files
+build/
+target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
