@@ -19,7 +19,7 @@ public class AIController {
     private final ContentRepository contentRepository;
 
     @PostMapping("/generate")
-    public ResponseEntity<?> generateContent(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> generateContent(@RequestBody Map<String, String> request) {
         try {
             String topic = request.get("topic");
 
@@ -48,6 +48,30 @@ public class AIController {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "AI 콘텐츠 생성 실패: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/dialogue/{id}")
+    public ResponseEntity<Map<String, Object>> generateDialogue(@PathVariable Long id) {
+        try {
+            Content content = contentRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("콘텐츠를 찾을 수 없습니다."));
+
+            String dialogue = aiService.generateDialogue(content);
+
+            content.setDialogue(dialogue);
+            Content savedContent = contentRepository.save(content);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "AI가 대화문을 생성했습니다!",
+                    "dialogue", savedContent.getDialogue()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "대화문 생성 실패: " + e.getMessage()
             ));
         }
     }

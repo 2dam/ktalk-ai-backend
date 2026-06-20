@@ -61,4 +61,67 @@ public class MockAIService implements AIService {
 
         return content;
     }
+
+    @Override
+    public String generateDialogue(Content content) {
+        String level = content.getKoreanLevel();
+        String title = content.getTitle();
+
+        // 레벨별 대화문 템플릿
+        if (level.equals("beginner")) {
+            return generateBeginnerDialogue(title);
+        } else if (level.equals("intermediate")) {
+            return generateIntermediateDialogue(title);
+        } else if (level.equals("advanced")) {
+            return generateAdvancedDialogue(title);
+        }
+
+        return generateBeginnerDialogue(title);
+    }
+
+    private String generateBeginnerDialogue(String title) {
+        return """
+            [대화문 - 초급]
+            
+            A: 안녕하세요!
+            B: 네, 안녕하세요! 반갑습니다.
+            A: 이름이 뭐예요?
+            B: 저는 김민수예요. 당신은요?
+            A: 저는 박지영이에요. 처음 뵙겠습니다.
+            B: 네, 잘 부탁드립니다.
+            A: 감사합니다. 좋은 하루 보내세요!
+            B: 네, 감사합니다!
+            """;
+    }
+
+    private String generateIntermediateDialogue(String title) {
+        return """
+            [대화문 - 중급]
+            
+            A: 안녕하세요, 어디 가세요?
+            B: 도서관에 가려고 해요. 한국어 공부를 하려고요.
+            A: 아, 그렇군요. 저는 오늘 한국 드라마를 볼 거예요.
+            B: 어떤 드라마를 좋아하세요?
+            A: 저는 로맨틱 코미디를 좋아해요. 재미있어요.
+            B: 저도 좋아해요. 추천해 줄 드라마가 있어요.
+            A: 정말요? 뭐예요?
+            B: '사랑의 불시착'이에요. 정말 재미있어요.
+            A: 알겠어요. 꼭 볼게요. 감사합니다!
+            """;
+    }
+
+    private String generateAdvancedDialogue(String title) {
+        return """
+            [대화문 - 고급]
+            
+            A: 안녕하세요, 김부장님. 오늘 회의 준비는 잘 되셨나요?
+            B: 네, 어느 정도 준비는 했습니다만, 아직 보완할 부분이 있는 것 같습니다.
+            A: 어떤 부분이 걱정되십니까?
+            B: 예산 관련 자료인데, 최신 데이터를 반영해야 할 것 같아요.
+            A: 알겠습니다. 제가 오후까지 최신 통계를 조사해 오겠습니다.
+            B: 감사합니다. 그리고 발표 자료도 함께 검토해 주시면 좋겠어요.
+            A: 네, 알겠습니다. 3시까지 완료해서 보내드리겠습니다.
+            B: 수고 많습니다. 좋은 결과 있기를 바랍니다.
+            """;
+    }
 }
