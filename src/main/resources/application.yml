@@ -4,6 +4,7 @@ spring:
     username: postgres
     password: 1234
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -11,10 +12,12 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
   data:
     redis:
       host: localhost
       port: 6379
+
   security:
     oauth2:
       client:
@@ -24,12 +27,21 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: profile, email, https://www.googleapis.com/auth/youtube.readonly
 
+# YouTube & Gemini API 키 (환경 변수 사용)
 youtube:
-  api-key: ${YOUTUBE_API_KEY}  # 환경 변수로 변경
+  api:
+    key: ${YOUTUBE_API_KEY}     # ← api.key로 변경!
 
 gemini:
-  api-key: ${GEMINI_API_KEY}
+  api:
+    key: ${GEMINI_API_KEY}      # ← api.key로 변경!
   url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
 
 server:
   port: 8080
+
+logging:
+  level:
+    com.ktalk: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
