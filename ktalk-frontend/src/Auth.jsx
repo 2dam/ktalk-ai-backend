@@ -2,6 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8080/api/auth'
+const GOOGLE_LOGIN_URL = 'http://localhost:8080/oauth2/authorization/google'
 
 function Auth({ onLogin }) {
     const [isLogin, setIsLogin] = useState(true)
@@ -22,6 +23,9 @@ function Auth({ onLogin }) {
             if (response.data.success) {
                 alert(isLogin ? '로그인 성공!' : '회원가입 성공!')
                 if (isLogin) {
+                    if (response.data.token) {
+                        localStorage.setItem('token', response.data.token)
+                    }
                     onLogin(response.data.user)
                 } else {
                     setIsLogin(true)
@@ -77,6 +81,16 @@ function Auth({ onLogin }) {
                     {isLogin ? '로그인' : '회원가입'}
                 </button>
             </form>
+
+            <div style={{ textAlign: 'center', margin: '20px 0' }}>
+                <a href={GOOGLE_LOGIN_URL} style={{
+                    display: 'inline-block', width: '100%', padding: '12px', fontSize: '16px',
+                    backgroundColor: '#fff', color: '#444', border: '1px solid #ddd',
+                    borderRadius: '4px', textDecoration: 'none', boxSizing: 'border-box'
+                }}>
+                    🔐 Google로 로그인
+                </a>
+            </div>
 
             <p style={{ textAlign: 'center', marginTop: '20px' }}>
                 {isLogin ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}

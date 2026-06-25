@@ -1,9 +1,12 @@
 package com.ktalk.domain.user.controller;
 
 import com.ktalk.domain.user.entity.User;
+import com.ktalk.domain.user.repository.UserRepository;
 import com.ktalk.domain.user.service.UserService;
+import com.ktalk.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -11,10 +14,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
+    private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
@@ -24,14 +28,12 @@ public class UserController {
                     request.get("password"),
                     request.get("email")
             );
+            String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail());
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "회원가입 성공",
-                    "user", Map.of(
-                            "id", user.getId(),
-                            "username", user.getUsername(),
-                            "email", user.getEmail()
-                    )
+                    "token", token,
+                    "user", toUserMap(user)
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -48,14 +50,12 @@ public class UserController {
                     request.get("username"),
                     request.get("password")
             );
+            String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail());
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "로그인 성공",
-                    "user", Map.of(
-                            "id", user.getId(),
-                            "username", user.getUsername(),
-                            "email", user.getEmail()
-                    )
+                    "token", token,
+                    "user", toUserMap(user)
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -63,5 +63,28 @@ public class UserController {
                     "message", e.getMessage()
             ));
         }
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication() != null
+                ? SecurityContextHolder.getContext().getAuthentication().getPrincipal()
+                : null;
+
+        if (!(principal instanceof Long userId)) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "인증되지 않았습니다."));
+        }
+
+        return userRepository.findById(userId)
+                .map(user -> ResponseEntity.ok(Map.of("success", true, "user", toUserMap(user))))
+                .orElseGet(() -> ResponseEntity.status(404).body(Map.of("success", false, "message", "사용자를 찾을 수 없습니다.")));
+    }
+
+    private Map<String, Object> toUserMap(User user) {
+        return Map.of(
+                "id", user.getId(),
+                "username", user.getUsername(),
+                "email", user.getEmail()
+        );
     }
 }

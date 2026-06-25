@@ -1,78 +1,54 @@
 package com.ktalk.domain.ai.controller;
 
-import com.ktalk.domain.ai.service.AIService;
-import com.ktalk.domain.content.entity.Content;
-import com.ktalk.domain.content.repository.ContentRepository;
+import com.ktalk.domain.ai.service.GeminiService;
+import com.ktalk.domain.ai.service.YouTubeService;
+import com.ktalk.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@Slf4j
 public class AIController {
 
-    private final AIService aiService;
-    private final ContentRepository contentRepository;
+    private final YouTubeService youTubeService;
+    private final GeminiService geminiService;
 
-    @PostMapping("/generate")
-    public ResponseEntity<Map<String, Object>> generateContent(@RequestBody Map<String, String> request) {
+    @GetMapping("/videos/search")
+    public ResponseEntity<ApiResponse> searchVideos(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "10") int maxResults) {
         try {
-            String topic = request.get("topic");
-
-            if (topic == null || topic.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "주제를 입력해주세요."
-                ));
-            }
-
-            Content generatedContent = aiService.generateContent(topic);
-            Content savedContent = contentRepository.save(generatedContent);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "AI가 콘텐츠를 생성했습니다!",
-                    "content", Map.of(
-                            "id", savedContent.getId(),
-                            "title", savedContent.getTitle(),
-                            "description", savedContent.getDescription(),
-                            "category", savedContent.getCategory(),
-                            "koreanLevel", savedContent.getKoreanLevel()
-                    )
-            ));
+            List<YouTubeService.VideoInfo> videos = youTubeService.searchVideos(query, maxResults);
+            return ResponseEntity.ok(ApiResponse.success(videos, "영상 검색이 완료되었습니다."));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "AI 콘텐츠 생성 실패: " + e.getMessage()
-            ));
+            log.error("영상 검색 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("영상 검색 실패: " + e.getMessage()));
         }
     }
 
-    @PostMapping("/dialogue/{id}")
-    public ResponseEntity<Map<String, Object>> generateDialogue(@PathVariable Long id) {
+    @PostMapping("/quiz/generate")
+    public ResponseEntity<ApiResponse> generateQuiz(
+            @RequestParam String transcript,
+            @RequestParam(defaultValue = "5") int count) {
         try {
-            Content content = contentRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("콘텐츠를 찾을 수 없습니다."));
-
-            String dialogue = aiService.generateDialogue(content);
-
-            content.setDialogue(dialogue);
-            Content savedContent = contentRepository.save(content);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "AI가 대화문을 생성했습니다!",
-                    "dialogue", savedContent.getDialogue()
-            ));
+            List<GeminiService.QuizQuestion> quizzes = geminiService.generateQuiz(transcript, count);
+            return ResponseEntity.ok(ApiResponse.success(quizzes, "퀴즈가 생성되었습니다."));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "대화문 생성 실패: " + e.getMessage()
-            ));
+            log.error("퀴즈 생성 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("퀴즈 생성 실패: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/health")
+    public ResponseEntity<ApiResponse> health() {
+        return ResponseEntity.ok(ApiResponse.success("AI Server is running! 🚀"));
     }
 }

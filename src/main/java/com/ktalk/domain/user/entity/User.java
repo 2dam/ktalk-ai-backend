@@ -21,9 +21,11 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
     private String password;
 
     @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'LOCAL'")
+    private String provider = "LOCAL";
 }

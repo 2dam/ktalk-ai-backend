@@ -5,9 +5,11 @@ import './App.css'
 
 const API_URL = 'http://localhost:8080/api/contents'
 const AI_URL = 'http://localhost:8080/api/ai'
+const AUTH_URL = 'http://localhost:8080/api/auth'
 
 function App() {
   const [user, setUser] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [contents, setContents] = useState([])
   const [formData, setFormData] = useState({
     title: '',
@@ -21,6 +23,35 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [speakingId, setSpeakingId] = useState(null)
   const [showDialogueId, setShowDialogueId] = useState(null)
+
+  useEffect(() => {
+    // Google OAuth2 리다이렉트 처리: /oauth2/redirect?token=...
+    const params = new URLSearchParams(window.location.search)
+    const tokenFromRedirect = params.get('token')
+    if (window.location.pathname === '/oauth2/redirect' && tokenFromRedirect) {
+      localStorage.setItem('token', tokenFromRedirect)
+      window.history.replaceState({}, '', '/')
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setAuthChecked(true)
+      return
+    }
+
+    axios.get(`${AUTH_URL}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+        .then((response) => {
+          if (response.data.success) {
+            setUser(response.data.user)
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('token')
+        })
+        .finally(() => setAuthChecked(true))
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -91,6 +122,7 @@ function App() {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('token')
     setUser(null)
   }
 
@@ -197,6 +229,10 @@ function App() {
     window.speechSynthesis.cancel()
     setSpeakingId(null)
     setShowDialogueId(null)
+  }
+
+  if (!authChecked) {
+    return null
   }
 
   if (!user) {
