@@ -1,5 +1,6 @@
 package com.ktalk.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -13,6 +14,16 @@ public class WebClientConfig {
         return WebClient.builder()
                 .defaultHeader(HttpHeaders.USER_AGENT, "KTalk-AI-Backend/1.0")
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                .build();
+    }
+
+    // 음성 파일 등 대용량 요청용 (최대 20MB)
+    @Bean
+    @Qualifier("audioWebClient")
+    public WebClient audioWebClient() {
+        return WebClient.builder()
+                .defaultHeader(HttpHeaders.USER_AGENT, "KTalk-AI-Backend/1.0")
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(20 * 1024 * 1024))
                 .build();
     }
 }

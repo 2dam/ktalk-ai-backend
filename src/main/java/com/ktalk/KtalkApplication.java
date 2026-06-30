@@ -14,6 +14,7 @@ public class KtalkApplication {
         System.setProperty("GOOGLE_CLIENT_SECRET", dotenv.get("GOOGLE_CLIENT_SECRET"));
         System.setProperty("YOUTUBE_API_KEY", dotenv.get("YOUTUBE_API_KEY"));
         System.setProperty("GEMINI_API_KEY", dotenv.get("GEMINI_API_KEY"));
+        System.setProperty("GOOGLE_TTS_API_KEY", dotenv.get("GOOGLE_TTS_API_KEY"));
 
         SpringApplication.run(KtalkApplication.class, args);
     }
