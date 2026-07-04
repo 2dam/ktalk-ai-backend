@@ -4,6 +4,7 @@ import com.ktalk.domain.user.service.CustomOAuth2UserService;
 import com.ktalk.global.security.JwtAuthenticationFilter;
 import com.ktalk.global.security.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,6 +17,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -26,6 +28,10 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    // 콤마로 구분된 허용 origin 목록 (배포 시 실제 프론트엔드 도메인으로 교체)
+    @Value("${app.cors-allowed-origins}")
+    private String corsAllowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -54,7 +60,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(Arrays.asList(corsAllowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

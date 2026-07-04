@@ -1,0 +1,7 @@
+ktalk-frontend/
+.git/
+.gradle/
+build/
+data/
+.env
+*.md
