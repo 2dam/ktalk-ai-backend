@@ -6,6 +6,7 @@ import ClipAndLearn from './components/ClipAndLearn'
 import CharacterChat from './components/CharacterChat'
 import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
+import RecommendedChannels from './components/RecommendedChannels'
 import { AUTH_URL } from './api'
 import './App.css'
 
@@ -101,6 +102,8 @@ function App() {
               </button>
           ))}
         </nav>
+
+        <RecommendedChannels />
 
         {activeTab === 'contents' && <ContentManager />}
         {activeTab === 'clip' && <ClipAndLearn />}
