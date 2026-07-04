@@ -142,16 +142,31 @@ function ClipAndLearn() {
         {selectedVideo && (
             <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '20px' }}>
               <h3>{selectedVideo.title}</h3>
-              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, margin: '15px 0' }}>
-                <iframe
-                    src={`https://www.youtube.com/embed/${selectedVideo.videoId}`}
-                    title={selectedVideo.title}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                />
-              </div>
+              <a href={`https://www.youtube.com/watch?v=${selectedVideo.videoId}`}
+                 target="_blank" rel="noopener noreferrer"
+                 style={{ display: 'block', position: 'relative', paddingBottom: '56.25%', height: 0, margin: '15px 0', borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                  backgroundColor: '#000',
+                  backgroundImage: `url(${selectedVideo.thumbnailUrl})`,
+                  backgroundSize: 'cover', backgroundPosition: 'center'
+                }}>
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: 0, height: 0, marginLeft: '4px',
+                      borderTop: '14px solid transparent', borderBottom: '14px solid transparent',
+                      borderLeft: '22px solid white'
+                    }} />
+                  </div>
+                </div>
+              </a>
+              <p style={{ fontSize: '13px', color: '#999', marginTop: '-10px', marginBottom: '15px' }}>
+                썸네일을 누르면 유튜브에서 영상이 열립니다.
+              </p>
 
               <div style={{ marginTop: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
