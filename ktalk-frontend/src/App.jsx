@@ -78,8 +78,8 @@ function App() {
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)' }}>
             <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto', flexShrink: 0 }} />
             <span style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px' }}>
-              <span>Ktalk</span>
-              <em style={{ fontSize: '0.55em', fontStyle: 'italic', fontWeight: 'normal', letterSpacing: '0.3px' }}>by k-pop, k-drama</em>
+              <span>K-talk</span>
+              <em style={{ fontSize: '0.55em', fontStyle: 'italic', fontWeight: 'normal', letterSpacing: '0.3px' }}>through k-pop, k-drama</em>
             </span>
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -90,18 +90,22 @@ function App() {
           </div>
         </div>
 
-        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '24px' }}>
+        <nav style={{ display: 'flex', gap: 'clamp(2px, 1vw, 6px)', marginBottom: '24px', width: '100%' }}>
           {TABS.map((tab) => (
               <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   style={{
-                    padding: '6px 10px',
-                    fontSize: '13px',
+                    flex: '1 1 0',
+                    minWidth: 0,
+                    padding: 'clamp(4px, 1.2vw, 8px) clamp(2px, 1vw, 10px)',
+                    fontSize: 'clamp(8px, 2.4vw, 14px)',
                     cursor: 'pointer',
                     border: 'none',
-                    borderRadius: '16px',
+                    borderRadius: '10px',
                     whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     backgroundColor: activeTab === tab.id ? '#007bff' : '#e9ecef',
                     color: activeTab === tab.id ? 'white' : '#333',
                     fontWeight: activeTab === tab.id ? 'bold' : 'normal'

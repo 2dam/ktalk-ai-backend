@@ -22,9 +22,9 @@ function RecommendedChannels() {
         <h3 style={{ marginBottom: '10px', fontSize: '15px', color: '#666' }}>
           🎬 꾸준히 한국어를 가르치는 채널
         </h3>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'clamp(4px, 2vw, 12px)', width: '100%' }}>
           {RECOMMENDED_VIDEOS.map((video) => (
-              <div key={video.videoId} style={{ flex: '1 1 150px', minWidth: 0, maxWidth: '260px' }}>
+              <div key={video.videoId} style={{ flex: '1 1 0', minWidth: 0 }}>
                 <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: '8px', overflow: 'hidden' }}>
                   <iframe
                       src={`https://www.youtube.com/embed/${video.videoId}`}
@@ -33,7 +33,12 @@ function RecommendedChannels() {
                       allowFullScreen
                   />
                 </div>
-                <div style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>{video.channel}</div>
+                <div style={{
+                  fontSize: 'clamp(9px, 2.5vw, 12px)', color: '#999', marginTop: '5px',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                }}>
+                  {video.channel}
+                </div>
               </div>
           ))}
         </div>
