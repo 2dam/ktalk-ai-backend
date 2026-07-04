@@ -73,11 +73,11 @@ function App() {
 
   return (
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h1>📚 K-Talk AI</h1>
-          <div>
-            <span style={{ marginRight: '15px' }}>안녕하세요, {user.username}님!</span>
-            <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <h1 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', whiteSpace: 'nowrap' }}>📚 K-Talk AI</h1>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span>안녕하세요, {user.username}님!</span>
+            <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}>
               로그아웃
             </button>
           </div>
