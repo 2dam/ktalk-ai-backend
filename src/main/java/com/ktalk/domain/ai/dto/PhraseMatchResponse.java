@@ -2,6 +2,8 @@ package com.ktalk.domain.ai.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -13,7 +15,11 @@ public class PhraseMatchResponse {
     private String detectedLanguage;   // 감지된 입력 언어
     private List<KoreanPhrase> phrases; // 매칭된 한국어 표현 목록
 
+    // Jackson이 Gemini 응답(JsonNode)을 convertValue로 역직렬화하려면
+    // 기본 생성자 + setter가 필요하다 (AllArgsConstructor만으로는 인식 못 함)
     @Getter
+    @Setter
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class KoreanPhrase {
         private String korean;         // 한국어 표현

@@ -19,11 +19,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PhraseMatchService {
 
-    @Value("${GEMINI_API_KEY}")
+    @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
     private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
     private final WebClient webClient = WebClient.create();
     private final ObjectMapper objectMapper = new ObjectMapper();

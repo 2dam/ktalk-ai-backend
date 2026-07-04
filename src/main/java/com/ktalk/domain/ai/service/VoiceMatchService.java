@@ -19,14 +19,14 @@ import java.util.Map;
 @Service
 public class VoiceMatchService {
 
-    @Value("${GEMINI_API_KEY}")
+    @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
-    @Value("${GOOGLE_TTS_API_KEY}")
+    @Value("${GOOGLE_TTS_API_KEY:}")
     private String googleTtsApiKey;
 
     private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
     private static final String TTS_URL =
             "https://texttospeech.googleapis.com/v1/text:synthesize";

@@ -1,7 +1,10 @@
 package com.ktalk.domain.ai.controller;
 
+import com.ktalk.domain.ai.service.AIService;
 import com.ktalk.domain.ai.service.GeminiService;
 import com.ktalk.domain.ai.service.YouTubeService;
+import com.ktalk.domain.content.entity.Content;
+import com.ktalk.domain.content.repository.ContentRepository;
 import com.ktalk.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +21,44 @@ public class AIController {
 
     private final YouTubeService youTubeService;
     private final GeminiService geminiService;
+    private final AIService aiService;
+    private final ContentRepository contentRepository;
+
+    @PostMapping("/generate")
+    public ResponseEntity<ApiResponse> generateContent(@RequestBody GenerateRequest request) {
+        try {
+            if (request.topic() == null || request.topic().isBlank()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("주제를 입력해주세요."));
+            }
+            Content content = aiService.generateContent(request.topic());
+            Content saved = contentRepository.save(content);
+            return ResponseEntity.ok(ApiResponse.success(saved, "AI가 콘텐츠를 생성했습니다."));
+        } catch (Exception e) {
+            log.error("AI 콘텐츠 생성 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("AI 콘텐츠 생성 실패: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/dialogue/{id}")
+    public ResponseEntity<ApiResponse> generateDialogue(@PathVariable Long id) {
+        try {
+            Content content = contentRepository.findById(id).orElse(null);
+            if (content == null) {
+                return ResponseEntity.notFound().build();
+            }
+            String dialogue = aiService.generateDialogue(content);
+            content.setDialogue(dialogue);
+            Content saved = contentRepository.save(content);
+            return ResponseEntity.ok(ApiResponse.success(saved, "AI가 대화문을 생성했습니다."));
+        } catch (Exception e) {
+            log.error("대화문 생성 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("대화문 생성 실패: " + e.getMessage()));
+        }
+    }
+
+    public record GenerateRequest(String topic) {}
 
     @GetMapping("/videos/search")
     public ResponseEntity<ApiResponse> searchVideos(

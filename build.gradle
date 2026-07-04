@@ -59,6 +59,7 @@ dependencies {
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2' // 로컬 개발용 인메모리 DB (local 프로파일)
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

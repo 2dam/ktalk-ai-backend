@@ -8,14 +8,23 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class KtalkApplication {
 
     public static void main(String[] args) {
-        // .env 파일 로드
-        Dotenv dotenv = Dotenv.load();
-        System.setProperty("GOOGLE_CLIENT_ID", dotenv.get("GOOGLE_CLIENT_ID"));
-        System.setProperty("GOOGLE_CLIENT_SECRET", dotenv.get("GOOGLE_CLIENT_SECRET"));
-        System.setProperty("YOUTUBE_API_KEY", dotenv.get("YOUTUBE_API_KEY"));
-        System.setProperty("GEMINI_API_KEY", dotenv.get("GEMINI_API_KEY"));
-        System.setProperty("GOOGLE_TTS_API_KEY", dotenv.get("GOOGLE_TTS_API_KEY"));
+        // .env 파일 로드 (없어도 앱은 부팅되어야 하므로 ignoreIfMissing 사용)
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        setIfPresent(dotenv, "GOOGLE_CLIENT_ID");
+        setIfPresent(dotenv, "GOOGLE_CLIENT_SECRET");
+        setIfPresent(dotenv, "YOUTUBE_API_KEY");
+        setIfPresent(dotenv, "GEMINI_API_KEY");
+        setIfPresent(dotenv, "GOOGLE_TTS_API_KEY");
 
         SpringApplication.run(KtalkApplication.class, args);
+    }
+
+    // .env에 값이 없으면 System property를 건드리지 않는다.
+    // (System.setProperty에 null을 넘기면 NPE가 발생하고, application.properties의 기본값(${VAR:default})이 대신 적용된다)
+    private static void setIfPresent(Dotenv dotenv, String key) {
+        String value = dotenv.get(key);
+        if (value != null) {
+            System.setProperty(key, value);
+        }
     }
 }
