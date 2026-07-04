@@ -8,6 +8,7 @@ import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
 import RecommendedChannels from './components/RecommendedChannels'
 import { AUTH_URL } from './api'
+import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
 
 const TABS = [
@@ -74,7 +75,10 @@ function App() {
   return (
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <h1 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', whiteSpace: 'nowrap' }}>📚 K-Talk AI</h1>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)', whiteSpace: 'nowrap' }}>
+            <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto' }} />
+            Ktalk by k-pop, k-drama
+          </h1>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <span>안녕하세요, {user.username}님!</span>
             <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}>
