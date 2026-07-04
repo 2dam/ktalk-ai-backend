@@ -22,18 +22,35 @@ function CharacterChat() {
   const handleFindVideo = async (msgIdx, pIdx, source) => {
     const key = `${msgIdx}-${pIdx}`
     setVideoLookup((prev) => ({ ...prev, [key]: 'loading' }))
+
+    // 모바일 브라우저는 await 이후에 호출되는 window.open을 "사용자 클릭이 아님"으로
+    // 판단해 팝업 차단하는 경우가 많다. 클릭 직후(비동기 처리 전) 빈 탭을 먼저 열어
+    // 사용자 제스처를 유지한 뒤, 검색이 끝나면 그 탭의 주소만 바꿔준다.
+    const newTab = window.open('', '_blank')
+    if (newTab) {
+      newTab.document.write('검색 중...')
+    }
+
     try {
       const response = await axios.get(`${AI_URL}/videos/search`, {
         params: { query: source, maxResults: 1, preferShort: true }
       })
       const video = response.data.data?.[0]
       if (video) {
-        window.open(`https://www.youtube.com/watch?v=${video.videoId}`, '_blank', 'noopener')
+        const url = `https://www.youtube.com/watch?v=${video.videoId}`
+        if (newTab) {
+          newTab.location.href = url
+        } else {
+          // 팝업 차단 등으로 새 탭을 못 열었으면 현재 탭에서 이동
+          window.location.href = url
+        }
         setVideoLookup((prev) => ({ ...prev, [key]: undefined }))
       } else {
+        newTab?.close()
         setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
       }
     } catch (err) {
+      newTab?.close()
       setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
     }
   }
