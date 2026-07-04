@@ -73,11 +73,13 @@ function App() {
   }
 
   return (
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', overflowX: 'hidden' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)', whiteSpace: 'nowrap' }}>
-            <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto' }} />
-            Ktalk by k-pop, k-drama
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)' }}>
+            <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto', flexShrink: 0 }} />
+            <span>
+              Ktalk<em style={{ fontSize: '0.5em', fontStyle: 'italic', fontWeight: 'normal', marginLeft: '4px' }}>by k-pop, k-drama</em>
+            </span>
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <span>안녕하세요, {user.username}님!</span>
