@@ -73,7 +73,7 @@ function App() {
   }
 
   return (
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '900px', width: '100%', minWidth: 0, margin: '0 auto', padding: '20px', overflowX: 'hidden', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)' }}>
             <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto', flexShrink: 0 }} />
