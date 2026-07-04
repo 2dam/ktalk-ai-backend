@@ -17,19 +17,12 @@ function CharacterChat() {
   const [messages, setMessages] = useState([])
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState('')
-  const [videoLookup, setVideoLookup] = useState({}) // key: "msgIdx-pIdx" -> 'loading' | 'error' | undefined
+  // key: "msgIdx-pIdx" -> 'loading' | 'error' | { url, title }
+  const [videoLookup, setVideoLookup] = useState({})
 
   const handleFindVideo = async (msgIdx, pIdx, source) => {
     const key = `${msgIdx}-${pIdx}`
     setVideoLookup((prev) => ({ ...prev, [key]: 'loading' }))
-
-    // 모바일 브라우저는 await 이후에 호출되는 window.open을 "사용자 클릭이 아님"으로
-    // 판단해 팝업 차단하는 경우가 많다. 클릭 직후(비동기 처리 전) 빈 탭을 먼저 열어
-    // 사용자 제스처를 유지한 뒤, 검색이 끝나면 그 탭의 주소만 바꿔준다.
-    const newTab = window.open('', '_blank')
-    if (newTab) {
-      newTab.document.write('검색 중...')
-    }
 
     try {
       const response = await axios.get(`${AI_URL}/videos/search`, {
@@ -37,20 +30,17 @@ function CharacterChat() {
       })
       const video = response.data.data?.[0]
       if (video) {
-        const url = `https://www.youtube.com/watch?v=${video.videoId}`
-        if (newTab) {
-          newTab.location.href = url
-        } else {
-          // 팝업 차단 등으로 새 탭을 못 열었으면 현재 탭에서 이동
-          window.location.href = url
-        }
-        setVideoLookup((prev) => ({ ...prev, [key]: undefined }))
+        // window.open()은 카카오톡 인앱 브라우저 등 일부 환경에서 조용히 막혀서
+        // 아무 반응이 없는 것처럼 보일 수 있다. 대신 실제 <a> 링크를 화면에 띄워서
+        // 사용자가 직접 눌러 이동하게 하면 어떤 브라우저에서도 확실히 작동한다.
+        setVideoLookup((prev) => ({
+          ...prev,
+          [key]: { url: `https://www.youtube.com/watch?v=${video.videoId}`, title: video.title }
+        }))
       } else {
-        newTab?.close()
         setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
       }
     } catch (err) {
-      newTab?.close()
       setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
     }
   }
@@ -133,16 +123,33 @@ function CharacterChat() {
                               {phrase.usageContext}
                             </div>
                             <div style={{ marginTop: '8px' }}>
-                              <button
-                                  onClick={() => handleFindVideo(idx, pIdx, phrase.source)}
-                                  disabled={videoLookup[`${idx}-${pIdx}`] === 'loading'}
-                                  style={{
-                                    padding: '4px 10px', fontSize: '12px', cursor: 'pointer',
-                                    backgroundColor: '#fff', color: '#dc3545', border: '1px solid #dc3545',
-                                    borderRadius: '12px'
-                                  }}>
-                                {videoLookup[`${idx}-${pIdx}`] === 'loading' ? '검색 중...' : '🎬 유튜브에서 보기'}
-                              </button>
+                              {(() => {
+                                const found = videoLookup[`${idx}-${pIdx}`]
+                                if (found && typeof found === 'object') {
+                                  return (
+                                      <a href={found.url} target="_blank" rel="noopener noreferrer"
+                                         style={{
+                                           display: 'inline-block', padding: '4px 10px', fontSize: '12px',
+                                           backgroundColor: '#dc3545', color: 'white', border: '1px solid #dc3545',
+                                           borderRadius: '12px', textDecoration: 'none'
+                                         }}>
+                                        ▶ 유튜브에서 열기
+                                      </a>
+                                  )
+                                }
+                                return (
+                                    <button
+                                        onClick={() => handleFindVideo(idx, pIdx, phrase.source)}
+                                        disabled={found === 'loading'}
+                                        style={{
+                                          padding: '4px 10px', fontSize: '12px', cursor: 'pointer',
+                                          backgroundColor: '#fff', color: '#dc3545', border: '1px solid #dc3545',
+                                          borderRadius: '12px'
+                                        }}>
+                                      {found === 'loading' ? '검색 중...' : '🎬 유튜브에서 보기'}
+                                    </button>
+                                )
+                              })()}
                               {videoLookup[`${idx}-${pIdx}`] === 'error' && (
                                   <span style={{ marginLeft: '8px', fontSize: '12px', color: '#dc3545' }}>
                                     영상을 찾지 못했습니다
