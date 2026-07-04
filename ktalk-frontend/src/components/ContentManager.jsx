@@ -191,9 +191,17 @@ function ContentManager() {
   return (
       <div>
         <div style={{ marginBottom: '30px', padding: '20px', border: '2px solid #007bff', borderRadius: '8px', backgroundColor: '#f0f8ff' }}>
-          <h2>🤖 AI로 콘텐츠 생성</h2>
-          <p>주제를 입력하면 AI가 자동으로 한국어 학습 콘텐츠를 생성합니다.</p>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+          <h2>🤖 AI로 콘텐츠 생성 <span style={{ fontSize: '13px', color: '#999', fontWeight: 'normal' }}>AI Content Generation</span></h2>
+          <p>
+            주제를 입력하면 AI가 자동으로 한국어 학습 콘텐츠를 생성합니다.
+            <br />
+            <span style={{ fontSize: '13px', color: '#999' }}>Enter a topic and AI will automatically generate Korean learning content.</span>
+          </p>
+          <div style={{ marginTop: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              주제 <span>Topic</span>
+            </label>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <input
                 type="text"
                 placeholder="예: 인사, 문법, 여행, 비즈니스"
@@ -218,12 +226,21 @@ function ContentManager() {
               {isGenerating ? '생성 중...' : 'AI 생성'}
             </button>
           </div>
+          </div>
         </div>
 
         <form onSubmit={editingId ? function() { handleUpdate(editingId) } : handleCreate} style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-          <h2>{editingId ? '콘텐츠 수정' : '새 콘텐츠 추가'}</h2>
+          <h2>
+            {editingId ? '콘텐츠 수정' : '새 콘텐츠 추가'}{' '}
+            <span style={{ fontSize: '13px', color: '#999', fontWeight: 'normal' }}>
+              {editingId ? 'Edit Content' : 'Add New Content'}
+            </span>
+          </h2>
 
           <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              제목 <span>Title</span>
+            </label>
             <input
                 type="text"
                 placeholder="제목"
@@ -235,6 +252,9 @@ function ContentManager() {
           </div>
 
           <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              설명 <span>Description</span>
+            </label>
           <textarea
               placeholder="설명"
               value={formData.description}
@@ -245,6 +265,9 @@ function ContentManager() {
           </div>
 
           <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              회화/대화문 (줄바꿈으로 구분) <span>Dialogue (separate by line breaks)</span>
+            </label>
           <textarea
               placeholder="회화/대화문 (줄바꿈으로 구분)"
               value={formData.dialogue}
@@ -254,36 +277,42 @@ function ContentManager() {
           </div>
 
           <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              카테고리 <span>Category</span>
+            </label>
             <select
                 value={formData.category}
                 onChange={function(e) { setFormData(Object.assign({}, formData, { category: e.target.value })) }}
                 style={{ width: '100%', padding: '10px', fontSize: '16px' }}
             >
-              <option value="korean">한국어</option>
-              <option value="culture">문화</option>
-              <option value="grammar">문법</option>
+              <option value="korean">한국어 (Korean)</option>
+              <option value="culture">문화 (Culture)</option>
+              <option value="grammar">문법 (Grammar)</option>
             </select>
           </div>
 
           <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
+              레벨 <span>Level</span>
+            </label>
             <select
                 value={formData.koreanLevel}
                 onChange={function(e) { setFormData(Object.assign({}, formData, { koreanLevel: e.target.value })) }}
                 style={{ width: '100%', padding: '10px', fontSize: '16px' }}
             >
-              <option value="beginner">초급</option>
-              <option value="intermediate">중급</option>
-              <option value="advanced">고급</option>
+              <option value="beginner">초급 (Beginner)</option>
+              <option value="intermediate">중급 (Intermediate)</option>
+              <option value="advanced">고급 (Advanced)</option>
             </select>
           </div>
 
           <div>
             <button type="submit" style={{ padding: '10px 20px', marginRight: '10px', cursor: 'pointer' }}>
-              {editingId ? '수정' : '추가'}
+              {editingId ? '수정 Edit' : '추가 Add'}
             </button>
             {editingId && (
                 <button type="button" onClick={handleCancel} style={{ padding: '10px 20px', cursor: 'pointer' }}>
-                  취소
+                  취소 Cancel
                 </button>
             )}
           </div>
