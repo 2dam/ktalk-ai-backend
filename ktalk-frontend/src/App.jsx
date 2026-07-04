@@ -77,8 +77,9 @@ function App() {
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'clamp(1.1rem, 4.5vw, 1.6rem)' }}>
             <img src={ktalkLogo} alt="K-Talk" style={{ height: '32px', width: 'auto', flexShrink: 0 }} />
-            <span>
-              Ktalk<em style={{ fontSize: '0.5em', fontStyle: 'italic', fontWeight: 'normal', marginLeft: '4px' }}>by k-pop, k-drama</em>
+            <span style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px' }}>
+              <span>Ktalk</span>
+              <em style={{ fontSize: '0.55em', fontStyle: 'italic', fontWeight: 'normal', letterSpacing: '0.3px' }}>by k-pop, k-drama</em>
             </span>
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
