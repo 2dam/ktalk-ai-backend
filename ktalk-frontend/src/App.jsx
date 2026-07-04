@@ -90,17 +90,17 @@ function App() {
           </div>
         </div>
 
-        <nav style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '6px', WebkitOverflowScrolling: 'touch' }}>
+        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '24px' }}>
           {TABS.map((tab) => (
               <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   style={{
-                    flex: '0 0 auto',
-                    padding: '10px 16px',
+                    padding: '6px 10px',
+                    fontSize: '13px',
                     cursor: 'pointer',
                     border: 'none',
-                    borderRadius: '20px',
+                    borderRadius: '16px',
                     whiteSpace: 'nowrap',
                     backgroundColor: activeTab === tab.id ? '#007bff' : '#e9ecef',
                     color: activeTab === tab.id ? 'white' : '#333',

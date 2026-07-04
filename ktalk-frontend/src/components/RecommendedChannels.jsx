@@ -22,9 +22,9 @@ function RecommendedChannels() {
         <h3 style={{ marginBottom: '10px', fontSize: '15px', color: '#666' }}>
           🎬 꾸준히 한국어를 가르치는 채널
         </h3>
-        <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {RECOMMENDED_VIDEOS.map((video) => (
-              <div key={video.videoId} style={{ flex: '0 0 220px', width: '220px' }}>
+              <div key={video.videoId} style={{ flex: '1 1 150px', minWidth: 0, maxWidth: '260px' }}>
                 <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: '8px', overflow: 'hidden' }}>
                   <iframe
                       src={`https://www.youtube.com/embed/${video.videoId}`}
