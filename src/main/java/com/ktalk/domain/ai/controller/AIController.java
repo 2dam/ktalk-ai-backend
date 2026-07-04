@@ -63,9 +63,10 @@ public class AIController {
     @GetMapping("/videos/search")
     public ResponseEntity<ApiResponse> searchVideos(
             @RequestParam String query,
-            @RequestParam(defaultValue = "10") int maxResults) {
+            @RequestParam(defaultValue = "10") int maxResults,
+            @RequestParam(defaultValue = "false") boolean preferShort) {
         try {
-            List<YouTubeService.VideoInfo> videos = youTubeService.searchVideos(query, maxResults);
+            List<YouTubeService.VideoInfo> videos = youTubeService.searchVideos(query, maxResults, preferShort);
             return ResponseEntity.ok(ApiResponse.success(videos, "영상 검색이 완료되었습니다."));
         } catch (Exception e) {
             log.error("영상 검색 실패", e);

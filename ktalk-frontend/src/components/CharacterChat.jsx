@@ -17,6 +17,26 @@ function CharacterChat() {
   const [messages, setMessages] = useState([])
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState('')
+  const [videoLookup, setVideoLookup] = useState({}) // key: "msgIdx-pIdx" -> 'loading' | 'error' | undefined
+
+  const handleFindVideo = async (msgIdx, pIdx, source) => {
+    const key = `${msgIdx}-${pIdx}`
+    setVideoLookup((prev) => ({ ...prev, [key]: 'loading' }))
+    try {
+      const response = await axios.get(`${AI_URL}/videos/search`, {
+        params: { query: source, maxResults: 1, preferShort: true }
+      })
+      const video = response.data.data?.[0]
+      if (video) {
+        window.open(`https://www.youtube.com/watch?v=${video.videoId}`, '_blank', 'noopener')
+        setVideoLookup((prev) => ({ ...prev, [key]: undefined }))
+      } else {
+        setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
+      }
+    } catch (err) {
+      setVideoLookup((prev) => ({ ...prev, [key]: 'error' }))
+    }
+  }
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -94,6 +114,23 @@ function CharacterChat() {
                             </div>
                             <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
                               {phrase.usageContext}
+                            </div>
+                            <div style={{ marginTop: '8px' }}>
+                              <button
+                                  onClick={() => handleFindVideo(idx, pIdx, phrase.source)}
+                                  disabled={videoLookup[`${idx}-${pIdx}`] === 'loading'}
+                                  style={{
+                                    padding: '4px 10px', fontSize: '12px', cursor: 'pointer',
+                                    backgroundColor: '#fff', color: '#dc3545', border: '1px solid #dc3545',
+                                    borderRadius: '12px'
+                                  }}>
+                                {videoLookup[`${idx}-${pIdx}`] === 'loading' ? '검색 중...' : '🎬 유튜브에서 보기'}
+                              </button>
+                              {videoLookup[`${idx}-${pIdx}`] === 'error' && (
+                                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#dc3545' }}>
+                                    영상을 찾지 못했습니다
+                                  </span>
+                              )}
                             </div>
                           </div>
                       ))}
