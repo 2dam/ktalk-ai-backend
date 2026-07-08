@@ -67,8 +67,20 @@ public class TTSService {
             return cached;
         }
 
-        if (clovaClientId == null || clovaClientId.isBlank()
-                || clovaClientSecret == null || clovaClientSecret.isBlank()) {
+        String clientId = firstPresent(
+                clovaClientId,
+                System.getenv("NAVER_CLOVA_VOICE_CLIENT_ID"),
+                System.getenv("NAVER_CLOVA_CLIENT_ID")
+        );
+        String clientSecret = firstPresent(
+                clovaClientSecret,
+                System.getenv("NAVER_CLOVA_VOICE_CLIENT_SECRET"),
+                System.getenv("NAVER_CLOVA_CLIENT_SECRET")
+        );
+
+        if (clientId == null || clientSecret == null) {
+            log.error("CLOVA Voice credentials are missing. idPresent={}, secretPresent={}",
+                    clientId != null, clientSecret != null);
             throw new RuntimeException("CLOVA Voice API credentials are missing.");
         }
 
@@ -88,10 +100,10 @@ public class TTSService {
                             .path(CLOVA_TTS_PATH)
                             .build())
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .header("X-NCP-APIGW-API-KEY-ID", clovaClientId)
-                    .header("X-NCP-APIGW-API-KEY", clovaClientSecret)
-                    .header("X-Naver-Client-Id", clovaClientId)
-                    .header("X-Naver-Client-Secret", clovaClientSecret)
+                    .header("X-NCP-APIGW-API-KEY-ID", clientId)
+                    .header("X-NCP-APIGW-API-KEY", clientSecret)
+                    .header("X-Naver-Client-Id", clientId)
+                    .header("X-Naver-Client-Secret", clientSecret)
                     .bodyValue(form)
                     .retrieve()
                     .bodyToMono(byte[].class)
@@ -177,5 +189,14 @@ public class TTSService {
             return MALE_VOICE;
         }
         return FEMALE_VOICE;
+    }
+
+    private String firstPresent(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }
