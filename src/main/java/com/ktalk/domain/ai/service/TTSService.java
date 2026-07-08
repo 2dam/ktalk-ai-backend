@@ -31,7 +31,7 @@ public class TTSService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${google.tts.api.key}")
+    @Value("${GOOGLE_TTS_API_KEY:}")
     private String apiKey;
 
     public String synthesize(String text, String gender) {
