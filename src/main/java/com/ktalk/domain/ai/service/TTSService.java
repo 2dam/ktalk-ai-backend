@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import reactor.core.publisher.Flux;
 public class TTSService {
 
     private static final int MAX_TEXT_LENGTH = 3000;
+    private static final int CACHE_SIZE = 500;
     private static final String MALE_VOICE = "ko-KR-Chirp3-HD-Charon";
     private static final String FEMALE_VOICE = "ko-KR-Chirp3-HD-Kore";
     private static final Pattern SPEAKER_LINE = Pattern.compile("^([A-Za-z]+):\\s*(.*)$");
@@ -34,9 +36,29 @@ public class TTSService {
     @Value("${GOOGLE_TTS_API_KEY:}")
     private String apiKey;
 
+    // 같은 문장을 다시 재생할 때 Google TTS를 또 호출하지 않도록 캐싱 (같은 대화문 재생이 가장 흔한 사용 패턴)
+    private final Map<String, String> audioCache = Collections.synchronizedMap(
+            new LinkedHashMap<>(256, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > CACHE_SIZE;
+                }
+            });
+
     public String synthesize(String text, String gender) {
-        String truncated = text.substring(0, Math.min(text.length(), MAX_TEXT_LENGTH));
         String voiceName = "FEMALE".equalsIgnoreCase(gender) ? FEMALE_VOICE : MALE_VOICE;
+        return synthesizeWithVoice(text, voiceName);
+    }
+
+    public String synthesizeWithVoice(String text, String voiceName) {
+        String truncated = text.substring(0, Math.min(text.length(), MAX_TEXT_LENGTH));
+        String cacheKey = voiceName + "|" + truncated;
+
+        String cached = audioCache.get(cacheKey);
+        if (cached != null) {
+            log.info("TTS 캐시 적중: voice={}, textLength={}", voiceName, truncated.length());
+            return cached;
+        }
 
         Map<String, Object> requestBody = Map.of(
                 "input", Map.of("text", truncated),
@@ -70,8 +92,10 @@ public class TTSService {
                 throw new RuntimeException("TTS 응답에 audioContent가 없습니다: " + response);
             }
 
+            String audioContent = audioContentNode.asText();
+            audioCache.put(cacheKey, audioContent);
             log.info("TTS 합성 완료: textLength={}, voice={}", truncated.length(), voiceName);
-            return audioContentNode.asText();
+            return audioContent;
         } catch (Exception e) {
             log.error("TTS API 호출 실패: {}", e.getMessage(), e);
             throw new RuntimeException("음성 합성 실패: " + e.getMessage());

@@ -22,22 +22,19 @@ public class VoiceMatchService {
     @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
-    @Value("${GOOGLE_TTS_API_KEY:}")
-    private String googleTtsApiKey;
-
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
-    private static final String TTS_URL =
-            "https://texttospeech.googleapis.com/v1/text:synthesize";
-
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final TTSService ttsService;
 
     public VoiceMatchService(@Qualifier("audioWebClient") WebClient webClient,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             TTSService ttsService) {
         this.webClient = webClient;
         this.objectMapper = objectMapper;
+        this.ttsService = ttsService;
     }
 
     public VoiceMatchResponse processVoice(MultipartFile audioFile) throws Exception {
@@ -175,34 +172,8 @@ public class VoiceMatchService {
     }
 
     private String callGoogleTts(String text) {
-        Map<String, Object> body = Map.of(
-                "input", Map.of("text", text),
-                "voice", Map.of(
-                        "languageCode", "ko-KR",
-                        "name", "ko-KR-Neural2-A",  // 자연스러운 한국어 여성 음성
-                        "ssmlGender", "FEMALE"
-                ),
-                "audioConfig", Map.of(
-                        "audioEncoding", "MP3",
-                        "speakingRate", 0.9       // 약간 천천히 (학습용)
-                )
-        );
-
-        String response = webClient.post()
-                .uri(TTS_URL + "?key=" + googleTtsApiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
-
-        try {
-            JsonNode root = objectMapper.readTree(response);
-            return root.path("audioContent").asText();
-        } catch (Exception e) {
-            log.error("Google TTS 응답 파싱 실패: {}", response, e);
-            throw new RuntimeException("TTS 변환 실패");
-        }
+        // 자연스러운 한국어 여성 음성, 약간 천천히 (학습용) — 캐싱은 TTSService가 처리
+        return ttsService.synthesizeWithVoice(text, "ko-KR-Neural2-A");
     }
 
     // ── 유틸 ────────────────────────────────────────────────────────────────
