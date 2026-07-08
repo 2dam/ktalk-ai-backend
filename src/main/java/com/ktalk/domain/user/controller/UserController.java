@@ -65,6 +65,24 @@ public class UserController {
         }
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> request) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication() != null
+                ? SecurityContextHolder.getContext().getAuthentication().getPrincipal()
+                : null;
+
+        if (!(principal instanceof Long userId)) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "인증되지 않았습니다."));
+        }
+
+        try {
+            userService.changePassword(userId, request.get("currentPassword"), request.get("newPassword"));
+            return ResponseEntity.ok(Map.of("success", true, "message", "비밀번호가 변경되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> me() {
         Object principal = SecurityContextHolder.getContext().getAuthentication() != null

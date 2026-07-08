@@ -57,6 +57,9 @@ function RecommendedChannels() {
               </a>
           ))}
         </div>
+        <p style={{ fontSize: '11px', color: '#aaa', marginTop: '6px' }}>
+          © 각 영상의 저작권은 해당 채널에 있으며, 클릭 시 YouTube로 이동합니다.
+        </p>
       </div>
   )
 }

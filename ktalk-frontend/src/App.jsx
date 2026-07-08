@@ -23,6 +23,9 @@ function App() {
   const [user, setUser] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [activeTab, setActiveTab] = useState('contents')
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordChanging, setPasswordChanging] = useState(false)
 
   useEffect(() => {
     // Google OAuth2 리다이렉트 처리: /oauth2/redirect?token=...
@@ -64,6 +67,33 @@ function App() {
     setUser(null)
   }
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    setPasswordChanging(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post(
+          `${AUTH_URL}/change-password`,
+          { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword },
+          { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (response.data.success) {
+        alert('비밀번호가 변경되었습니다.')
+        setShowPasswordForm(false)
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      }
+    } catch (error) {
+      alert('비밀번호 변경 실패: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setPasswordChanging(false)
+    }
+  }
+
   if (!authChecked) {
     return null
   }
@@ -84,11 +114,53 @@ function App() {
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <span>안녕하세요, {user.username}님!</span>
+            <button
+                onClick={() => setShowPasswordForm(!showPasswordForm)}
+                style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}
+            >
+              비밀번호 변경
+            </button>
             <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}>
               로그아웃
             </button>
           </div>
         </div>
+
+        {showPasswordForm && (
+            <form onSubmit={handleChangePassword} style={{
+              marginBottom: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px',
+              display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center'
+            }}>
+              <input
+                  type="password"
+                  placeholder="현재 비밀번호"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  style={{ padding: '8px', flex: '1 1 140px' }}
+                  required
+              />
+              <input
+                  type="password"
+                  placeholder="새 비밀번호 (8자 이상)"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  style={{ padding: '8px', flex: '1 1 140px' }}
+                  required
+                  minLength={8}
+              />
+              <input
+                  type="password"
+                  placeholder="새 비밀번호 확인"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  style={{ padding: '8px', flex: '1 1 140px' }}
+                  required
+              />
+              <button type="submit" disabled={passwordChanging} style={{ padding: '8px 16px', cursor: passwordChanging ? 'not-allowed' : 'pointer' }}>
+                {passwordChanging ? '변경 중...' : '변경'}
+              </button>
+            </form>
+        )}
 
         <nav style={{ display: 'flex', gap: 'clamp(2px, 1vw, 6px)', marginBottom: '24px', width: '100%' }}>
           {TABS.map((tab) => (
