@@ -1,23 +1,26 @@
 package com.ktalk.domain.ai.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import reactor.core.publisher.Flux;
 
 @Service
 @Slf4j
@@ -26,17 +29,20 @@ public class TTSService {
 
     private static final int MAX_TEXT_LENGTH = 3000;
     private static final int CACHE_SIZE = 500;
-    private static final String MALE_VOICE = "ko-KR-Chirp3-HD-Charon";
-    private static final String FEMALE_VOICE = "ko-KR-Chirp3-HD-Kore";
+    private static final String CLOVA_TTS_HOST = "naveropenapi.apigw.ntruss.com";
+    private static final String CLOVA_TTS_PATH = "/tts-premium/v1/tts";
+    private static final String MALE_VOICE = "jinho";
+    private static final String FEMALE_VOICE = "nara";
     private static final Pattern SPEAKER_LINE = Pattern.compile("^([A-Za-z]+):\\s*(.*)$");
 
     private final WebClient webClient;
-    private final ObjectMapper objectMapper;
 
-    @Value("${GOOGLE_TTS_API_KEY:}")
-    private String apiKey;
+    @Value("${NAVER_CLOVA_VOICE_CLIENT_ID:${NAVER_CLOVA_CLIENT_ID:}}")
+    private String clovaClientId;
 
-    // 같은 문장을 다시 재생할 때 Google TTS를 또 호출하지 않도록 캐싱 (같은 대화문 재생이 가장 흔한 사용 패턴)
+    @Value("${NAVER_CLOVA_VOICE_CLIENT_SECRET:${NAVER_CLOVA_CLIENT_SECRET:}}")
+    private String clovaClientSecret;
+
     private final Map<String, String> audioCache = Collections.synchronizedMap(
             new LinkedHashMap<>(256, 0.75f, true) {
                 @Override
@@ -52,62 +58,65 @@ public class TTSService {
 
     public String synthesizeWithVoice(String text, String voiceName) {
         String truncated = text.substring(0, Math.min(text.length(), MAX_TEXT_LENGTH));
-        String cacheKey = voiceName + "|" + truncated;
+        String speaker = resolveClovaSpeaker(voiceName);
+        String cacheKey = speaker + "|" + truncated;
 
         String cached = audioCache.get(cacheKey);
         if (cached != null) {
-            log.info("TTS 캐시 적중: voice={}, textLength={}", voiceName, truncated.length());
+            log.info("TTS cache hit: speaker={}, textLength={}", speaker, truncated.length());
             return cached;
         }
 
-        Map<String, Object> requestBody = Map.of(
-                "input", Map.of("text", truncated),
-                "voice", Map.of(
-                        "languageCode", "ko-KR",
-                        "name", voiceName
-                ),
-                "audioConfig", Map.of(
-                        "audioEncoding", "MP3",
-                        "speakingRate", 0.95
-                )
-        );
+        if (clovaClientId == null || clovaClientId.isBlank()
+                || clovaClientSecret == null || clovaClientSecret.isBlank()) {
+            throw new RuntimeException("CLOVA Voice API credentials are missing.");
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("speaker", speaker);
+        form.add("volume", "0");
+        form.add("speed", "-1");
+        form.add("pitch", "0");
+        form.add("format", "mp3");
+        form.add("text", truncated);
 
         try {
-            String response = webClient.post()
+            byte[] audioBytes = webClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .scheme("https")
-                            .host("texttospeech.googleapis.com")
-                            .path("/v1/text:synthesize")
-                            .queryParam("key", apiKey)
+                            .host(CLOVA_TTS_HOST)
+                            .path(CLOVA_TTS_PATH)
                             .build())
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .header("X-NCP-APIGW-API-KEY-ID", clovaClientId)
+                    .header("X-NCP-APIGW-API-KEY", clovaClientSecret)
+                    .header("X-Naver-Client-Id", clovaClientId)
+                    .header("X-Naver-Client-Secret", clovaClientSecret)
+                    .bodyValue(form)
                     .retrieve()
-                    .bodyToMono(String.class)
+                    .bodyToMono(byte[].class)
                     .block();
 
-            JsonNode root = objectMapper.readTree(response);
-            JsonNode audioContentNode = root.path("audioContent");
-            if (audioContentNode.isMissingNode()) {
-                throw new RuntimeException("TTS 응답에 audioContent가 없습니다: " + response);
+            if (audioBytes == null || audioBytes.length == 0) {
+                throw new RuntimeException("CLOVA Voice returned empty audio.");
             }
 
-            String audioContent = audioContentNode.asText();
+            String audioContent = Base64.getEncoder().encodeToString(audioBytes);
             audioCache.put(cacheKey, audioContent);
-            log.info("TTS 합성 완료: textLength={}, voice={}", truncated.length(), voiceName);
+            log.info("CLOVA Voice synthesis completed: textLength={}, speaker={}", truncated.length(), speaker);
             return audioContent;
+        } catch (WebClientResponseException e) {
+            String responseBody = e.getResponseBodyAsString();
+            log.error("CLOVA Voice API failed: status={}, body={}", e.getStatusCode(), responseBody, e);
+            throw new RuntimeException("Voice synthesis failed: CLOVA Voice " + e.getStatusCode() + " " + responseBody);
         } catch (Exception e) {
-            log.error("TTS API 호출 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("음성 합성 실패: " + e.getMessage());
+            log.error("CLOVA Voice API call failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Voice synthesis failed: " + e.getMessage());
         }
     }
 
-    /**
-     * 대화문을 화자(A/B)별로 나눠 각각 다른 성별 음성으로 합성한다.
-     * A는 기본 남성, B는 기본 여성 (swap=true면 반대).
-     */
     public List<Map<String, String>> synthesizeDialogue(String title, String description, String dialogue, boolean swap) {
-        List<String[]> pending = new ArrayList<>(); // [text, gender, speaker]
+        List<String[]> pending = new ArrayList<>();
 
         String intro = (title + ". " + description).trim();
         if (!intro.isEmpty()) {
@@ -118,7 +127,7 @@ public class TTSService {
             for (String rawLine : dialogue.split("\n")) {
                 String line = rawLine.trim();
                 if (line.isEmpty()) continue;
-                if (line.startsWith("[") && line.endsWith("]")) continue; // 섹션 헤더 스킵
+                if (line.startsWith("[") && line.endsWith("]")) continue;
 
                 Matcher matcher = SPEAKER_LINE.matcher(line);
                 if (matcher.matches()) {
@@ -154,5 +163,19 @@ public class TTSService {
         boolean isA = "A".equalsIgnoreCase(speaker);
         boolean maleTurn = swap != isA;
         return maleTurn ? "MALE" : "FEMALE";
+    }
+
+    private String resolveClovaSpeaker(String voiceName) {
+        if (voiceName == null || voiceName.isBlank()) {
+            return FEMALE_VOICE;
+        }
+        String normalized = voiceName.trim().toLowerCase();
+        if (normalized.equals(MALE_VOICE) || normalized.equals(FEMALE_VOICE)) {
+            return normalized;
+        }
+        if (normalized.contains("charon") || normalized.contains("male")) {
+            return MALE_VOICE;
+        }
+        return FEMALE_VOICE;
     }
 }
