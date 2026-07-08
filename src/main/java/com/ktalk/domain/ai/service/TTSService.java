@@ -107,11 +107,11 @@ public class TTSService {
      * A는 기본 남성, B는 기본 여성 (swap=true면 반대).
      */
     public List<Map<String, String>> synthesizeDialogue(String title, String description, String dialogue, boolean swap) {
-        List<String[]> pending = new ArrayList<>(); // [text, gender]
+        List<String[]> pending = new ArrayList<>(); // [text, gender, speaker]
 
         String intro = (title + ". " + description).trim();
         if (!intro.isEmpty()) {
-            pending.add(new String[]{intro, "MALE"});
+            pending.add(new String[]{intro, "MALE", "narrator"});
         }
 
         if (dialogue != null) {
@@ -122,12 +122,12 @@ public class TTSService {
 
                 Matcher matcher = SPEAKER_LINE.matcher(line);
                 if (matcher.matches()) {
-                    String speaker = matcher.group(1);
+                    String speaker = matcher.group(1).toUpperCase();
                     String text = matcher.group(2).trim();
                     if (text.isEmpty()) continue;
-                    pending.add(new String[]{text, resolveGender(speaker, swap)});
+                    pending.add(new String[]{text, resolveGender(speaker, swap), speaker});
                 } else {
-                    pending.add(new String[]{line, "MALE"});
+                    pending.add(new String[]{line, "MALE", "narrator"});
                 }
             }
         }
@@ -141,7 +141,9 @@ public class TTSService {
         List<Map<String, String>> segments = new ArrayList<>();
         for (int i = 0; i < pending.size(); i++) {
             Map<String, String> segment = new LinkedHashMap<>();
+            segment.put("speaker", pending.get(i)[2]);
             segment.put("gender", pending.get(i)[1]);
+            segment.put("text", pending.get(i)[0]);
             segment.put("audioContent", audioContents.get(i));
             segments.add(segment);
         }

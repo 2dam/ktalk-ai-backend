@@ -17,8 +17,17 @@ function ContentManager() {
   const [speakingId, setSpeakingId] = useState(null)
   const [showDialogueId, setShowDialogueId] = useState(null)
   const [swapVoices, setSwapVoices] = useState(false)
+  const [segments, setSegments] = useState([])
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(null)
+  const [isPaused, setIsPaused] = useState(false)
   const audioRef = useRef(null)
   const speakRequestIdRef = useRef(0)
+
+  const SPEAKER_STYLE = {
+    A: { bg: '#dbeafe', text: '#1d4ed8' },
+    B: { bg: '#fce7f3', text: '#be185d' },
+    narrator: { bg: '#f3f4f6', text: '#6b7280' }
+  }
 
   useEffect(() => {
     fetchContents()
@@ -156,6 +165,32 @@ function ContentManager() {
     }
   }
 
+  // 세그먼트 하나를 재생하고, 끝나면 자동으로 다음 세그먼트로 넘어간다.
+  const playSegmentAt = (segmentList, index, requestId) => {
+    if (requestId !== speakRequestIdRef.current) return
+
+    if (index >= segmentList.length) {
+      setSpeakingId(null)
+      setCurrentSegmentIndex(null)
+      audioRef.current = null
+      return
+    }
+
+    setCurrentSegmentIndex(index)
+    setIsPaused(false)
+
+    const audio = new Audio(`data:audio/mp3;base64,${segmentList[index].audioContent}`)
+    audioRef.current = audio
+
+    const advance = () => {
+      if (requestId !== speakRequestIdRef.current) return
+      playSegmentAt(segmentList, index + 1, requestId)
+    }
+    audio.onended = advance
+    audio.onerror = advance
+    audio.play().catch(advance)
+  }
+
   const handleSpeak = async (content, swap = swapVoices) => {
     const requestId = ++speakRequestIdRef.current
 
@@ -166,6 +201,8 @@ function ContentManager() {
 
     try {
       setSpeakingId(content.id)
+      setSegments([])
+      setCurrentSegmentIndex(null)
 
       const response = await axios.post(`${AI_URL}/tts/dialogue`, {
         title: content.title,
@@ -177,29 +214,46 @@ function ContentManager() {
       // 응답을 기다리는 동안 다른 요청(중지/재선택)이 있었다면 이 결과는 버린다 (중복 재생 방지)
       if (requestId !== speakRequestIdRef.current) return
 
-      const segments = response.data.data.segments
-
-      for (const segment of segments) {
-        if (requestId !== speakRequestIdRef.current) return
-
-        const audio = new Audio(`data:audio/mp3;base64,${segment.audioContent}`)
-        audioRef.current = audio
-
-        await new Promise((resolve) => {
-          audio.onended = resolve
-          audio.onerror = resolve
-          audio.play().catch(resolve)
-        })
-
-        if (requestId !== speakRequestIdRef.current) return
-      }
-
-      setSpeakingId(null)
-      audioRef.current = null
+      const newSegments = response.data.data.segments
+      setSegments(newSegments)
+      playSegmentAt(newSegments, 0, requestId)
     } catch (error) {
       if (requestId !== speakRequestIdRef.current) return
       alert('음성 생성 실패: ' + (error.response?.data?.message || error.message))
       setSpeakingId(null)
+    }
+  }
+
+  const jumpToSegment = (index) => {
+    const requestId = ++speakRequestIdRef.current
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    playSegmentAt(segments, index, requestId)
+  }
+
+  const handlePrevSegment = () => {
+    if (currentSegmentIndex === null || currentSegmentIndex <= 0) return
+    jumpToSegment(currentSegmentIndex - 1)
+  }
+
+  const handleNextSegment = () => {
+    if (currentSegmentIndex === null || currentSegmentIndex >= segments.length - 1) return
+    jumpToSegment(currentSegmentIndex + 1)
+  }
+
+  const handleTogglePlayPause = (content) => {
+    if (!audioRef.current || currentSegmentIndex === null) {
+      handleSpeak(content)
+      return
+    }
+    if (isPaused) {
+      audioRef.current.play()
+      setIsPaused(false)
+    } else {
+      audioRef.current.pause()
+      setIsPaused(true)
     }
   }
 
@@ -217,6 +271,9 @@ function ContentManager() {
     }
     setSpeakingId(null)
     setShowDialogueId(null)
+    setSegments([])
+    setCurrentSegmentIndex(null)
+    setIsPaused(false)
   }
 
   return (
@@ -390,74 +447,120 @@ function ContentManager() {
                             style={{
                               padding: '5px 15px',
                               cursor: 'pointer',
-                              backgroundColor: showDialogueId === content.id ? '#28a745' : '#17a2b8',
+                              backgroundColor: showDialogueId === content.id ? '#be185d' : '#ec4899',
                               color: 'white',
                               border: 'none',
-                              borderRadius: '4px',
-                              marginRight: '10px'
+                              borderRadius: '4px'
                             }}
                         >
                           {showDialogueId === content.id ? '💬 닫기' : '💬 대화'}
                         </button>
-                        {showDialogueId === content.id && (
-                            <button
-                                onClick={stopSpeaking}
-                                style={{
-                                  padding: '5px 15px',
-                                  cursor: 'pointer',
-                                  backgroundColor: '#dc3545',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  marginRight: '10px'
-                                }}
-                            >
-                              🔇 중지
-                            </button>
-                        )}
-                        {showDialogueId === content.id && (
-                            <button
-                                onClick={function() { handleToggleSwapVoices(content) }}
-                                style={{
-                                  padding: '5px 15px',
-                                  cursor: 'pointer',
-                                  backgroundColor: '#6c5ce7',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px'
-                                }}
-                            >
-                              🔄 {swapVoices ? 'A: 여성 / B: 남성' : 'A: 남성 / B: 여성'}
-                            </button>
-                        )}
                       </div>
 
                       {showDialogueId === content.id && content.dialogue && (
-                          <div style={{
-                            marginTop: '20px',
-                            padding: '20px',
-                            backgroundColor: '#fff',
-                            border: '2px solid #17a2b8',
-                            borderRadius: '8px',
-                            whiteSpace: 'pre-line',
-                            lineHeight: '2',
-                            fontSize: '16px'
-                          }}>
-                            <div style={{
-                              marginBottom: '15px',
-                              fontWeight: 'bold',
-                              color: '#17a2b8',
-                              fontSize: '18px'
-                            }}>
-                              💬 대화문 (음성 재생 중)
+                          <div style={{ marginTop: '20px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #f9d3e7' }}>
+                            <div style={{ background: '#ec4899', color: 'white', padding: '16px 20px' }}>
+                              <div style={{ fontSize: '11px', fontWeight: 500, opacity: 0.85, marginBottom: '4px' }}>
+                                {content.category} · {content.koreanLevel}
+                              </div>
+                              <div style={{ fontSize: '18px', fontWeight: 600 }}>{content.title}</div>
                             </div>
-                            <div style={{
-                              backgroundColor: '#f8f9fa',
-                              padding: '15px',
-                              borderRadius: '4px',
-                              borderLeft: '4px solid #17a2b8'
-                            }}>
-                              {content.dialogue}
+
+                            <div style={{ padding: '24px 20px', backgroundColor: '#fff' }}>
+                              {currentSegmentIndex !== null && segments[currentSegmentIndex] ? (
+                                  <div style={{ textAlign: 'center', marginBottom: '24px', minHeight: '70px' }}>
+                                    {segments[currentSegmentIndex].speaker !== 'narrator' && (
+                                        <div style={{
+                                          display: 'inline-flex', width: '32px', height: '32px', borderRadius: '50%',
+                                          alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600,
+                                          marginBottom: '10px',
+                                          backgroundColor: (SPEAKER_STYLE[segments[currentSegmentIndex].speaker] || SPEAKER_STYLE.narrator).bg,
+                                          color: (SPEAKER_STYLE[segments[currentSegmentIndex].speaker] || SPEAKER_STYLE.narrator).text
+                                        }}>
+                                          {segments[currentSegmentIndex].speaker}
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: '18px', fontWeight: 500, lineHeight: 1.6 }}>
+                                      {segments[currentSegmentIndex].text}
+                                    </div>
+                                  </div>
+                              ) : (
+                                  <div style={{ textAlign: 'center', marginBottom: '24px', minHeight: '70px', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {speakingId === content.id ? '준비 중...' : '재생을 눌러 대화를 들어보세요.'}
+                                  </div>
+                              )}
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px', marginBottom: '16px' }}>
+                                <button
+                                    onClick={handlePrevSegment}
+                                    disabled={currentSegmentIndex === null || currentSegmentIndex <= 0}
+                                    style={{
+                                      width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #eee',
+                                      backgroundColor: '#fff', fontSize: '14px',
+                                      cursor: (currentSegmentIndex === null || currentSegmentIndex <= 0) ? 'not-allowed' : 'pointer',
+                                      opacity: (currentSegmentIndex === null || currentSegmentIndex <= 0) ? 0.4 : 1
+                                    }}
+                                >
+                                  ⏮
+                                </button>
+                                <button
+                                    onClick={function() { handleTogglePlayPause(content) }}
+                                    style={{
+                                      width: '56px', height: '56px', borderRadius: '50%', border: 'none',
+                                      backgroundColor: '#ec4899', color: 'white', fontSize: '20px', cursor: 'pointer'
+                                    }}
+                                >
+                                  {(currentSegmentIndex !== null && !isPaused) ? '❚❚' : '▶'}
+                                </button>
+                                <button
+                                    onClick={handleNextSegment}
+                                    disabled={currentSegmentIndex === null || currentSegmentIndex >= segments.length - 1}
+                                    style={{
+                                      width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #eee',
+                                      backgroundColor: '#fff', fontSize: '14px',
+                                      cursor: (currentSegmentIndex === null || currentSegmentIndex >= segments.length - 1) ? 'not-allowed' : 'pointer',
+                                      opacity: (currentSegmentIndex === null || currentSegmentIndex >= segments.length - 1) ? 0.4 : 1
+                                    }}
+                                >
+                                  ⏭
+                                </button>
+                              </div>
+
+                              {segments.length > 0 && (
+                                  <>
+                                    <div style={{ height: '4px', backgroundColor: '#fce7f3', borderRadius: '2px', marginBottom: '6px' }}>
+                                      <div style={{
+                                        height: '100%',
+                                        width: (((currentSegmentIndex ?? -1) + 1) / segments.length * 100) + '%',
+                                        backgroundColor: '#ec4899', borderRadius: '2px', transition: 'width 0.3s'
+                                      }} />
+                                    </div>
+                                    <div style={{ textAlign: 'center', fontSize: '12px', color: '#999', marginBottom: '16px' }}>
+                                      문장 {(currentSegmentIndex ?? -1) + 1} / {segments.length}
+                                    </div>
+                                  </>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                                <button
+                                    onClick={function() { handleToggleSwapVoices(content) }}
+                                    style={{
+                                      padding: '6px 14px', cursor: 'pointer', backgroundColor: '#f3f4f6',
+                                      color: '#555', border: 'none', borderRadius: '999px', fontSize: '12px'
+                                    }}
+                                >
+                                  🔄 {swapVoices ? 'A 여성 · B 남성' : 'A 남성 · B 여성'}
+                                </button>
+                                <button
+                                    onClick={stopSpeaking}
+                                    style={{
+                                      padding: '6px 14px', cursor: 'pointer', backgroundColor: '#f3f4f6',
+                                      color: '#555', border: 'none', borderRadius: '999px', fontSize: '12px'
+                                    }}
+                                >
+                                  🔇 중지
+                                </button>
+                              </div>
                             </div>
                           </div>
                       )}
