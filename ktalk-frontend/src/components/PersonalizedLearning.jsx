@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { API_URL, LEARNING_URL } from '../api'
+import { TAB_COLORS } from '../theme'
+
+const ACCENT = TAB_COLORS.personalized.accent
+const ACCENT_TINT = TAB_COLORS.personalized.tint
 
 function PersonalizedLearning({ onNavigate }) {
   const [stats, setStats] = useState(null)
@@ -45,7 +49,7 @@ function PersonalizedLearning({ onNavigate }) {
 
   return (
       <div>
-        <div style={{ padding: '20px', border: '2px solid #6610f2', borderRadius: '8px', backgroundColor: '#f5f0ff', marginBottom: '20px' }}>
+        <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
           <h2>🎯 Personalized Learning</h2>
           <p>내 학습 현황을 확인하고, 아직 연습하지 않은 콘텐츠를 추천받아 보세요.</p>
         </div>
@@ -54,11 +58,11 @@ function PersonalizedLearning({ onNavigate }) {
 
         <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
           <div style={{ flex: 1, padding: '20px', border: '1px solid #ddd', borderRadius: '8px', textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#6610f2' }}>{stats?.completedCount ?? 0}</div>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', color: ACCENT }}>{stats?.completedCount ?? 0}</div>
             <div style={{ color: '#666' }}>완료한 학습</div>
           </div>
           <div style={{ flex: 1, padding: '20px', border: '1px solid #ddd', borderRadius: '8px', textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#6610f2' }}>{active.length}</div>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', color: ACCENT }}>{active.length}</div>
             <div style={{ color: '#666' }}>진행 중인 학습</div>
           </div>
         </div>
@@ -81,7 +85,7 @@ function PersonalizedLearning({ onNavigate }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 'bold' }}>{progress.videoTitle}</div>
                       <div style={{ fontSize: '13px', color: '#666' }}>{progress.channelName}</div>
-                      <div style={{ fontSize: '13px', color: '#6610f2' }}>진행률: {progress.progressPercent ?? 0}%</div>
+                      <div style={{ fontSize: '13px', color: ACCENT }}>진행률: {progress.progressPercent ?? 0}%</div>
                     </div>
                     <button onClick={() => handleComplete(progress.id)}
                             style={{ padding: '8px 14px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>
@@ -111,7 +115,7 @@ function PersonalizedLearning({ onNavigate }) {
                       </div>
                     </div>
                     <button onClick={() => onNavigate?.('contents')}
-                            style={{ padding: '8px 14px', cursor: 'pointer', backgroundColor: '#6610f2', color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '8px 14px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px', whiteSpace: 'nowrap' }}>
                       학습하러 가기
                     </button>
                   </div>

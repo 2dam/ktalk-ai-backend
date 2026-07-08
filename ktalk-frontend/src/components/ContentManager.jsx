@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { API_URL, AI_URL } from '../api'
+import { TAB_COLORS } from '../theme'
+
+const ACCENT = TAB_COLORS.contents.accent
+const ACCENT_DARK = TAB_COLORS.contents.dark
+const ACCENT_TINT = TAB_COLORS.contents.tint
 
 function ContentManager() {
   const [contents, setContents] = useState([])
@@ -278,7 +283,7 @@ function ContentManager() {
 
   return (
       <div>
-        <div style={{ marginBottom: '30px', padding: '20px', border: '2px solid #007bff', borderRadius: '8px', backgroundColor: '#f0f8ff' }}>
+        <div style={{ marginBottom: '30px', padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT }}>
           <h2>🤖 AI로 콘텐츠 생성 <span style={{ fontSize: '13px', color: '#999', fontWeight: 'normal' }}>AI Content Generation</span></h2>
           <p>
             주제를 입력하면 AI가 자동으로 한국어 학습 콘텐츠를 생성합니다.
@@ -305,7 +310,7 @@ function ContentManager() {
                   padding: '10px 20px',
                   fontSize: '16px',
                   cursor: isGenerating ? 'not-allowed' : 'pointer',
-                  backgroundColor: isGenerating ? '#ccc' : '#007bff',
+                  backgroundColor: isGenerating ? '#ccc' : ACCENT,
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px'
@@ -447,7 +452,7 @@ function ContentManager() {
                             style={{
                               padding: '5px 15px',
                               cursor: 'pointer',
-                              backgroundColor: showDialogueId === content.id ? '#be185d' : '#ec4899',
+                              backgroundColor: showDialogueId === content.id ? ACCENT_DARK : ACCENT,
                               color: 'white',
                               border: 'none',
                               borderRadius: '4px'
@@ -458,8 +463,8 @@ function ContentManager() {
                       </div>
 
                       {showDialogueId === content.id && content.dialogue && (
-                          <div style={{ marginTop: '20px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #f9d3e7' }}>
-                            <div style={{ background: '#ec4899', color: 'white', padding: '16px 20px' }}>
+                          <div style={{ marginTop: '20px', borderRadius: '16px', overflow: 'hidden', border: '1px solid ' + TAB_COLORS.contents.tint }}>
+                            <div style={{ background: ACCENT, color: 'white', padding: '16px 20px' }}>
                               <div style={{ fontSize: '11px', fontWeight: 500, opacity: 0.85, marginBottom: '4px' }}>
                                 {content.category} · {content.koreanLevel}
                               </div>
@@ -507,7 +512,7 @@ function ContentManager() {
                                     onClick={function() { handleTogglePlayPause(content) }}
                                     style={{
                                       width: '56px', height: '56px', borderRadius: '50%', border: 'none',
-                                      backgroundColor: '#ec4899', color: 'white', fontSize: '20px', cursor: 'pointer'
+                                      backgroundColor: ACCENT, color: 'white', fontSize: '20px', cursor: 'pointer'
                                     }}
                                 >
                                   {(currentSegmentIndex !== null && !isPaused) ? '❚❚' : '▶'}
@@ -532,7 +537,7 @@ function ContentManager() {
                                       <div style={{
                                         height: '100%',
                                         width: (((currentSegmentIndex ?? -1) + 1) / segments.length * 100) + '%',
-                                        backgroundColor: '#ec4899', borderRadius: '2px', transition: 'width 0.3s'
+                                        backgroundColor: ACCENT, borderRadius: '2px', transition: 'width 0.3s'
                                       }} />
                                     </div>
                                     <div style={{ textAlign: 'center', fontSize: '12px', color: '#999', marginBottom: '16px' }}>

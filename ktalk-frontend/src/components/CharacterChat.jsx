@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
+import { TAB_COLORS } from '../theme'
+
+const ACCENT = TAB_COLORS.chat.accent
+const ACCENT_TINT = TAB_COLORS.chat.tint
 
 function speak(text) {
   if (!('speechSynthesis' in window)) return
@@ -77,7 +81,7 @@ function CharacterChat() {
 
   return (
       <div>
-        <div style={{ padding: '20px', border: '2px solid #17a2b8', borderRadius: '8px', backgroundColor: '#f0fbfd', marginBottom: '20px' }}>
+        <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
           <h2>💬 AI Character Chat</h2>
           <p>하고 싶은 말을 입력하면, K-POP/K-드라마 속 실제 대사로 비슷한 한국어 표현을 찾아드려요.</p>
         </div>
@@ -92,7 +96,7 @@ function CharacterChat() {
                     <div style={{ textAlign: 'right' }}>
                       <span style={{
                         display: 'inline-block', padding: '10px 15px', borderRadius: '16px',
-                        backgroundColor: '#007bff', color: 'white', maxWidth: '70%'
+                        backgroundColor: ACCENT, color: 'white', maxWidth: '70%'
                       }}>
                         {msg.text}
                       </span>
@@ -116,7 +120,7 @@ function CharacterChat() {
                             </div>
                             <div style={{ fontSize: '13px', color: '#666' }}>{phrase.romanization}</div>
                             <div style={{ fontSize: '14px', marginTop: '4px' }}>{phrase.meaning}</div>
-                            <div style={{ fontSize: '12px', color: '#17a2b8', marginTop: '4px' }}>
+                            <div style={{ fontSize: '12px', color: ACCENT, marginTop: '4px' }}>
                               🎵 {phrase.source} ({phrase.sourceType})
                             </div>
                             <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
@@ -183,7 +187,7 @@ function CharacterChat() {
               disabled={isSending}
           />
           <button type="submit" disabled={isSending}
-                  style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px' }}>
+                  style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
             보내기
           </button>
         </form>

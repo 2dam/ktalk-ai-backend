@@ -8,6 +8,7 @@ import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
 import RecommendedChannels from './components/RecommendedChannels'
 import { AUTH_URL } from './api'
+import { TAB_COLORS } from './theme'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
 
@@ -178,7 +179,7 @@ function App() {
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    backgroundColor: activeTab === tab.id ? '#007bff' : '#e9ecef',
+                    backgroundColor: activeTab === tab.id ? TAB_COLORS[tab.id].accent : '#e9ecef',
                     color: activeTab === tab.id ? 'white' : '#333',
                     fontWeight: activeTab === tab.id ? 'bold' : 'normal'
                   }}

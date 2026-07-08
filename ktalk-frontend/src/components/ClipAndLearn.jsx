@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import axios from 'axios'
 import { AI_URL, LEARNING_URL } from '../api'
+import { TAB_COLORS } from '../theme'
+
+const ACCENT = TAB_COLORS.clip.accent
+const ACCENT_TINT = TAB_COLORS.clip.tint
 
 function ClipAndLearn() {
   const [query, setQuery] = useState('')
@@ -101,7 +105,7 @@ function ClipAndLearn() {
 
   return (
       <div>
-        <div style={{ marginBottom: '20px', padding: '20px', border: '2px solid #6f42c1', borderRadius: '8px', backgroundColor: '#f8f5ff' }}>
+        <div style={{ marginBottom: '20px', padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT }}>
           <h2>🎬 Clip & Learn</h2>
           <p>K-드라마/K-POP 영상을 검색하고, 대본을 붙여넣어 퀴즈로 학습해보세요.</p>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
@@ -113,7 +117,7 @@ function ClipAndLearn() {
                 style={{ flex: 1, padding: '10px', fontSize: '16px' }}
             />
             <button type="submit" disabled={isSearching}
-                    style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px' }}>
+                    style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
               {isSearching ? '검색 중...' : '검색'}
             </button>
           </form>
@@ -126,7 +130,7 @@ function ClipAndLearn() {
                   <div key={video.videoId}
                        onClick={() => handleSelectVideo(video)}
                        style={{
-                         border: selectedVideo?.videoId === video.videoId ? '2px solid #6f42c1' : '1px solid #ddd',
+                         border: selectedVideo?.videoId === video.videoId ? '2px solid ' + ACCENT : '1px solid #ddd',
                          borderRadius: '8px', overflow: 'hidden', cursor: 'pointer'
                        }}>
                     {video.thumbnailUrl && <img src={video.thumbnailUrl} alt={video.title} style={{ width: '100%', display: 'block' }} />}
@@ -185,7 +189,7 @@ function ClipAndLearn() {
                     <option value={5}>5</option>
                   </select>
                   <button onClick={handleGenerateQuiz} disabled={isGeneratingQuiz}
-                          style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px' }}>
+                          style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
                     {isGeneratingQuiz ? '퀴즈 생성 중...' : '퀴즈 생성'}
                   </button>
                   {progressId && !completed && (

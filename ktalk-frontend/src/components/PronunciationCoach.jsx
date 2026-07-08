@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
+import { TAB_COLORS } from '../theme'
+
+const ACCENT = TAB_COLORS.pronunciation.accent
+const ACCENT_TINT = TAB_COLORS.pronunciation.tint
 
 const SAMPLE_PHRASES = [
   '안녕하세요, 만나서 반가워요.',
@@ -91,7 +95,7 @@ function PronunciationCoach() {
 
   return (
       <div>
-        <div style={{ padding: '20px', border: '2px solid #fd7e14', borderRadius: '8px', backgroundColor: '#fff8f0', marginBottom: '20px' }}>
+        <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
           <h2>🎤 AI Pronunciation Coach</h2>
           <p>목표 문장을 듣고 따라 말한 뒤 녹음하면, AI가 발음을 채점하고 개선 팁을 알려줍니다.</p>
         </div>
@@ -118,7 +122,7 @@ function PronunciationCoach() {
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '15px' }}>
             {!isRecording ? (
                 <button onClick={startRecording}
-                        style={{ padding: '12px 24px', cursor: 'pointer', backgroundColor: '#fd7e14', color: 'white', border: 'none', borderRadius: '24px', fontSize: '16px' }}>
+                        style={{ padding: '12px 24px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '24px', fontSize: '16px' }}>
                   🎙️ 녹음 시작
                 </button>
             ) : (
