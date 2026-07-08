@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import Auth from './Auth'
 import './App.css'
@@ -23,6 +23,9 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [speakingId, setSpeakingId] = useState(null)
   const [showDialogueId, setShowDialogueId] = useState(null)
+  const [swapVoices, setSwapVoices] = useState(false)
+  const audioRef = useRef(null)
+  const speakRequestIdRef = useRef(0)
 
   useEffect(() => {
     // Google OAuth2 리다이렉트 처리: /oauth2/redirect?token=...
@@ -154,9 +157,7 @@ function App() {
     // 대화문이 있으면 바로 표시
     if (content.dialogue) {
       if (showDialogueId === content.id) {
-        setShowDialogueId(null)
-        window.speechSynthesis.cancel()
-        setSpeakingId(null)
+        stopSpeaking()
       } else {
         setShowDialogueId(content.id)
         handleSpeak(content)
@@ -198,35 +199,65 @@ function App() {
     }
   }
 
-  const handleSpeak = (content) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
+  const handleSpeak = async (content, swap = swapVoices) => {
+    const requestId = ++speakRequestIdRef.current
 
-      const text = content.title + '. ' + content.description + '. ' + (content.dialogue || '')
-      const utterance = new SpeechSynthesisUtterance(text)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
 
-      utterance.lang = 'ko-KR'
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 1
-
-      utterance.onend = () => {
-        setSpeakingId(null)
-      }
-
-      utterance.onerror = () => {
-        setSpeakingId(null)
-      }
-
+    try {
       setSpeakingId(content.id)
-      window.speechSynthesis.speak(utterance)
-    } else {
-      alert('이 브라우저는 음성 지원을 하지 않습니다.')
+
+      const response = await axios.post(`${AI_URL}/tts/dialogue`, {
+        title: content.title,
+        description: content.description,
+        dialogue: content.dialogue || '',
+        swap
+      })
+
+      // 응답을 기다리는 동안 다른 요청(중지/재선택)이 있었다면 이 결과는 버린다 (중복 재생 방지)
+      if (requestId !== speakRequestIdRef.current) return
+
+      const segments = response.data.data.segments
+
+      for (const segment of segments) {
+        if (requestId !== speakRequestIdRef.current) return
+
+        const audio = new Audio(`data:audio/mp3;base64,${segment.audioContent}`)
+        audioRef.current = audio
+
+        await new Promise((resolve) => {
+          audio.onended = resolve
+          audio.onerror = resolve
+          audio.play().catch(resolve)
+        })
+
+        if (requestId !== speakRequestIdRef.current) return
+      }
+
+      setSpeakingId(null)
+      audioRef.current = null
+    } catch (error) {
+      if (requestId !== speakRequestIdRef.current) return
+      alert('음성 생성 실패: ' + (error.response?.data?.message || error.message))
+      setSpeakingId(null)
     }
   }
 
+  const handleToggleSwapVoices = (content) => {
+    const nextSwap = !swapVoices
+    setSwapVoices(nextSwap)
+    handleSpeak(content, nextSwap)
+  }
+
   const stopSpeaking = () => {
-    window.speechSynthesis.cancel()
+    speakRequestIdRef.current++
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
     setSpeakingId(null)
     setShowDialogueId(null)
   }
@@ -409,10 +440,26 @@ function App() {
                                   backgroundColor: '#dc3545',
                                   color: 'white',
                                   border: 'none',
-                                  borderRadius: '4px'
+                                  borderRadius: '4px',
+                                  marginRight: '10px'
                                 }}
                             >
                               🔇 중지
+                            </button>
+                        )}
+                        {showDialogueId === content.id && (
+                            <button
+                                onClick={function() { handleToggleSwapVoices(content) }}
+                                style={{
+                                  padding: '5px 15px',
+                                  cursor: 'pointer',
+                                  backgroundColor: '#6c5ce7',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px'
+                                }}
+                            >
+                              🔄 {swapVoices ? 'A: 여성 / B: 남성' : 'A: 남성 / B: 여성'}
                             </button>
                         )}
                       </div>
