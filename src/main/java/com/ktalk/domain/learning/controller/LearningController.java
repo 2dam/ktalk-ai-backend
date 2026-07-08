@@ -6,6 +6,7 @@ import com.ktalk.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,15 +19,21 @@ public class LearningController {
 
     private final LearningService learningService;
 
-    // 임시 사용자 ID (실제 구현에서는 SecurityContext에서 가져옴)
+    // JwtAuthenticationFilter가 유효한 토큰의 사용자 ID를 principal로 세팅해둔다.
+    // 토큰이 없거나 유효하지 않으면 null을 반환한다.
     private Long getCurrentUserId() {
-        return 1L; // 임시: 첫 번째 사용자
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication != null ? authentication.getPrincipal() : null;
+        return principal instanceof Long userId ? userId : null;
     }
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse> startLearning(@RequestBody StartLearningRequest request) {
         try {
             Long userId = getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(401).body(ApiResponse.error("로그인이 필요합니다."));
+            }
             LearningProgress progress = learningService.startLearning(
                     userId,
                     request.videoId(),
@@ -76,6 +83,9 @@ public class LearningController {
     public ResponseEntity<ApiResponse> getProgress() {
         try {
             Long userId = getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(401).body(ApiResponse.error("로그인이 필요합니다."));
+            }
             List<LearningProgress> progress = learningService.getUserProgress(userId);
             return ResponseEntity.ok(ApiResponse.success(progress));
         } catch (Exception e) {
@@ -89,6 +99,9 @@ public class LearningController {
     public ResponseEntity<ApiResponse> getActiveLearning() {
         try {
             Long userId = getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(401).body(ApiResponse.error("로그인이 필요합니다."));
+            }
             List<LearningProgress> active = learningService.getActiveLearning(userId);
             return ResponseEntity.ok(ApiResponse.success(active));
         } catch (Exception e) {
@@ -102,6 +115,9 @@ public class LearningController {
     public ResponseEntity<ApiResponse> getLearningStats() {
         try {
             Long userId = getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(401).body(ApiResponse.error("로그인이 필요합니다."));
+            }
             long completedCount = learningService.getCompletedCount(userId);
             return ResponseEntity.ok(ApiResponse.success(
                     new LearningStats(completedCount),
