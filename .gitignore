@@ -40,6 +40,9 @@ application.yml
 application-secret.yml
 .env
 
+# 로컬 개발용 H2 파일 DB (회원 개인정보 포함, 커밋 금지)
+/data/
+
 # Build files
 build/
 target/

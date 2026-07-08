@@ -37,7 +37,7 @@ public class GeminiService {
                     .uri(uriBuilder -> uriBuilder
                             .scheme("https")
                             .host("generativelanguage.googleapis.com")
-                            .path("/v1beta/models/gemini-pro:generateContent")
+                            .path("/v1beta/models/gemini-flash-latest:generateContent")
                             .queryParam("key", apiKey)
                             .build())
                     .header("Content-Type", "application/json")
