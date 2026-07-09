@@ -32,13 +32,17 @@ services:
         fromDatabase:
           name: ktalk-db
           property: password
-      - key: ELEVENLABS_API_KEY
+      - key: GOOGLE_TTS_API_KEY
         sync: false
-      - key: ELEVENLABS_MODEL_ID
-        value: eleven_multilingual_v2
-      - key: ELEVENLABS_MAX_CONCURRENT_REQUESTS
-        value: "3"
-      - key: ELEVENLABS_QUEUE_TIMEOUT_SECONDS
+      - key: GOOGLE_TTS_LANGUAGE
+        value: ko-KR
+      - key: GOOGLE_TTS_FEMALE_VOICE
+        value: ko-KR-Chirp3-HD-Zephyr
+      - key: GOOGLE_TTS_MALE_VOICE
+        value: ko-KR-Chirp3-HD-Rasalgethi
+      - key: GOOGLE_TTS_MAX_CONCURRENT_REQUESTS
+        value: "8"
+      - key: GOOGLE_TTS_QUEUE_TIMEOUT_SECONDS
         value: "60"
       - key: TTS_USER_REQUESTS_PER_MINUTE
         value: "6"

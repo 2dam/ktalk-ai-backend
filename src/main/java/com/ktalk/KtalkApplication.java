@@ -14,10 +14,10 @@ public class KtalkApplication {
         setIfPresent(dotenv, "GOOGLE_CLIENT_SECRET");
         setIfPresent(dotenv, "YOUTUBE_API_KEY");
         setIfPresent(dotenv, "GEMINI_API_KEY");
-        setIfPresent(dotenv, "ELEVENLABS_API_KEY");
-        setIfPresent(dotenv, "ELEVENLABS_MODEL_ID");
-        setIfPresent(dotenv, "ELEVENLABS_MALE_VOICE_ID");
-        setIfPresent(dotenv, "ELEVENLABS_FEMALE_VOICE_ID");
+        setIfPresent(dotenv, "GOOGLE_TTS_API_KEY");
+        setIfPresent(dotenv, "GOOGLE_TTS_LANGUAGE");
+        setIfPresent(dotenv, "GOOGLE_TTS_MALE_VOICE");
+        setIfPresent(dotenv, "GOOGLE_TTS_FEMALE_VOICE");
 
         SpringApplication.run(KtalkApplication.class, args);
     }

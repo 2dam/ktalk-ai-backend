@@ -27,7 +27,7 @@ public class VoiceMatchController {
      *
      * 외국어 음성 파일을 업로드하면:
      *   1. Gemini가 음성을 인식하고 Kpop/Kdrama 한국어 표현을 찾음
-     *   2. ElevenLabs가 한국어 표현들을 음성으로 변환
+     *   2. Google TTS가 한국어 표현들을 음성으로 변환
      *
      * Request: multipart/form-data
      *   - audio: 음성 파일 (webm, mp3, wav, m4a, ogg 지원)

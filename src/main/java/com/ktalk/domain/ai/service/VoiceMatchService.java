@@ -50,8 +50,8 @@ public class VoiceMatchService {
         // 3. 한국어 표현들을 읽어줄 TTS 스크립트 생성
         String ttsScript = buildTtsScript(parsed.phrases());
 
-        // 4. ElevenLabs TTS API로 한국어 음성 생성
-        String audioContent = callElevenLabsTts(ttsScript);
+        // 4. Google TTS API로 한국어 음성 생성
+        String audioContent = callGoogleTts(ttsScript);
 
         return new VoiceMatchResponse(
                 parsed.transcription(),
@@ -171,7 +171,7 @@ public class VoiceMatchService {
         return sb.toString();
     }
 
-    private String callElevenLabsTts(String text) {
+    private String callGoogleTts(String text) {
         // 자연스러운 한국어 여성 음성, 약간 천천히 (학습용) — 캐싱은 TTSService가 처리
         return ttsService.synthesize(text, "FEMALE");
     }

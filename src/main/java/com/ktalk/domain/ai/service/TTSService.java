@@ -1,5 +1,6 @@
 package com.ktalk.domain.ai.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,18 +9,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,44 +27,42 @@ import java.util.regex.Pattern;
 @Slf4j
 public class TTSService {
 
-    private static final int MAX_TEXT_LENGTH = 3000;
+    private static final int MAX_TEXT_BYTES = 4500;
     private static final int CACHE_SIZE = 500;
-    private static final String ELEVENLABS_TTS_HOST = "api.elevenlabs.io";
-    private static final String ELEVENLABS_TTS_PATH = "/v1/text-to-speech/{voiceId}";
-    private static final String DEFAULT_MALE_VOICE_ID = "ErXwobaYiN019PkySvjV";
-    private static final String DEFAULT_FEMALE_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
+    private static final String GOOGLE_TTS_HOST = "texttospeech.googleapis.com";
+    private static final String GOOGLE_TTS_PATH = "/v1/text:synthesize";
+    private static final String DEFAULT_LANGUAGE_CODE = "ko-KR";
+    private static final String DEFAULT_MALE_VOICE = "ko-KR-Chirp3-HD-Rasalgethi";
+    private static final String DEFAULT_FEMALE_VOICE = "ko-KR-Chirp3-HD-Zephyr";
     private static final Pattern SPEAKER_LINE = Pattern.compile("^([A-Za-z]+):\\s*(.*)$");
 
     private final WebClient webClient;
 
-    @Value("${ELEVENLABS_API_KEY:}")
-    private String elevenLabsApiKey;
+    @Value("${GOOGLE_TTS_API_KEY:${VITE_GOOGLE_TTS_API_KEY:${VITE_GOOGLE_API_KEY:}}}")
+    private String googleTtsApiKey;
 
-    @Value("${ELEVENLABS_MODEL_ID:eleven_multilingual_v2}")
-    private String elevenLabsModelId;
+    @Value("${GOOGLE_TTS_LANGUAGE:" + DEFAULT_LANGUAGE_CODE + "}")
+    private String languageCode;
 
-    @Value("${ELEVENLABS_MALE_VOICE_ID:" + DEFAULT_MALE_VOICE_ID + "}")
-    private String maleVoiceId;
+    @Value("${GOOGLE_TTS_MALE_VOICE:" + DEFAULT_MALE_VOICE + "}")
+    private String maleVoiceName;
 
-    @Value("${ELEVENLABS_FEMALE_VOICE_ID:" + DEFAULT_FEMALE_VOICE_ID + "}")
-    private String femaleVoiceId;
+    @Value("${GOOGLE_TTS_FEMALE_VOICE:" + DEFAULT_FEMALE_VOICE + "}")
+    private String femaleVoiceName;
 
-    @Value("${ELEVENLABS_STABILITY:0.45}")
-    private double stability;
+    @Value("${GOOGLE_TTS_SPEAKING_RATE:0.95}")
+    private double speakingRate;
 
-    @Value("${ELEVENLABS_SIMILARITY_BOOST:0.80}")
-    private double similarityBoost;
+    @Value("${GOOGLE_TTS_PITCH:0.0}")
+    private double pitch;
 
-    @Value("${ELEVENLABS_STYLE:0.25}")
-    private double style;
-
-    @Value("${ELEVENLABS_MAX_CONCURRENT_REQUESTS:3}")
+    @Value("${GOOGLE_TTS_MAX_CONCURRENT_REQUESTS:8}")
     private int maxConcurrentRequests;
 
-    @Value("${ELEVENLABS_QUEUE_TIMEOUT_SECONDS:60}")
+    @Value("${GOOGLE_TTS_QUEUE_TIMEOUT_SECONDS:60}")
     private int queueTimeoutSeconds;
 
-    private Semaphore elevenLabsSlots;
+    private Semaphore googleTtsSlots;
 
     public TTSService(@Qualifier("audioWebClient") WebClient webClient) {
         this.webClient = webClient;
@@ -73,8 +71,8 @@ public class TTSService {
     @PostConstruct
     void initConcurrencyLimit() {
         int slots = Math.max(1, maxConcurrentRequests);
-        this.elevenLabsSlots = new Semaphore(slots, true);
-        log.info("ElevenLabs concurrency limit initialized: maxConcurrentRequests={}", slots);
+        this.googleTtsSlots = new Semaphore(slots, true);
+        log.info("Google TTS concurrency limit initialized: maxConcurrentRequests={}", slots);
     }
 
     private final Map<String, String> audioCache = Collections.synchronizedMap(
@@ -87,26 +85,26 @@ public class TTSService {
     private final Map<String, CompletableFuture<String>> inFlightAudio = new ConcurrentHashMap<>();
 
     public String synthesize(String text, String gender) {
-        String voiceId = "FEMALE".equalsIgnoreCase(gender) ? femaleVoiceId : maleVoiceId;
-        return synthesizeWithVoice(text, voiceId);
+        String voiceName = "FEMALE".equalsIgnoreCase(gender) ? femaleVoiceName : maleVoiceName;
+        return synthesizeWithVoice(text, voiceName);
     }
 
-    public String synthesizeWithVoice(String text, String voiceId) {
-        String truncated = text.substring(0, Math.min(text.length(), MAX_TEXT_LENGTH));
-        String resolvedVoiceId = resolveElevenLabsVoiceId(voiceId);
-        String modelId = firstPresent(elevenLabsModelId, "eleven_multilingual_v2");
-        String cacheKey = modelId + "|" + resolvedVoiceId + "|" + truncated;
+    public String synthesizeWithVoice(String text, String voiceName) {
+        String truncated = truncateUtf8(text == null ? "" : text, MAX_TEXT_BYTES);
+        String resolvedVoiceName = resolveGoogleVoiceName(voiceName);
+        String resolvedLanguage = firstPresent(languageCode, DEFAULT_LANGUAGE_CODE);
+        String cacheKey = resolvedLanguage + "|" + resolvedVoiceName + "|" + speakingRate + "|" + pitch + "|" + truncated;
 
         String cached = audioCache.get(cacheKey);
         if (cached != null) {
-            log.info("TTS cache hit: voiceId={}, textLength={}", resolvedVoiceId, truncated.length());
+            log.info("TTS cache hit: voiceName={}, textBytes={}", resolvedVoiceName, truncated.getBytes(StandardCharsets.UTF_8).length);
             return cached;
         }
 
         CompletableFuture<String> inFlight = new CompletableFuture<>();
         CompletableFuture<String> existing = inFlightAudio.putIfAbsent(cacheKey, inFlight);
         if (existing != null) {
-            log.info("TTS in-flight cache wait: voiceId={}, textLength={}", resolvedVoiceId, truncated.length());
+            log.info("TTS in-flight cache wait: voiceName={}, textBytes={}", resolvedVoiceName, truncated.getBytes(StandardCharsets.UTF_8).length);
             try {
                 return existing.join();
             } catch (CompletionException e) {
@@ -114,72 +112,79 @@ public class TTSService {
             }
         }
 
-        String apiKey = firstPresent(elevenLabsApiKey, System.getenv("ELEVENLABS_API_KEY"));
+        String apiKey = firstPresent(
+                googleTtsApiKey,
+                System.getenv("GOOGLE_TTS_API_KEY"),
+                System.getenv("VITE_GOOGLE_TTS_API_KEY"),
+                System.getenv("VITE_GOOGLE_API_KEY")
+        );
 
         if (apiKey == null) {
-            log.error("ElevenLabs API key is missing.");
-            RuntimeException exception = new RuntimeException("ElevenLabs API key is missing.");
+            RuntimeException exception = new RuntimeException("Google TTS API key is missing.");
+            log.error(exception.getMessage());
             inFlight.completeExceptionally(exception);
             inFlightAudio.remove(cacheKey);
             throw exception;
         }
 
         Map<String, Object> body = Map.of(
-                "text", truncated,
-                "model_id", modelId,
-                "voice_settings", Map.of(
-                        "stability", stability,
-                        "similarity_boost", similarityBoost,
-                        "style", style,
-                        "use_speaker_boost", true
+                "input", Map.of("text", truncated),
+                "voice", Map.of(
+                        "languageCode", resolvedLanguage,
+                        "name", resolvedVoiceName
+                ),
+                "audioConfig", Map.of(
+                        "audioEncoding", "MP3",
+                        "speakingRate", speakingRate,
+                        "pitch", pitch
                 )
         );
 
         boolean acquired = false;
         try {
-            acquired = elevenLabsSlots.tryAcquire(queueTimeoutSeconds, TimeUnit.SECONDS);
+            acquired = googleTtsSlots.tryAcquire(queueTimeoutSeconds, TimeUnit.SECONDS);
             if (!acquired) {
                 throw new RuntimeException("Voice synthesis is busy. Please try again shortly.");
             }
 
-            byte[] audioBytes = webClient.post()
+            Map<?, ?> response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .scheme("https")
-                            .host(ELEVENLABS_TTS_HOST)
-                            .path(ELEVENLABS_TTS_PATH)
-                            .queryParam("output_format", "mp3_44100_128")
-                            .build(resolvedVoiceId))
+                            .host(GOOGLE_TTS_HOST)
+                            .path(GOOGLE_TTS_PATH)
+                            .queryParam("key", apiKey)
+                            .build())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_OCTET_STREAM, MediaType.valueOf("audio/mpeg"))
-                    .header("xi-api-key", apiKey)
+                    .accept(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(byte[].class)
+                    .bodyToMono(Map.class)
                     .block();
 
-            if (audioBytes == null || audioBytes.length == 0) {
-                throw new RuntimeException("ElevenLabs returned empty audio.");
+            Object audioContentValue = response == null ? null : response.get("audioContent");
+            if (!(audioContentValue instanceof String audioContent) || audioContent.isBlank()) {
+                throw new RuntimeException("Google TTS returned empty audio.");
             }
 
-            String audioContent = Base64.getEncoder().encodeToString(audioBytes);
             audioCache.put(cacheKey, audioContent);
             inFlight.complete(audioContent);
-            log.info("ElevenLabs synthesis completed: textLength={}, voiceId={}", truncated.length(), resolvedVoiceId);
+            log.info("Google TTS synthesis completed: textBytes={}, voiceName={}",
+                    truncated.getBytes(StandardCharsets.UTF_8).length, resolvedVoiceName);
             return audioContent;
         } catch (WebClientResponseException e) {
             String responseBody = e.getResponseBodyAsString();
-            log.error("ElevenLabs API failed: status={}, body={}", e.getStatusCode(), responseBody, e);
-            RuntimeException exception = new RuntimeException("Voice synthesis failed: ElevenLabs " + e.getStatusCode() + " " + responseBody);
+            RuntimeException exception = new RuntimeException("Voice synthesis failed: Google TTS " + e.getStatusCode() + " " + responseBody);
+            log.error("Google TTS API failed: status={}, body={}", e.getStatusCode(), responseBody, e);
             inFlight.completeExceptionally(exception);
             throw exception;
         } catch (Exception e) {
-            log.error("ElevenLabs API call failed: {}", e.getMessage(), e);
             RuntimeException exception = new RuntimeException("Voice synthesis failed: " + e.getMessage());
+            log.error("Google TTS API call failed: {}", e.getMessage(), e);
             inFlight.completeExceptionally(exception);
             throw exception;
         } finally {
             if (acquired) {
-                elevenLabsSlots.release();
+                googleTtsSlots.release();
             }
             inFlightAudio.remove(cacheKey);
         }
@@ -229,19 +234,42 @@ public class TTSService {
         return maleTurn ? "MALE" : "FEMALE";
     }
 
-    private String resolveElevenLabsVoiceId(String voiceId) {
-        if (voiceId == null || voiceId.isBlank()) {
-            return firstPresent(femaleVoiceId, DEFAULT_FEMALE_VOICE_ID);
+    private String resolveGoogleVoiceName(String voiceName) {
+        if (voiceName == null || voiceName.isBlank()) {
+            return firstPresent(femaleVoiceName, DEFAULT_FEMALE_VOICE);
         }
-        String normalized = voiceId.trim();
+        String normalized = voiceName.trim();
         String lower = normalized.toLowerCase();
-        if (lower.contains("female") || lower.equals("nara") || lower.equals("rachel") || lower.equals("bella")) {
-            return firstPresent(femaleVoiceId, DEFAULT_FEMALE_VOICE_ID);
+        if (normalized.startsWith("ko-KR-")) {
+            return normalized;
         }
-        if (lower.contains("male") || lower.equals("jinho") || lower.equals("antoni") || lower.equals("adam")) {
-            return firstPresent(maleVoiceId, DEFAULT_MALE_VOICE_ID);
+        if (lower.contains("female") || lower.equals("nara") || lower.equals("zephyr")) {
+            return firstPresent(femaleVoiceName, DEFAULT_FEMALE_VOICE);
+        }
+        if (lower.contains("male") || lower.equals("jinho") || lower.equals("rasalgethi")) {
+            return firstPresent(maleVoiceName, DEFAULT_MALE_VOICE);
         }
         return normalized;
+    }
+
+    private String truncateUtf8(String text, int maxBytes) {
+        if (text.getBytes(StandardCharsets.UTF_8).length <= maxBytes) {
+            return text;
+        }
+        StringBuilder builder = new StringBuilder();
+        int bytes = 0;
+        for (int i = 0; i < text.length(); ) {
+            int codePoint = text.codePointAt(i);
+            String value = new String(Character.toChars(codePoint));
+            int valueBytes = value.getBytes(StandardCharsets.UTF_8).length;
+            if (bytes + valueBytes > maxBytes) {
+                break;
+            }
+            builder.append(value);
+            bytes += valueBytes;
+            i += Character.charCount(codePoint);
+        }
+        return builder.toString();
     }
 
     private String firstPresent(String... values) {
