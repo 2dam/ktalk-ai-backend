@@ -1,7 +1,8 @@
-ktalk-frontend/
 .git/
 .gradle/
 build/
 data/
 .env
 *.md
+ktalk-frontend/node_modules/
+ktalk-frontend/dist/

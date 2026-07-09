@@ -13,6 +13,9 @@ java {
     }
 }
 
+def frontendDir = file('ktalk-frontend')
+def npmCommand = System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm'
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
@@ -68,6 +71,35 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('installFrontend', Exec) {
+    workingDir frontendDir
+    commandLine npmCommand, 'install'
+    environment 'npm_config_cache', "$buildDir/npm-cache"
+    inputs.file("$frontendDir/package-lock.json")
+    outputs.dir("$frontendDir/node_modules")
+}
+
+tasks.register('buildFrontend', Exec) {
+    dependsOn 'installFrontend'
+    workingDir frontendDir
+    commandLine npmCommand, 'run', 'build'
+    environment 'npm_config_cache', "$buildDir/npm-cache"
+    inputs.dir("$frontendDir/src")
+    inputs.file("$frontendDir/package.json")
+    inputs.file("$frontendDir/package-lock.json")
+    outputs.dir("$frontendDir/dist")
+}
+
+tasks.register('copyFrontend', Copy) {
+    dependsOn 'buildFrontend'
+    from "$frontendDir/dist"
+    into "$buildDir/resources/main/static"
+}
+
+tasks.named('processResources') {
+    dependsOn 'copyFrontend'
 }
 
 springBoot {
