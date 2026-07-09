@@ -7,9 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -162,19 +159,13 @@ public class TTSService {
             }
         }
 
-        List<String> audioContents = Flux.fromIterable(pending)
-                .flatMapSequential(seg -> Mono.fromCallable(() -> synthesize(seg[0], seg[1]))
-                        .subscribeOn(Schedulers.boundedElastic()))
-                .collectList()
-                .block();
-
         List<Map<String, String>> segments = new ArrayList<>();
-        for (int i = 0; i < pending.size(); i++) {
+        for (String[] pendingSegment : pending) {
             Map<String, String> segment = new LinkedHashMap<>();
-            segment.put("speaker", pending.get(i)[2]);
-            segment.put("gender", pending.get(i)[1]);
-            segment.put("text", pending.get(i)[0]);
-            segment.put("audioContent", audioContents.get(i));
+            segment.put("speaker", pendingSegment[2]);
+            segment.put("gender", pendingSegment[1]);
+            segment.put("text", pendingSegment[0]);
+            segment.put("audioContent", synthesize(pendingSegment[0], pendingSegment[1]));
             segments.add(segment);
         }
         return segments;
