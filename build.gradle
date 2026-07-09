@@ -15,6 +15,9 @@ java {
 
 def frontendDir = file('ktalk-frontend')
 def npmCommand = System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm'
+def skipFrontendBuild = providers.gradleProperty('skipFrontendBuild')
+        .map { it.toBoolean() }
+        .getOrElse(false)
 
 configurations {
     compileOnly {
@@ -93,7 +96,9 @@ tasks.register('buildFrontend', Exec) {
 }
 
 tasks.register('copyFrontend', Copy) {
-    dependsOn 'buildFrontend'
+    if (!skipFrontendBuild) {
+        dependsOn 'buildFrontend'
+    }
     from "$frontendDir/dist"
     into "$buildDir/resources/main/static"
 }
