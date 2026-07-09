@@ -1,9 +1,12 @@
 package com.ktalk.domain.ai.controller;
 
 import com.ktalk.domain.ai.dto.VoiceMatchResponse;
+import com.ktalk.domain.ai.service.TTSRateLimitService;
 import com.ktalk.domain.ai.service.VoiceMatchService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class VoiceMatchController {
 
     private final VoiceMatchService voiceMatchService;
+    private final TTSRateLimitService ttsRateLimitService;
 
     /**
      * POST /api/ai/voice-match
@@ -47,13 +51,25 @@ public class VoiceMatchController {
      */
     @PostMapping(value = "/voice-match", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VoiceMatchResponse> voiceMatch(
-            @RequestPart("audio") MultipartFile audioFile) {
+            @RequestPart("audio") MultipartFile audioFile,
+            HttpServletRequest request) {
         try {
+            if (!ttsRateLimitService.tryAcquire(clientKey(request))) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+            }
             VoiceMatchResponse response = voiceMatchService.processVoice(audioFile);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("voice-match 처리 실패: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private String clientKey(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

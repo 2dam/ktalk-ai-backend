@@ -36,6 +36,12 @@ services:
         sync: false
       - key: ELEVENLABS_MODEL_ID
         value: eleven_multilingual_v2
+      - key: ELEVENLABS_MAX_CONCURRENT_REQUESTS
+        value: "3"
+      - key: ELEVENLABS_QUEUE_TIMEOUT_SECONDS
+        value: "60"
+      - key: TTS_USER_REQUESTS_PER_MINUTE
+        value: "6"
       - key: GEMINI_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY

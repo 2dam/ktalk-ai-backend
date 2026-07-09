@@ -8,9 +8,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +58,23 @@ public class TTSService {
     @Value("${ELEVENLABS_STYLE:0.25}")
     private double style;
 
+    @Value("${ELEVENLABS_MAX_CONCURRENT_REQUESTS:3}")
+    private int maxConcurrentRequests;
+
+    @Value("${ELEVENLABS_QUEUE_TIMEOUT_SECONDS:60}")
+    private int queueTimeoutSeconds;
+
+    private Semaphore elevenLabsSlots;
+
     public TTSService(@Qualifier("audioWebClient") WebClient webClient) {
         this.webClient = webClient;
+    }
+
+    @PostConstruct
+    void initConcurrencyLimit() {
+        int slots = Math.max(1, maxConcurrentRequests);
+        this.elevenLabsSlots = new Semaphore(slots, true);
+        log.info("ElevenLabs concurrency limit initialized: maxConcurrentRequests={}", slots);
     }
 
     private final Map<String, String> audioCache = Collections.synchronizedMap(
@@ -63,6 +84,7 @@ public class TTSService {
                     return size() > CACHE_SIZE;
                 }
             });
+    private final Map<String, CompletableFuture<String>> inFlightAudio = new ConcurrentHashMap<>();
 
     public String synthesize(String text, String gender) {
         String voiceId = "FEMALE".equalsIgnoreCase(gender) ? femaleVoiceId : maleVoiceId;
@@ -81,11 +103,25 @@ public class TTSService {
             return cached;
         }
 
+        CompletableFuture<String> inFlight = new CompletableFuture<>();
+        CompletableFuture<String> existing = inFlightAudio.putIfAbsent(cacheKey, inFlight);
+        if (existing != null) {
+            log.info("TTS in-flight cache wait: voiceId={}, textLength={}", resolvedVoiceId, truncated.length());
+            try {
+                return existing.join();
+            } catch (CompletionException e) {
+                throw unwrapCompletionException(e);
+            }
+        }
+
         String apiKey = firstPresent(elevenLabsApiKey, System.getenv("ELEVENLABS_API_KEY"));
 
         if (apiKey == null) {
             log.error("ElevenLabs API key is missing.");
-            throw new RuntimeException("ElevenLabs API key is missing.");
+            RuntimeException exception = new RuntimeException("ElevenLabs API key is missing.");
+            inFlight.completeExceptionally(exception);
+            inFlightAudio.remove(cacheKey);
+            throw exception;
         }
 
         Map<String, Object> body = Map.of(
@@ -99,7 +135,13 @@ public class TTSService {
                 )
         );
 
+        boolean acquired = false;
         try {
+            acquired = elevenLabsSlots.tryAcquire(queueTimeoutSeconds, TimeUnit.SECONDS);
+            if (!acquired) {
+                throw new RuntimeException("Voice synthesis is busy. Please try again shortly.");
+            }
+
             byte[] audioBytes = webClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .scheme("https")
@@ -121,15 +163,25 @@ public class TTSService {
 
             String audioContent = Base64.getEncoder().encodeToString(audioBytes);
             audioCache.put(cacheKey, audioContent);
+            inFlight.complete(audioContent);
             log.info("ElevenLabs synthesis completed: textLength={}, voiceId={}", truncated.length(), resolvedVoiceId);
             return audioContent;
         } catch (WebClientResponseException e) {
             String responseBody = e.getResponseBodyAsString();
             log.error("ElevenLabs API failed: status={}, body={}", e.getStatusCode(), responseBody, e);
-            throw new RuntimeException("Voice synthesis failed: ElevenLabs " + e.getStatusCode() + " " + responseBody);
+            RuntimeException exception = new RuntimeException("Voice synthesis failed: ElevenLabs " + e.getStatusCode() + " " + responseBody);
+            inFlight.completeExceptionally(exception);
+            throw exception;
         } catch (Exception e) {
             log.error("ElevenLabs API call failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Voice synthesis failed: " + e.getMessage());
+            RuntimeException exception = new RuntimeException("Voice synthesis failed: " + e.getMessage());
+            inFlight.completeExceptionally(exception);
+            throw exception;
+        } finally {
+            if (acquired) {
+                elevenLabsSlots.release();
+            }
+            inFlightAudio.remove(cacheKey);
         }
     }
 
@@ -199,5 +251,13 @@ public class TTSService {
             }
         }
         return null;
+    }
+
+    private RuntimeException unwrapCompletionException(CompletionException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new RuntimeException("Voice synthesis failed: " + e.getMessage(), e);
     }
 }
