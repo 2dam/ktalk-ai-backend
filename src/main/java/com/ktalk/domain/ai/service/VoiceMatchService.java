@@ -50,8 +50,8 @@ public class VoiceMatchService {
         // 3. 한국어 표현들을 읽어줄 TTS 스크립트 생성
         String ttsScript = buildTtsScript(parsed.phrases());
 
-        // 4. CLOVA Voice API로 한국어 음성 생성
-        String audioContent = callClovaTts(ttsScript);
+        // 4. ElevenLabs TTS API로 한국어 음성 생성
+        String audioContent = callElevenLabsTts(ttsScript);
 
         return new VoiceMatchResponse(
                 parsed.transcription(),
@@ -153,7 +153,7 @@ public class VoiceMatchService {
         }
     }
 
-    // ── Google Cloud TTS 호출 ───────────────────────────────────────────────
+    // ── TTS 호출 ───────────────────────────────────────────────────────────
 
     private String buildTtsScript(List<VoiceMatchResponse.KoreanPhrase> phrases) {
         // 한국어 표현들을 자연스럽게 읽어주는 스크립트
@@ -171,9 +171,9 @@ public class VoiceMatchService {
         return sb.toString();
     }
 
-    private String callClovaTts(String text) {
+    private String callElevenLabsTts(String text) {
         // 자연스러운 한국어 여성 음성, 약간 천천히 (학습용) — 캐싱은 TTSService가 처리
-        return ttsService.synthesizeWithVoice(text, "nara");
+        return ttsService.synthesize(text, "FEMALE");
     }
 
     // ── 유틸 ────────────────────────────────────────────────────────────────

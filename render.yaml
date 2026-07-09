@@ -32,10 +32,10 @@ services:
         fromDatabase:
           name: ktalk-db
           property: password
-      - key: NAVER_CLOVA_CLIENT_ID
+      - key: ELEVENLABS_API_KEY
         sync: false
-      - key: NAVER_CLOVA_CLIENT_SECRET
-        sync: false
+      - key: ELEVENLABS_MODEL_ID
+        value: eleven_multilingual_v2
       - key: GEMINI_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY

@@ -14,10 +14,10 @@ public class KtalkApplication {
         setIfPresent(dotenv, "GOOGLE_CLIENT_SECRET");
         setIfPresent(dotenv, "YOUTUBE_API_KEY");
         setIfPresent(dotenv, "GEMINI_API_KEY");
-        setIfPresent(dotenv, "NAVER_CLOVA_VOICE_CLIENT_ID");
-        setIfPresent(dotenv, "NAVER_CLOVA_VOICE_CLIENT_SECRET");
-        setIfPresent(dotenv, "NAVER_CLOVA_CLIENT_ID");
-        setIfPresent(dotenv, "NAVER_CLOVA_CLIENT_SECRET");
+        setIfPresent(dotenv, "ELEVENLABS_API_KEY");
+        setIfPresent(dotenv, "ELEVENLABS_MODEL_ID");
+        setIfPresent(dotenv, "ELEVENLABS_MALE_VOICE_ID");
+        setIfPresent(dotenv, "ELEVENLABS_FEMALE_VOICE_ID");
 
         SpringApplication.run(KtalkApplication.class, args);
     }
