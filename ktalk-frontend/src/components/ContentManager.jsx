@@ -17,6 +17,7 @@ function ContentManager() {
     koreanLevel: 'beginner'
   })
   const [editingId, setEditingId] = useState(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [aiTopic, setAiTopic] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [speakingId, setSpeakingId] = useState(null)
@@ -54,6 +55,7 @@ function ContentManager() {
         headers: { 'Content-Type': 'application/json; charset=utf-8' }
       })
       setFormData({ title: '', description: '', dialogue: '', category: 'korean', koreanLevel: 'beginner' })
+      setIsFormOpen(false)
       fetchContents()
     } catch (error) {
       console.error('Error:', error)
@@ -67,6 +69,7 @@ function ContentManager() {
       })
       setEditingId(null)
       setFormData({ title: '', description: '', dialogue: '', category: 'korean', koreanLevel: 'beginner' })
+      setIsFormOpen(false)
       fetchContents()
     } catch (error) {
       console.error('Error:', error)
@@ -86,6 +89,7 @@ function ContentManager() {
 
   const loadForEdit = (content) => {
     setEditingId(content.id)
+    setIsFormOpen(true)
     setFormData({
       title: content.title,
       description: content.description,
@@ -98,6 +102,7 @@ function ContentManager() {
   const handleCancel = () => {
     setEditingId(null)
     setFormData({ title: '', description: '', dialogue: '', category: 'korean', koreanLevel: 'beginner' })
+    setIsFormOpen(false)
   }
 
   const handleAIGenerate = async () => {
@@ -323,13 +328,19 @@ function ContentManager() {
         </div>
 
         <form onSubmit={editingId ? function() { handleUpdate(editingId) } : handleCreate} style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-          <h2>
+          <h2
+              onClick={function() { if (!editingId) setIsFormOpen(!isFormOpen) }}
+              style={{ cursor: editingId ? 'default' : 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '8px', margin: isFormOpen ? undefined : 0 }}
+          >
+            <span style={{ fontSize: '14px' }}>{isFormOpen ? '▼' : '▶'}</span>
             {editingId ? '콘텐츠 수정' : '새 콘텐츠 추가'}{' '}
             <span style={{ fontSize: '13px', color: '#999', fontWeight: 'normal' }}>
               {editingId ? 'Edit Content' : 'Add New Content'}
             </span>
           </h2>
 
+          {isFormOpen && (
+          <>
           <div style={{ marginBottom: '15px' }}>
             <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
               제목 <span>Title</span>
@@ -409,6 +420,8 @@ function ContentManager() {
                 </button>
             )}
           </div>
+          </>
+          )}
         </form>
 
         <div>

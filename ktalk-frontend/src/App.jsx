@@ -209,7 +209,7 @@ function App() {
         <section className="hero-section">
           <div className="hero-copy">
             <div className="eyebrow">AI 영어 루틴 메이트</div>
-            <h1>유튜브로 배우고, AI와 말하며 복습하세요</h1>
+            <h1>K-pop, K-drama로 배우고, AI와 말하며 복습하세요</h1>
             <p className="hero-subtitle">
               오늘 배운 표현을 실전 대화로 바꾸는 AI 영어 학습 앱
             </p>
