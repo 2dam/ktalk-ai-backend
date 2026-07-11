@@ -93,11 +93,24 @@ function App() {
       .finally(() => setAuthChecked(true))
   }, [])
 
+  const isLoggedIn = authChecked && !!user
+
+  // 로그인 전 방문자에게는 "3일 연속 학습", "EXP 1,240" 같은 개인화 지표를
+  // 보여줄 수 없다 — 아직 아무 활동도 없는 사람에게 남의 기록을 자기 것처럼
+  // 보여주는 셈이라 오해를 준다(실제로도 하드코딩된 예시 값이지 실제 사용자
+  // 데이터가 아니다). 로그인 전에는 숫자 지표 대신 이 앱이 뭘 해주는지를
+  // 설명하는 항목으로 바꾼다.
   const stats = useMemo(() => [
     { label: '스트릭', value: '3일', icon: '🔥' },
     { label: 'EXP', value: '1,240', icon: '⚡' },
     { label: '레벨', value: 'Lv. 8', icon: '🏅' },
     { label: '오늘 복습', value: '12개', icon: '🎯' },
+  ], [])
+
+  const valueProps = useMemo(() => [
+    { icon: '🎬', copy: '유튜브 클립에서 표현을 뽑아 학습' },
+    { icon: '💬', copy: 'AI와 실시간으로 대화하며 연습' },
+    { icon: '🎯', copy: '내 수준에 맞춘 맞춤 복습' },
   ], [])
 
   const handleLoginSuccess = (nextUser) => {
@@ -221,42 +234,73 @@ function App() {
                 AI 회화 체험하기
               </button>
             </div>
-            <div className="trust-row" aria-label="학습 지표">
-              {stats.map((stat) => (
-                <div className="mini-stat" key={stat.label}>
-                  <span>{stat.icon}</span>
-                  <strong>{stat.value}</strong>
-                  <small>{stat.label}</small>
-                </div>
-              ))}
-            </div>
+            {isLoggedIn ? (
+              <div className="trust-row" aria-label="학습 지표">
+                {stats.map((stat) => (
+                  <div className="mini-stat" key={stat.label}>
+                    <span>{stat.icon}</span>
+                    <strong>{stat.value}</strong>
+                    <small>{stat.label}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="value-row" aria-label="주요 기능">
+                {valueProps.map((item) => (
+                  <div className="value-item" key={item.copy}>
+                    <span>{item.icon}</span>
+                    <span>{item.copy}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <aside className="dashboard-preview glass-card" aria-label="학습 대시보드 미리보기">
-            <div className="preview-top">
-              <div>
-                <span className="preview-kicker">오늘의 대시보드</span>
-                <h2>3일 연속 학습</h2>
+          {isLoggedIn ? (
+            <aside className="dashboard-preview glass-card" aria-label="학습 대시보드 미리보기">
+              <div className="preview-top">
+                <div>
+                  <span className="preview-kicker">오늘의 대시보드</span>
+                  <h2>3일 연속 학습</h2>
+                </div>
+                <span className="streak-badge">🔥</span>
               </div>
-              <span className="streak-badge">🔥</span>
-            </div>
-            <div className="progress-ring" aria-label="진행률 68%">
-              <span>68%</span>
-            </div>
-            <div className="preview-grid">
-              <div>
-                <small>오늘 복습</small>
-                <strong>12개</strong>
+              <div className="progress-ring" aria-label="진행률 68%">
+                <span>68%</span>
               </div>
-              <div>
-                <small>획득 EXP</small>
-                <strong>+180</strong>
+              <div className="preview-grid">
+                <div>
+                  <small>오늘 복습</small>
+                  <strong>12개</strong>
+                </div>
+                <div>
+                  <small>획득 EXP</small>
+                  <strong>+180</strong>
+                </div>
               </div>
-            </div>
-            <button type="button" className="start-review" onClick={() => jumpToExperience('contents')}>
-              실전복습 시작
-            </button>
-          </aside>
+              <button type="button" className="start-review" onClick={() => jumpToExperience('contents')}>
+                실전복습 시작
+              </button>
+            </aside>
+          ) : (
+            <aside className="dashboard-preview glass-card" aria-label="AI 회화 예시">
+              <div className="preview-top">
+                <div>
+                  <span className="preview-kicker">AI 회화 예시</span>
+                  <h2>이렇게 연습해요</h2>
+                </div>
+                <span className="streak-badge">💬</span>
+              </div>
+              <div className="chat-preview">
+                <div className="chat-bubble ai">Nice to meet you! What did you do this weekend?</div>
+                <div className="chat-bubble me">I watched a K-drama and practiced this line!</div>
+                <div className="chat-bubble ai">Great sentence 👍 Try this next: "It was so much fun."</div>
+              </div>
+              <button type="button" className="start-review" onClick={() => jumpToExperience('chat')}>
+                AI 회화 체험하기
+              </button>
+            </aside>
+          )}
         </section>
 
         <section className="mission-strip" aria-label="오늘의 학습 카드">

@@ -292,6 +292,65 @@
   font-weight: 700;
 }
 
+.value-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 650px;
+  margin-top: 34px;
+}
+
+.value-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: 0 18px 50px rgba(23, 44, 84, 0.08);
+}
+
+.value-item span:first-child {
+  flex-shrink: 0;
+  font-size: 22px;
+}
+
+.value-item span:last-child {
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.chat-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.chat-bubble {
+  max-width: 88%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  color: #101828;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-bubble.ai {
+  justify-self: start;
+  border-bottom-left-radius: 6px;
+  background: rgba(246, 254, 249, 0.92);
+}
+
+.chat-bubble.me {
+  justify-self: end;
+  border-bottom-right-radius: 6px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #16a34a 0%, #14b8a6 100%);
+}
+
 .glass-card {
   border: 1px solid rgba(255, 255, 255, 0.72);
   background: rgba(255, 255, 255, 0.68);
@@ -752,6 +811,7 @@
   }
 
   .trust-row,
+  .value-row,
   .mission-strip,
   .feature-grid,
   .app-tabs {
