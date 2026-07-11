@@ -718,7 +718,7 @@
   max-width: 780px;
 }
 
-.billing-switch {
+.pricing-switch {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -732,8 +732,8 @@
   box-shadow: 0 14px 32px rgba(23, 44, 84, 0.08);
 }
 
-.billing-switch span,
-.billing-switch strong {
+.pricing-switch span,
+.pricing-switch strong {
   display: inline-flex;
   min-height: 34px;
   align-items: center;
@@ -743,11 +743,11 @@
   font-weight: 900;
 }
 
-.billing-switch span {
+.pricing-switch span {
   color: #475467;
 }
 
-.billing-switch strong {
+.pricing-switch strong {
   color: #ffffff;
   background: #101828;
 }
@@ -1067,13 +1067,13 @@
     border-radius: 24px;
   }
 
-  .billing-switch {
+  .pricing-switch {
     width: 100%;
     border-radius: 24px;
   }
 
-  .billing-switch span,
-  .billing-switch strong {
+  .pricing-switch span,
+  .pricing-switch strong {
     flex: 1 1 auto;
     justify-content: center;
   }

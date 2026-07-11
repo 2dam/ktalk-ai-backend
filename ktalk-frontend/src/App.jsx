@@ -8,7 +8,7 @@ import CharacterChat from './components/CharacterChat'
 import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
 import RecommendedChannels from './components/RecommendedChannels'
-import { AUTH_URL, BILLING_URL } from './api'
+import { AUTH_URL } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
 
@@ -60,7 +60,6 @@ function App() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
-  const [billingLoading, setBillingLoading] = useState(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -155,32 +154,6 @@ function App() {
   const jumpToExperience = (tabId = 'contents') => {
     setActiveTab(tabId)
     document.getElementById('ai-experience')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  const startCheckout = async (planId) => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      openAuth('login')
-      return
-    }
-
-    setBillingLoading(planId)
-    try {
-      const response = await axios.post(
-        `${BILLING_URL}/checkout`,
-        { planId },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-      const checkoutUrl = response.data?.data?.checkoutUrl
-      if (!checkoutUrl) {
-        throw new Error('결제 페이지를 만들지 못했습니다.')
-      }
-      window.location.href = checkoutUrl
-    } catch (error) {
-      alert('결제 시작 실패: ' + (error.response?.data?.message || error.message))
-    } finally {
-      setBillingLoading(null)
-    }
   }
 
   // 인증 확인이 끝나기 전에는 웰컴 화면도, 기존 화면도 아닌 빈 배경만
@@ -395,7 +368,7 @@ function App() {
             <p>무료로 시작하고, 매일 말하기 루틴이 생기면 Pro로 확장하세요. Pro는 월 $9.90, Business는 월 $19.90입니다.</p>
           </div>
 
-          <div className="billing-switch" aria-label="결제 안내">
+          <div className="pricing-switch" aria-label="요금 안내">
             <span>Monthly</span>
             <strong>14-day free trial</strong>
             <span>Cancel anytime</span>
@@ -441,10 +414,9 @@ function App() {
               <button
                 type="button"
                 className="primary-cta plan-button"
-                onClick={() => startCheckout('pro')}
-                disabled={billingLoading === 'pro'}
+                onClick={() => jumpToExperience('chat')}
               >
-                {billingLoading === 'pro' ? '결제 이동 중' : 'Pro 결제하기'}
+                Pro 미리보기
               </button>
             </article>
 
@@ -467,10 +439,9 @@ function App() {
               <button
                 type="button"
                 className="secondary-cta plan-button"
-                onClick={() => startCheckout('business')}
-                disabled={billingLoading === 'business'}
+                onClick={() => jumpToExperience('contents')}
               >
-                {billingLoading === 'business' ? '결제 이동 중' : 'Business 결제하기'}
+                Business 미리보기
               </button>
             </article>
           </div>

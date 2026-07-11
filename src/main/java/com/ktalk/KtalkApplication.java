@@ -18,13 +18,6 @@ public class KtalkApplication {
         setIfPresent(dotenv, "GOOGLE_TTS_LANGUAGE");
         setIfPresent(dotenv, "GOOGLE_TTS_MALE_VOICE");
         setIfPresent(dotenv, "GOOGLE_TTS_FEMALE_VOICE");
-        setIfPresent(dotenv, "STRIPE_SECRET_KEY");
-        setIfPresent(dotenv, "STRIPE_WEBHOOK_SECRET");
-        setIfPresent(dotenv, "STRIPE_PRO_PRICE_ID");
-        setIfPresent(dotenv, "STRIPE_BUSINESS_PRICE_ID");
-        setIfPresent(dotenv, "BILLING_PRO_MONTHLY_PRICE_USD");
-        setIfPresent(dotenv, "BILLING_BUSINESS_MONTHLY_PRICE_USD");
-        setIfPresent(dotenv, "FRONTEND_URL");
 
         SpringApplication.run(KtalkApplication.class, args);
     }
