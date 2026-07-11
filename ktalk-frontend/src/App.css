@@ -864,40 +864,25 @@
   opacity: 0.72;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 22px;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
-}
-
-.auth-modal {
-  position: relative;
-  width: min(440px, 100%);
-  border-radius: 30px;
-  background: #ffffff;
-  box-shadow: 0 34px 90px rgba(15, 23, 42, 0.28);
-}
-
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+.welcome-back {
+  display: inline-flex;
+  margin-bottom: 18px;
   border: 0;
-  border-radius: 50%;
-  color: #475467;
-  background: #f2f4f7;
-  font-size: 24px;
+  background: transparent;
+  color: #667085;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
   cursor: pointer;
+}
+
+.welcome-back:hover {
+  color: #101828;
+}
+
+.welcome-card .auth-card {
+  padding: 0;
+  text-align: left;
 }
 
 .auth-card {

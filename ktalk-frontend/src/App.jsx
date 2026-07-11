@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import Auth from './Auth'
 import WelcomeScreen from './WelcomeScreen'
 import ContentManager from './components/ContentManager'
 import ClipAndLearn from './components/ClipAndLearn'
@@ -167,19 +166,13 @@ function App() {
   // "무료로 시작하기"는 회원가입 폼을, "이미 계정이 있어요"는 로그인 폼을 연다.
   if (!isLoggedIn) {
     return (
-      <>
-        <WelcomeScreen onStart={() => openAuth('signup')} onLogin={() => openAuth('login')} />
-        {showLogin && (
-          <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowLogin(false)}>
-            <div className="auth-modal" role="dialog" aria-modal="true" aria-label="로그인" onMouseDown={(event) => event.stopPropagation()}>
-              <button className="modal-close" type="button" aria-label="로그인 닫기" onClick={() => setShowLogin(false)}>
-                ×
-              </button>
-              <Auth onLogin={handleLoginSuccess} initialMode={authMode} />
-            </div>
-          </div>
-        )}
-      </>
+      <WelcomeScreen
+        authMode={showLogin ? authMode : null}
+        onStart={() => openAuth('signup')}
+        onLogin={() => openAuth('login')}
+        onLoginSuccess={handleLoginSuccess}
+        onBack={() => setShowLogin(false)}
+      />
     )
   }
 
