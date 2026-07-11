@@ -303,15 +303,17 @@ function App() {
           )}
         </section>
 
-        <section className="mission-strip" aria-label="오늘의 학습 카드">
-          {missionCards.map((card) => (
-            <article className={`mission-card ${card.tone}`} key={card.title}>
-              <span>{card.title}</span>
-              <strong>{card.value}</strong>
-              <small>{card.copy}</small>
-            </article>
-          ))}
-        </section>
+        {isLoggedIn && (
+          <section className="mission-strip" aria-label="오늘의 학습 카드">
+            {missionCards.map((card) => (
+              <article className={`mission-card ${card.tone}`} key={card.title}>
+                <span>{card.title}</span>
+                <strong>{card.value}</strong>
+                <small>{card.copy}</small>
+              </article>
+            ))}
+          </section>
+        )}
 
         <section className="section-block" id="features">
           <div className="section-heading">
