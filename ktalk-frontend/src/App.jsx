@@ -53,9 +53,8 @@ const featureCards = [
 function App() {
   const [user, setUser] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const [entered, setEntered] = useState(false)
   const [activeTab, setActiveTab] = useState('contents')
-  const [showLogin, setShowLogin] = useState(false)
-  const [authMode, setAuthMode] = useState('login')
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
@@ -94,11 +93,11 @@ function App() {
       .finally(() => setAuthChecked(true))
   }, [])
 
-  // 로그인 전 방문자는 이제 이 컴포넌트까지 오지 않고 WelcomeScreen만 본다
-  // (아래 return 참고) — 그래서 여기 있는 지표는 전부 실제 로그인한
-  // 사용자에게만 보여진다. 다만 값 자체는 아직 실제 사용자 데이터를
-  // 연동하지 않은 예시 값이다.
-  const isLoggedIn = authChecked && !!user
+  // "무료로 시작하기"를 누르면 실제 회원가입/로그인 없이 바로 본 화면으로
+  // 들어간다(entered) — 별도의 회원가입/로그인 폼 화면 자체를 없애기로 했다.
+  // 실제 계정으로 로그인된 세션(token이 유효해 user가 채워진 경우)이 있으면
+  // 그것도 그대로 본 화면으로 들어간다.
+  const isLoggedIn = authChecked && (!!user || entered)
 
   const stats = useMemo(() => [
     { label: '스트릭', value: '3일', icon: '🔥' },
@@ -107,19 +106,10 @@ function App() {
     { label: '오늘 복습', value: '12개', icon: '🎯' },
   ], [])
 
-  const openAuth = (mode) => {
-    setAuthMode(mode)
-    setShowLogin(true)
-  }
-
-  const handleLoginSuccess = (nextUser) => {
-    setUser(nextUser)
-    setShowLogin(false)
-  }
-
   const handleLogout = () => {
     localStorage.removeItem('token')
     setUser(null)
+    setEntered(false)
     setShowPasswordForm(false)
   }
 
@@ -163,17 +153,9 @@ function App() {
   }
 
   // 로그인 전 방문자는 전체 기능 화면 대신 이 웰컴 화면만 본다.
-  // "무료로 시작하기"는 회원가입 폼을, "이미 계정이 있어요"는 로그인 폼을 연다.
+  // "무료로 시작하기"를 누르면 별도 화면 전환 없이 바로 본 화면으로 들어간다.
   if (!isLoggedIn) {
-    return (
-      <WelcomeScreen
-        authMode={showLogin ? authMode : null}
-        onStart={() => openAuth('signup')}
-        onLogin={() => openAuth('login')}
-        onLoginSuccess={handleLoginSuccess}
-        onBack={() => setShowLogin(false)}
-      />
-    )
+    return <WelcomeScreen onStart={() => setEntered(true)} />
   }
 
   return (
@@ -193,11 +175,15 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <div className="user-chip">
-            <span>{user.username}</span>
-            <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
-            <button type="button" onClick={handleLogout}>로그아웃</button>
-          </div>
+          {user ? (
+            <div className="user-chip">
+              <span>{user.username}</span>
+              <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
+              <button type="button" onClick={handleLogout}>로그아웃</button>
+            </div>
+          ) : (
+            <button className="login-button" type="button" onClick={handleLogout}>나가기</button>
+          )}
         </div>
       </header>
 

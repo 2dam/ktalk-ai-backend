@@ -337,18 +337,12 @@
   text-align: center;
 }
 
-.welcome-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 40px;
-}
-
 .welcome-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  margin-bottom: 40px;
 }
 
 .welcome-logo {
@@ -362,26 +356,6 @@
   color: #101828;
   font-size: 16px;
   font-weight: 900;
-}
-
-.welcome-header-links {
-  display: flex;
-  gap: 12px;
-}
-
-.welcome-header-links button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #667085;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.welcome-header-links button:hover {
-  color: #101828;
 }
 
 .welcome-icon {
@@ -869,25 +843,8 @@
   opacity: 0.72;
 }
 
-.welcome-back {
-  display: inline-flex;
-  margin-bottom: 18px;
-  border: 0;
-  background: transparent;
-  color: #667085;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.welcome-back:hover {
-  color: #101828;
-}
-
-.welcome-card .auth-card {
-  padding: 0;
-  text-align: left;
+.welcome-cta {
+  width: 100%;
 }
 
 .auth-card {
