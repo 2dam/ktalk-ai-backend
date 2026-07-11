@@ -337,12 +337,18 @@
   text-align: center;
 }
 
+.welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 40px;
+}
+
 .welcome-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  margin-bottom: 40px;
 }
 
 .welcome-logo {
@@ -356,6 +362,26 @@
   color: #101828;
   font-size: 16px;
   font-weight: 900;
+}
+
+.welcome-header-links {
+  display: flex;
+  gap: 12px;
+}
+
+.welcome-header-links button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #667085;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.welcome-header-links button:hover {
+  color: #101828;
 }
 
 .welcome-icon {
@@ -420,27 +446,6 @@
   color: #667085;
   font-size: 12px;
   font-weight: 800;
-}
-
-.welcome-cta {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-.welcome-secondary {
-  width: 100%;
-  min-height: 42px;
-  border: 0;
-  border-radius: 999px;
-  color: #667085;
-  background: transparent;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.welcome-secondary:hover {
-  color: #101828;
 }
 
 .glass-card {

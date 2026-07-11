@@ -25,9 +25,15 @@ function WelcomeScreen({ authMode, onStart, onLogin, onLoginSuccess, onBack }) {
           </>
         ) : (
           <>
-            <div className="welcome-brand">
-              <img src={ktalkLogo} alt="" className="welcome-logo" />
-              <span>ktalk</span>
+            <div className="welcome-header">
+              <div className="welcome-brand">
+                <img src={ktalkLogo} alt="" className="welcome-logo" />
+                <span>ktalk</span>
+              </div>
+              <div className="welcome-header-links">
+                <button type="button" onClick={onLogin}>로그인</button>
+                <button type="button" onClick={onStart}>회원가입</button>
+              </div>
             </div>
 
             <div className="welcome-icon">💬</div>
@@ -56,13 +62,6 @@ function WelcomeScreen({ authMode, onStart, onLogin, onLoginSuccess, onBack }) {
                 </div>
               ))}
             </div>
-
-            <button type="button" className="primary-cta welcome-cta" onClick={onStart}>
-              무료로 시작하기
-            </button>
-            <button type="button" className="welcome-secondary" onClick={onLogin}>
-              이미 계정이 있어요
-            </button>
           </>
         )}
       </div>
