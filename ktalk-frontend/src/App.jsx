@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import Auth from './Auth'
+import WelcomeScreen from './WelcomeScreen'
 import ContentManager from './components/ContentManager'
 import ClipAndLearn from './components/ClipAndLearn'
 import CharacterChat from './components/CharacterChat'
@@ -55,6 +56,7 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false)
   const [activeTab, setActiveTab] = useState('contents')
   const [showLogin, setShowLogin] = useState(false)
+  const [authMode, setAuthMode] = useState('login')
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
@@ -93,13 +95,12 @@ function App() {
       .finally(() => setAuthChecked(true))
   }, [])
 
+  // 로그인 전 방문자는 이제 이 컴포넌트까지 오지 않고 WelcomeScreen만 본다
+  // (아래 return 참고) — 그래서 여기 있는 지표는 전부 실제 로그인한
+  // 사용자에게만 보여진다. 다만 값 자체는 아직 실제 사용자 데이터를
+  // 연동하지 않은 예시 값이다.
   const isLoggedIn = authChecked && !!user
 
-  // 로그인 전 방문자에게는 "3일 연속 학습", "EXP 1,240" 같은 개인화 지표를
-  // 보여줄 수 없다 — 아직 아무 활동도 없는 사람에게 남의 기록을 자기 것처럼
-  // 보여주는 셈이라 오해를 준다(실제로도 하드코딩된 예시 값이지 실제 사용자
-  // 데이터가 아니다). 로그인 전에는 숫자 지표 대신 이 앱이 뭘 해주는지를
-  // 설명하는 항목으로 바꾼다.
   const stats = useMemo(() => [
     { label: '스트릭', value: '3일', icon: '🔥' },
     { label: 'EXP', value: '1,240', icon: '⚡' },
@@ -107,11 +108,10 @@ function App() {
     { label: '오늘 복습', value: '12개', icon: '🎯' },
   ], [])
 
-  const valueProps = useMemo(() => [
-    { icon: '🎬', copy: '유튜브 클립에서 표현을 뽑아 학습' },
-    { icon: '💬', copy: 'AI와 실시간으로 대화하며 연습' },
-    { icon: '🎯', copy: '내 수준에 맞춘 맞춤 복습' },
-  ], [])
+  const openAuth = (mode) => {
+    setAuthMode(mode)
+    setShowLogin(true)
+  }
 
   const handleLoginSuccess = (nextUser) => {
     setUser(nextUser)
@@ -156,6 +156,33 @@ function App() {
     document.getElementById('ai-experience')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // 인증 확인이 끝나기 전에는 웰컴 화면도, 기존 화면도 아닌 빈 배경만
+  // 보여준다 — 안 그러면 이미 로그인된 사용자에게도 웰컴 화면이 잠깐
+  // 번쩍이고 사라지는 깜빡임이 생긴다.
+  if (!authChecked) {
+    return <div className="welcome-shell" />
+  }
+
+  // 로그인 전 방문자는 전체 기능 화면 대신 이 웰컴 화면만 본다.
+  // "무료로 시작하기"는 회원가입 폼을, "이미 계정이 있어요"는 로그인 폼을 연다.
+  if (!isLoggedIn) {
+    return (
+      <>
+        <WelcomeScreen onStart={() => openAuth('signup')} onLogin={() => openAuth('login')} />
+        {showLogin && (
+          <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowLogin(false)}>
+            <div className="auth-modal" role="dialog" aria-modal="true" aria-label="로그인" onMouseDown={(event) => event.stopPropagation()}>
+              <button className="modal-close" type="button" aria-label="로그인 닫기" onClick={() => setShowLogin(false)}>
+                ×
+              </button>
+              <Auth onLogin={handleLoginSuccess} initialMode={authMode} />
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className="ktalk-shell">
       <header className="site-header">
@@ -170,21 +197,14 @@ function App() {
         <nav className="header-nav" aria-label="주요 메뉴">
           <a href="#features">기능</a>
           <a href="#ai-experience">복습</a>
-          <a href="#pricing">가격</a>
         </nav>
 
         <div className="header-actions">
-          {authChecked && user ? (
-            <div className="user-chip">
-              <span>{user.username}</span>
-              <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
-              <button type="button" onClick={handleLogout}>로그아웃</button>
-            </div>
-          ) : (
-            <button className="login-button" type="button" onClick={() => setShowLogin(true)}>
-              로그인
-            </button>
-          )}
+          <div className="user-chip">
+            <span>{user.username}</span>
+            <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
+            <button type="button" onClick={handleLogout}>로그아웃</button>
+          </div>
         </div>
       </header>
 
@@ -228,92 +248,59 @@ function App() {
             </p>
             <div className="hero-actions">
               <button className="primary-cta" type="button" onClick={() => jumpToExperience('contents')}>
-                무료로 시작하기
+                오늘 학습 시작하기
               </button>
               <button className="secondary-cta" type="button" onClick={() => jumpToExperience('chat')}>
                 AI 회화 체험하기
               </button>
             </div>
-            {isLoggedIn ? (
-              <div className="trust-row" aria-label="학습 지표">
-                {stats.map((stat) => (
-                  <div className="mini-stat" key={stat.label}>
-                    <span>{stat.icon}</span>
-                    <strong>{stat.value}</strong>
-                    <small>{stat.label}</small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="value-row" aria-label="주요 기능">
-                {valueProps.map((item) => (
-                  <div className="value-item" key={item.copy}>
-                    <span>{item.icon}</span>
-                    <span>{item.copy}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="trust-row" aria-label="학습 지표">
+              {stats.map((stat) => (
+                <div className="mini-stat" key={stat.label}>
+                  <span>{stat.icon}</span>
+                  <strong>{stat.value}</strong>
+                  <small>{stat.label}</small>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {isLoggedIn ? (
-            <aside className="dashboard-preview glass-card" aria-label="학습 대시보드 미리보기">
-              <div className="preview-top">
-                <div>
-                  <span className="preview-kicker">오늘의 대시보드</span>
-                  <h2>3일 연속 학습</h2>
-                </div>
-                <span className="streak-badge">🔥</span>
+          <aside className="dashboard-preview glass-card" aria-label="학습 대시보드 미리보기">
+            <div className="preview-top">
+              <div>
+                <span className="preview-kicker">오늘의 대시보드</span>
+                <h2>3일 연속 학습</h2>
               </div>
-              <div className="progress-ring" aria-label="진행률 68%">
-                <span>68%</span>
+              <span className="streak-badge">🔥</span>
+            </div>
+            <div className="progress-ring" aria-label="진행률 68%">
+              <span>68%</span>
+            </div>
+            <div className="preview-grid">
+              <div>
+                <small>오늘 복습</small>
+                <strong>12개</strong>
               </div>
-              <div className="preview-grid">
-                <div>
-                  <small>오늘 복습</small>
-                  <strong>12개</strong>
-                </div>
-                <div>
-                  <small>획득 EXP</small>
-                  <strong>+180</strong>
-                </div>
+              <div>
+                <small>획득 EXP</small>
+                <strong>+180</strong>
               </div>
-              <button type="button" className="start-review" onClick={() => jumpToExperience('contents')}>
-                실전복습 시작
-              </button>
-            </aside>
-          ) : (
-            <aside className="dashboard-preview glass-card" aria-label="AI 회화 예시">
-              <div className="preview-top">
-                <div>
-                  <span className="preview-kicker">AI 회화 예시</span>
-                  <h2>이렇게 연습해요</h2>
-                </div>
-                <span className="streak-badge">💬</span>
-              </div>
-              <div className="chat-preview">
-                <div className="chat-bubble ai">Nice to meet you! What did you do this weekend?</div>
-                <div className="chat-bubble me">I watched a K-drama and practiced this line!</div>
-                <div className="chat-bubble ai">Great sentence 👍 Try this next: "It was so much fun."</div>
-              </div>
-              <button type="button" className="start-review" onClick={() => jumpToExperience('chat')}>
-                AI 회화 체험하기
-              </button>
-            </aside>
-          )}
+            </div>
+            <button type="button" className="start-review" onClick={() => jumpToExperience('contents')}>
+              실전복습 시작
+            </button>
+          </aside>
         </section>
 
-        {isLoggedIn && (
-          <section className="mission-strip" aria-label="오늘의 학습 카드">
-            {missionCards.map((card) => (
-              <article className={`mission-card ${card.tone}`} key={card.title}>
-                <span>{card.title}</span>
-                <strong>{card.value}</strong>
-                <small>{card.copy}</small>
-              </article>
-            ))}
-          </section>
-        )}
+        <section className="mission-strip" aria-label="오늘의 학습 카드">
+          {missionCards.map((card) => (
+            <article className={`mission-card ${card.tone}`} key={card.title}>
+              <span>{card.title}</span>
+              <strong>{card.value}</strong>
+              <small>{card.copy}</small>
+            </article>
+          ))}
+        </section>
 
         <section className="section-block" id="features">
           <div className="section-heading">
@@ -345,8 +332,8 @@ function App() {
         <section className="section-block learning-board" id="ai-experience">
           <div className="section-heading">
             <span className="eyebrow">AI Learning Lab</span>
-            <h2>로그인 없이 먼저 둘러보세요</h2>
-            <p>콘텐츠 생성, 유튜브 학습, 회화, 발음 코치까지 기존 기능을 그대로 체험할 수 있습니다.</p>
+            <h2>오늘도 이어서 학습해보세요</h2>
+            <p>콘텐츠 생성, 유튜브 학습, 회화, 발음 코치까지 모든 기능을 여기서 바로 사용할 수 있습니다.</p>
           </div>
 
           <RecommendedChannels />
@@ -374,27 +361,7 @@ function App() {
           </div>
         </section>
 
-        <section className="pricing-note" id="pricing">
-          <div>
-            <span className="eyebrow">Pricing</span>
-            <h2>무료로 시작하고, 필요한 만큼 확장하세요</h2>
-          </div>
-          <button type="button" className="secondary-cta" onClick={() => setShowLogin(true)}>
-            계정 만들기
-          </button>
-        </section>
       </main>
-
-      {showLogin && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowLogin(false)}>
-          <div className="auth-modal" role="dialog" aria-modal="true" aria-label="로그인" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="modal-close" type="button" aria-label="로그인 닫기" onClick={() => setShowLogin(false)}>
-              ×
-            </button>
-            <Auth onLogin={handleLoginSuccess} />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

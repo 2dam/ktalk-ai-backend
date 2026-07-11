@@ -5,8 +5,8 @@ import { API_BASE } from './api'
 const API_URL = `${API_BASE}/api/auth`
 const GOOGLE_LOGIN_URL = `${API_BASE}/oauth2/authorization/google`
 
-function Auth({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true)
+function Auth({ onLogin, initialMode = 'login' }) {
+  const [isLogin, setIsLogin] = useState(initialMode !== 'signup')
   const [formData, setFormData] = useState({
     username: '',
     password: '',

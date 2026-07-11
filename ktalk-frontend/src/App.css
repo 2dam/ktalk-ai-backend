@@ -292,14 +292,6 @@
   font-weight: 700;
 }
 
-.value-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  max-width: 650px;
-  margin-top: 34px;
-}
-
 .value-item {
   display: flex;
   align-items: center;
@@ -324,31 +316,92 @@
   line-height: 1.4;
 }
 
-.chat-preview {
+.welcome-shell {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #182033;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(89, 213, 184, 0.24), transparent 28rem),
+    radial-gradient(circle at 82% 10%, rgba(255, 207, 86, 0.22), transparent 24rem),
+    linear-gradient(180deg, #f8fbff 0%, #eef7f4 46%, #fbfcff 100%);
+}
+
+.welcome-card {
+  width: min(360px, 100%);
+  padding: 40px 28px 32px;
+  border-radius: 32px;
+  text-align: center;
+}
+
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 40px;
+}
+
+.welcome-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.welcome-brand span {
+  color: #101828;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.welcome-icon {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eafaf3;
+  font-size: 36px;
+}
+
+.welcome-title {
+  margin: 0 0 24px;
+  color: #101828;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.welcome-features {
   display: grid;
   gap: 10px;
+  margin-bottom: 28px;
+  text-align: left;
 }
 
-.chat-bubble {
-  max-width: 88%;
-  padding: 10px 14px;
-  border-radius: 18px;
+.welcome-cta {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.welcome-secondary {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  color: #667085;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.welcome-secondary:hover {
   color: #101828;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.chat-bubble.ai {
-  justify-self: start;
-  border-bottom-left-radius: 6px;
-  background: rgba(246, 254, 249, 0.92);
-}
-
-.chat-bubble.me {
-  justify-self: end;
-  border-bottom-right-radius: 6px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #16a34a 0%, #14b8a6 100%);
 }
 
 .glass-card {
@@ -447,8 +500,7 @@
 
 .mission-strip,
 .section-block,
-.loop-section,
-.pricing-note {
+.loop-section {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
 }
@@ -499,8 +551,7 @@
 }
 
 .section-heading h2,
-.loop-section h2,
-.pricing-note h2 {
+.loop-section h2 {
   margin: 0;
   color: #101828;
   font-size: 38px;
@@ -617,14 +668,6 @@
 
 .tool-surface button {
   border-radius: 12px !important;
-}
-
-.pricing-note {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 54px 0 80px;
 }
 
 .modal-backdrop {
@@ -787,8 +830,7 @@
   .hero-section,
   .mission-strip,
   .section-block,
-  .loop-section,
-  .pricing-note {
+  .loop-section {
     width: min(100% - 24px, 1180px);
   }
 
@@ -811,7 +853,6 @@
   }
 
   .trust-row,
-  .value-row,
   .mission-strip,
   .feature-grid,
   .app-tabs {
@@ -825,14 +866,12 @@
     border-radius: 24px;
   }
 
-  .pricing-note {
-    align-items: flex-start;
-    flex-direction: column;
+  .section-heading h2,
+  .loop-section h2 {
+    font-size: 30px;
   }
 
-  .section-heading h2,
-  .loop-section h2,
-  .pricing-note h2 {
-    font-size: 30px;
+  .welcome-card {
+    padding: 32px 22px 28px;
   }
 }
