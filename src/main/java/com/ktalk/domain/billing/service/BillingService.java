@@ -58,11 +58,11 @@ public class BillingService {
     @Value("${billing.plan.business.price-id:}")
     private String businessPriceId;
 
-    @Value("${billing.plan.pro.monthly-price-krw:9900}")
-    private long proMonthlyPriceKrw;
+    @Value("${billing.plan.pro.monthly-price-usd:9.90}")
+    private String proMonthlyPriceUsd;
 
-    @Value("${billing.plan.business.monthly-price-krw:29000}")
-    private long businessMonthlyPriceKrw;
+    @Value("${billing.plan.business.monthly-price-usd:19.90}")
+    private String businessMonthlyPriceUsd;
 
     @Value("${billing.plan.free.monthly-ai-requests:30}")
     private int freeMonthlyAiRequests;
@@ -75,9 +75,9 @@ public class BillingService {
 
     public List<PlanResponse> getPlans() {
         return List.of(
-                new PlanResponse("free", "Free", 0, freeMonthlyAiRequests, false),
-                new PlanResponse("pro", "Pro", proMonthlyPriceKrw, proMonthlyAiRequests, hasText(proPriceId)),
-                new PlanResponse("business", "Business", businessMonthlyPriceKrw, businessMonthlyAiRequests,
+                new PlanResponse("free", "Free", "0", freeMonthlyAiRequests, false),
+                new PlanResponse("pro", "Pro", proMonthlyPriceUsd, proMonthlyAiRequests, hasText(proPriceId)),
+                new PlanResponse("business", "Business", businessMonthlyPriceUsd, businessMonthlyAiRequests,
                         hasText(businessPriceId))
         );
     }
@@ -210,7 +210,7 @@ public class BillingService {
         payment.setStripeCustomerId(invoice.path("customer").asText(null));
         payment.setStripeSubscriptionId(invoice.path("subscription").asText(null));
         payment.setAmountPaid(invoice.path("amount_paid").asLong(0));
-        payment.setCurrency(invoice.path("currency").asText("krw"));
+        payment.setCurrency(invoice.path("currency").asText("usd"));
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaidAt(Instant.now());
         subscriptionRepository.findByStripeSubscriptionId(payment.getStripeSubscriptionId())

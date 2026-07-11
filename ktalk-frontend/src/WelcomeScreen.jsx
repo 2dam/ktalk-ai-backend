@@ -6,6 +6,11 @@ const WELCOME_FEATURES = [
   { icon: '🔥', copy: '하루 5분, 부담 없이 꾸준히' },
 ]
 
+const WELCOME_PLANS = [
+  { name: 'Pro', price: '$9.90', label: '개인 학습자' },
+  { name: 'Business', price: '$19.90', label: '강사와 팀' },
+]
+
 function WelcomeScreen({ onStart, onLogin }) {
   return (
     <div className="welcome-shell">
@@ -28,6 +33,16 @@ function WelcomeScreen({ onStart, onLogin }) {
             <div className="value-item" key={item.copy}>
               <span>{item.icon}</span>
               <span>{item.copy}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="welcome-pricing" aria-label="요금제">
+          {WELCOME_PLANS.map((plan) => (
+            <div className="welcome-plan" key={plan.name}>
+              <span>{plan.name}</span>
+              <strong>{plan.price}</strong>
+              <small>{plan.label}</small>
             </div>
           ))}
         </div>

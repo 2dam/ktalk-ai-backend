@@ -42,7 +42,7 @@ public class Payment {
     private Long amountPaid = 0L;
 
     @Column(nullable = false, length = 10)
-    private String currency = "krw";
+    private String currency = "usd";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

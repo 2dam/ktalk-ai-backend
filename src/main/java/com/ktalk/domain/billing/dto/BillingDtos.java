@@ -13,7 +13,7 @@ public final class BillingDtos {
     public record CheckoutResponse(String checkoutUrl) {
     }
 
-    public record PlanResponse(String id, String name, long monthlyPriceKrw, int monthlyAiRequests,
+    public record PlanResponse(String id, String name, String monthlyPriceUsd, int monthlyAiRequests,
                                boolean checkoutEnabled) {
     }
 

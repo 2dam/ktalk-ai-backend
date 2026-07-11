@@ -8,7 +8,7 @@ import CharacterChat from './components/CharacterChat'
 import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
 import RecommendedChannels from './components/RecommendedChannels'
-import { AUTH_URL } from './api'
+import { AUTH_URL, BILLING_URL } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
 
@@ -60,6 +60,7 @@ function App() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
+  const [billingLoading, setBillingLoading] = useState(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -154,6 +155,32 @@ function App() {
   const jumpToExperience = (tabId = 'contents') => {
     setActiveTab(tabId)
     document.getElementById('ai-experience')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const startCheckout = async (planId) => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      openAuth('login')
+      return
+    }
+
+    setBillingLoading(planId)
+    try {
+      const response = await axios.post(
+        `${BILLING_URL}/checkout`,
+        { planId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      const checkoutUrl = response.data?.data?.checkoutUrl
+      if (!checkoutUrl) {
+        throw new Error('결제 페이지를 만들지 못했습니다.')
+      }
+      window.location.href = checkoutUrl
+    } catch (error) {
+      alert('결제 시작 실패: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setBillingLoading(null)
+    }
   }
 
   // 인증 확인이 끝나기 전에는 웰컴 화면도, 기존 화면도 아닌 빈 배경만
@@ -361,6 +388,93 @@ function App() {
           </div>
         </section>
 
+        <section className="pricing-section" id="pricing">
+          <div className="section-heading pricing-heading">
+            <span className="eyebrow">Pricing</span>
+            <h2>AI 학습량에 맞춰 선택하세요</h2>
+            <p>무료로 시작하고, 매일 말하기 루틴이 생기면 Pro로 확장하세요. Pro는 월 $9.90, Business는 월 $19.90입니다.</p>
+          </div>
+
+          <div className="billing-switch" aria-label="결제 안내">
+            <span>Monthly</span>
+            <strong>14-day free trial</strong>
+            <span>Cancel anytime</span>
+          </div>
+
+          <div className="pricing-grid">
+            <article className="pricing-card">
+              <div className="pricing-card-top">
+                <span className="plan-badge">Starter</span>
+                <h3>Free</h3>
+                <div className="price-line">
+                  <strong>$0</strong>
+                  <small>/month</small>
+                </div>
+                <p>처음 둘러보고 기본 학습 루틴을 체험하는 플랜</p>
+              </div>
+              <ul className="plan-features">
+                <li>AI 콘텐츠 생성 월 30회</li>
+                <li>오늘의 표현과 기본 복습</li>
+                <li>K-pop/K-drama 클립 학습 체험</li>
+              </ul>
+              <button type="button" className="secondary-cta plan-button" onClick={() => jumpToExperience('contents')}>
+                현재 기능 사용
+              </button>
+            </article>
+
+            <article className="pricing-card recommended">
+              <div className="pricing-card-top">
+                <span className="plan-badge">Recommended</span>
+                <h3>Pro</h3>
+                <div className="price-line">
+                  <strong>$9.90</strong>
+                  <small>/month</small>
+                </div>
+                <p>매일 AI와 말하고 발음/오답 복습까지 이어가는 개인 학습자용</p>
+              </div>
+              <ul className="plan-features">
+                <li>AI 회화와 콘텐츠 생성 월 1,000회</li>
+                <li>AI 역할극과 실시간 피드백</li>
+                <li>발음 코치, 오답노트, 개인화 복습</li>
+                <li>유튜브 클립 기반 표현 추출</li>
+              </ul>
+              <button
+                type="button"
+                className="primary-cta plan-button"
+                onClick={() => startCheckout('pro')}
+                disabled={billingLoading === 'pro'}
+              >
+                {billingLoading === 'pro' ? '결제 이동 중' : 'Pro 결제하기'}
+              </button>
+            </article>
+
+            <article className="pricing-card">
+              <div className="pricing-card-top">
+                <span className="plan-badge">High volume</span>
+                <h3>Business</h3>
+                <div className="price-line">
+                  <strong>$19.90</strong>
+                  <small>/month</small>
+                </div>
+                <p>수업 자료와 대량 복습 세트가 필요한 강사, 팀, 고급 학습자용</p>
+              </div>
+              <ul className="plan-features">
+                <li>AI 회화와 콘텐츠 생성 월 5,000회</li>
+                <li>수업용 콘텐츠 빠른 생성</li>
+                <li>학습자별 복습 세트 구성</li>
+                <li>팀 결제와 영수증 관리</li>
+              </ul>
+              <button
+                type="button"
+                className="secondary-cta plan-button"
+                onClick={() => startCheckout('business')}
+                disabled={billingLoading === 'business'}
+              >
+                {billingLoading === 'business' ? '결제 이동 중' : 'Business 결제하기'}
+              </button>
+            </article>
+          </div>
+        </section>
       </main>
     </div>
   )

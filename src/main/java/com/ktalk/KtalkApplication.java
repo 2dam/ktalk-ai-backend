@@ -22,8 +22,8 @@ public class KtalkApplication {
         setIfPresent(dotenv, "STRIPE_WEBHOOK_SECRET");
         setIfPresent(dotenv, "STRIPE_PRO_PRICE_ID");
         setIfPresent(dotenv, "STRIPE_BUSINESS_PRICE_ID");
-        setIfPresent(dotenv, "BILLING_PRO_MONTHLY_PRICE_KRW");
-        setIfPresent(dotenv, "BILLING_BUSINESS_MONTHLY_PRICE_KRW");
+        setIfPresent(dotenv, "BILLING_PRO_MONTHLY_PRICE_USD");
+        setIfPresent(dotenv, "BILLING_BUSINESS_MONTHLY_PRICE_USD");
         setIfPresent(dotenv, "FRONTEND_URL");
 
         SpringApplication.run(KtalkApplication.class, args);

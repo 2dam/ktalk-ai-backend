@@ -94,6 +94,7 @@
 .start-review,
 .password-panel button,
 .auth-submit,
+.plan-button,
 .google-login {
   min-height: 42px;
   border: 0;
@@ -383,6 +384,44 @@
   text-align: left;
 }
 
+.welcome-pricing {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.welcome-plan {
+  display: grid;
+  gap: 4px;
+  min-height: 94px;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid rgba(32, 42, 68, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+}
+
+.welcome-plan span {
+  color: #087443;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.welcome-plan strong {
+  color: #101828;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.welcome-plan small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .welcome-cta {
   width: 100%;
   margin-bottom: 10px;
@@ -500,7 +539,8 @@
 
 .mission-strip,
 .section-block,
-.loop-section {
+.loop-section,
+.pricing-section {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
 }
@@ -670,6 +710,160 @@
   border-radius: 12px !important;
 }
 
+.pricing-section {
+  padding: 64px 0 84px;
+}
+
+.pricing-heading {
+  max-width: 780px;
+}
+
+.billing-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 2px 0 20px;
+  padding: 7px;
+  border: 1px solid rgba(32, 42, 68, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 14px 32px rgba(23, 44, 84, 0.08);
+}
+
+.billing-switch span,
+.billing-switch strong {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.billing-switch span {
+  color: #475467;
+}
+
+.billing-switch strong {
+  color: #ffffff;
+  background: #101828;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.pricing-card {
+  display: grid;
+  gap: 18px;
+  align-content: space-between;
+  min-height: 430px;
+  padding: 22px;
+  border: 1px solid rgba(32, 42, 68, 0.1);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 45px rgba(23, 44, 84, 0.08);
+}
+
+.pricing-card.recommended {
+  border-color: rgba(20, 184, 166, 0.38);
+  background:
+    linear-gradient(180deg, rgba(236, 253, 243, 0.98), rgba(255, 255, 255, 0.82)),
+    #ecfdf3;
+  box-shadow: 0 24px 60px rgba(20, 184, 166, 0.18);
+  transform: translateY(-8px);
+}
+
+.pricing-card-top {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(32, 42, 68, 0.1);
+  border-radius: 999px;
+  color: #087443;
+  background: rgba(236, 253, 243, 0.82);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.pricing-card h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.price-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.price-line strong {
+  color: #101828;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.price-line small,
+.pricing-card p,
+.plan-features {
+  color: #667085;
+}
+
+.pricing-card p {
+  line-height: 1.55;
+}
+
+.plan-features {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.plan-features li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.plan-features li::before {
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  color: #16a34a;
+  content: '+';
+  font-weight: 900;
+}
+
+.plan-button {
+  width: 100%;
+  min-height: 46px;
+}
+
+.plan-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -808,8 +1002,13 @@
   }
 
   .mission-strip,
-  .feature-grid {
+  .feature-grid,
+  .pricing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-card.recommended {
+    transform: none;
   }
 
   .loop-section {
@@ -830,7 +1029,8 @@
   .hero-section,
   .mission-strip,
   .section-block,
-  .loop-section {
+  .loop-section,
+  .pricing-section {
     width: min(100% - 24px, 1180px);
   }
 
@@ -855,6 +1055,7 @@
   .trust-row,
   .mission-strip,
   .feature-grid,
+  .pricing-grid,
   .app-tabs {
     grid-template-columns: 1fr;
   }
@@ -866,9 +1067,25 @@
     border-radius: 24px;
   }
 
+  .billing-switch {
+    width: 100%;
+    border-radius: 24px;
+  }
+
+  .billing-switch span,
+  .billing-switch strong {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
   .section-heading h2,
-  .loop-section h2 {
+  .loop-section h2,
+  .pricing-section h2 {
     font-size: 30px;
+  }
+
+  .price-line strong {
+    font-size: 36px;
   }
 
   .welcome-card {
