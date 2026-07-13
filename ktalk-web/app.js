@@ -1,0 +1,48 @@
+const topics = document.querySelectorAll('.topic');
+const messages = document.querySelector('#messages');
+const form = document.querySelector('#chat-form');
+const input = document.querySelector('#chat-input');
+const counter = document.querySelector('#counter');
+const toast = document.querySelector('#toast');
+
+function notify(text){ toast.textContent=text; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2200); }
+function addMessage(text, who='me'){
+  const row=document.createElement('div'); row.className=`message-row ${who}`;
+  if(who==='bot') row.innerHTML=`<div class="mini-avatar">다</div><div class="bubble">${text}</div>`;
+  else { const bubble=document.createElement('div'); bubble.className='bubble'; bubble.textContent=text; row.appendChild(bubble); }
+  messages.appendChild(row); messages.scrollTop=messages.scrollHeight;
+}
+topics.forEach(topic=>topic.addEventListener('click',()=>{
+  topics.forEach(t=>t.classList.remove('active')); topic.classList.add('active');
+  addMessage(topic.dataset.prompt,'bot'); input.focus();
+}));
+input.addEventListener('input',()=>{ if(input.value.length>200) input.value=input.value.slice(0,200); counter.textContent=`${input.value.length}/200`; });
+form.addEventListener('submit',e=>{
+  e.preventDefault(); const value=input.value.trim(); if(!value) return;
+  addMessage(value); input.value=''; counter.textContent='0/200';
+  const replies=['좋아요! 아주 자연스럽게 말했어요. 왜 그렇게 생각하는지도 말해 볼까요?','멋진 표현이에요! 같은 뜻으로 “정말 제 스타일이에요”라고도 말할 수 있어요.','잘했어요! 이번에는 과거형을 사용해서 한 문장 더 만들어 볼까요?'];
+  setTimeout(()=>addMessage(replies[Math.floor(Math.random()*replies.length)],'bot'),650);
+});
+document.querySelector('#practice-btn').addEventListener('click',()=>{input.value='완전 내 취향이야!';input.dispatchEvent(new Event('input'));input.focus();notify('오늘의 표현을 입력창에 담았어요');});
+document.querySelector('#voice-btn').addEventListener('click',()=>notify('음성 연습은 곧 만나요 🎙️'));
+const labCopy={contents:['AI CONTENT STUDIO','나만의 K-콘텐츠 학습 자료 만들기','관심 있는 주제나 영상을 선택하면 AI가 핵심 표현과 퀴즈를 구성해 드려요.','콘텐츠 생성하기'],clip:['YOUTUBE CLIP LEARNING','좋아하는 영상으로 바로 학습하기','유튜브 링크를 붙여 넣으면 핵심 문장과 실전 표현을 뽑아 드려요.','클립 분석하기'],chat:['AI CONVERSATION','AI와 오늘 배운 표현 말하기','실제 상황처럼 역할극을 하며 자연스러운 문장과 표현을 연습해요.','회화 시작하기'],pronunciation:['PRONUNCIATION COACH','내 발음과 억양을 더 자연스럽게','문장을 읽고 녹음하면 정확도와 자연스러운 억양을 피드백해요.','발음 연습하기'],personalized:['PERSONAL REVIEW','나에게 필요한 표현만 다시 복습하기','틀린 표현과 학습 기록을 바탕으로 나만의 복습 세트를 만들어요.','맞춤 복습 시작']};
+document.querySelectorAll('.lab-tabs button').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.lab-tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const [tag,title,copy,action]=labCopy[btn.dataset.lab];const main=document.querySelector('#lab-panel>div');main.querySelector('.eyebrow').textContent=tag;main.querySelector('h3').textContent=title;main.querySelector('h3+p').textContent=copy;main.querySelector('button').textContent=action;}));
+document.querySelectorAll('.price-grid button,.lab-form button').forEach(btn=>btn.addEventListener('click',()=>notify(`${btn.textContent} 기능을 준비했어요`)));
+
+const memberPlans={
+  explorer:{title:'몰입형 콘텐츠 탐험가',book:'장면으로 배우는 진짜 한국어',detail:'K-드라마 30장면 · 핵심 표현 120개 · AI 역할극',note:'짧은 클립으로 표현을 발견하고, 다음 날 AI 대화로 바로 사용해 보세요.',goal:'클립 3개 · AI 대화 2회',schedule:[['월','🎬','드라마 클립'],['화','💬','AI 역할극'],['수','🎧','쉐도잉'],['목','💬','AI 회화'],['금','🎬','K-콘텐츠'],['토','↻','오답 복습'],['일','☕','가벼운 휴식']],tasks:[['🎬','오늘의 드라마 클립','핵심 표현 3개 · 7분'],['🎧','한 문장 쉐도잉','억양 따라 말하기 · 5분'],['💬','다온과 역할극','표현 직접 사용 · 8분']],next:'몰입도가 높아요. 다음 주에는 클립 난이도를 한 단계 높이고 자유 대화를 1회 추가해 보세요.'},
+  speaker:{title:'실전형 소셜 스피커',book:'오늘부터 말하는 생활 한국어',detail:'실전 상황 24개 · 대화 패턴 100개 · AI 프리토킹',note:'짧게라도 매일 소리 내어 말하고, 즉시 AI 피드백을 확인하는 전략이에요.',goal:'AI 대화 3회 · 발음 연습 2회',schedule:[['월','💬','카페 역할극'],['화','🎙️','발음 훈련'],['수','💬','친구와 대화'],['목','🎙️','억양 훈련'],['금','💬','자유 대화'],['토','↻','표현 복습'],['일','☕','가벼운 휴식']],tasks:[['💬','상황별 AI 회화','카페 주문 · 10분'],['🎙️','발음 미션','핵심 문장 5개 · 5분'],['⚡','순간 대답 퀴즈','3초 안에 답하기 · 5분']],next:'말하기 참여도가 좋아요. 다음 주에는 AI 대화 시간을 5분 늘리고 낯선 상황 역할극을 추가해 보세요.'},
+  planner:{title:'체계형 로드맵 플래너',book:'한눈에 잡히는 한국어 로드맵',detail:'필수 문법 36개 · TOPIK 유형 · 단계별 체크포인트',note:'문법 원리를 익힌 뒤 예문과 문제로 확인하고, 오답을 주말에 정리해요.',goal:'문법 3개 · 주간 테스트 1회',schedule:[['월','▤','문법 1'],['화','✍️','예문 연습'],['수','▤','문법 2'],['목','📝','유형 문제'],['금','▤','문법 3'],['토','✓','주간 테스트'],['일','↻','오답 정리']],tasks:[['▤','오늘의 핵심 문법','원리와 예문 · 10분'],['✍️','문장 만들기','직접 5문장 · 7분'],['📝','확인 문제','유형 문제 5개 · 5분']],next:'계획을 안정적으로 수행했어요. 다음 주에는 오답이 많았던 문법을 1회 더 배치하고 문제 난이도를 높여 보세요.'},
+  builder:{title:'반복형 루틴 빌더',book:'하루 10분 한국어 루틴',detail:'매일 표현 5개 · 간격 반복 · 생활 미션 30일',note:'학습량보다 반복 간격이 중요해요. 매일 같은 시간에 짧게 이어가세요.',goal:'표현 25개 · 복습 5회',schedule:[['월','5','표현 5개'],['화','↻','1차 복습'],['수','5','표현 5개'],['목','↻','간격 복습'],['금','5','표현 5개'],['토','🎯','생활 미션'],['일','✓','누적 복습']],tasks:[['5','오늘의 표현 5개','카드 학습 · 5분'],['↻','어제 표현 복습','간격 반복 · 3분'],['🎯','생활 속 미션','한 문장 사용 · 2분']],next:'꾸준한 반복이 잘 유지됐어요. 다음 주에는 하루 표현을 1개 늘리되 학습 시간은 그대로 유지해 보세요.'}
+};
+let memberProfile;try{memberProfile=JSON.parse(localStorage.getItem('ktalkProfile'))}catch(e){}memberProfile=memberProfile||{name:'Mia',type:'explorer',level:'beginner',time:20,interest:'drama'};
+const currentPlan=memberPlans[memberProfile.type]||memberPlans.explorer,levelCode={starter:'A1',beginner:'A2',intermediate:'B1',advanced:'B2'}[memberProfile.level]||'A2';
+document.querySelector('#member-name').textContent=memberProfile.name;document.querySelector('#member-type').textContent=currentPlan.title;document.querySelector('#dash-book-level').textContent=levelCode;document.querySelector('#dash-book-title').textContent=currentPlan.book;document.querySelector('#dash-book-detail').textContent=currentPlan.detail;document.querySelector('#strategy-note').textContent=currentPlan.note;document.querySelector('#goal-description').textContent=currentPlan.goal;document.querySelector('#today-heading').textContent=`오늘 ${memberProfile.time||20}분, 이것만 하면 돼요`;
+let weekProgress;try{weekProgress=JSON.parse(localStorage.getItem('ktalkWeekProgress'))}catch(e){}weekProgress=weekProgress||{days:[],tasks:[]};
+const daysBox=document.querySelector('#schedule-days'),tasksBox=document.querySelector('#today-tasks');
+function saveWeek(){localStorage.setItem('ktalkWeekProgress',JSON.stringify(weekProgress))}
+function renderDays(){daysBox.innerHTML=currentPlan.schedule.map((d,i)=>`<button class="day ${i===6?'rest ':''}${weekProgress.days.includes(i)?'done':''}" data-day="${i}"><b>${d[0]}</b><span>${d[1]}</span><small>${d[2]}</small></button>`).join('');daysBox.querySelectorAll('.day').forEach(btn=>btn.addEventListener('click',()=>{const i=+btn.dataset.day;weekProgress.days=weekProgress.days.includes(i)?weekProgress.days.filter(x=>x!==i):[...weekProgress.days,i];saveWeek();renderDays();updateGoal()}))}
+function renderTasks(){tasksBox.innerHTML=currentPlan.tasks.map((t,i)=>`<label class="today-task ${weekProgress.tasks.includes(i)?'completed':''}"><input type="checkbox" data-task="${i}" ${weekProgress.tasks.includes(i)?'checked':''}><i>${t[0]}</i><span><b>${t[1]}</b><small>${t[2]}</small></span></label>`).join('');tasksBox.querySelectorAll('input').forEach(input=>input.addEventListener('change',()=>{const i=+input.dataset.task;weekProgress.tasks=input.checked?[...new Set([...weekProgress.tasks,i])]:weekProgress.tasks.filter(x=>x!==i);saveWeek();renderTasks();updateGoal()}))}
+function updateGoal(){const done=Math.min(5,new Set([...weekProgress.days.filter(i=>i<6),...weekProgress.tasks.map(i=>i+7)]).size),rate=Math.round(done/5*100);document.querySelector('#done-count').textContent=done;document.querySelector('#total-count').textContent=5;document.querySelector('#goal-percent').textContent=rate+'%';document.querySelector('#goal-ring').style.background=`conic-gradient(var(--coral) ${rate}%,#e7ece9 ${rate}%)`;document.querySelector('#book-percent').textContent=(35+done*3)+'%';document.querySelector('#book-bar').style.width=(35+done*3)+'%'}
+function openReport(){const done=+document.querySelector('#done-count').textContent,rate=Math.round(done/5*100),complete=rate>=80;document.querySelector('#report-emoji').textContent=complete?'🎉':'🌱';document.querySelector('#report-title').textContent=complete?'이번 주 목표를 달성했어요!':'이번 주도 잘 이어가고 있어요';document.querySelector('#report-copy').textContent=complete?`${memberProfile.name}님에게 맞춘 전략이 효과적으로 작동했어요. 다음 주 플랜을 한 단계 확장할게요.`:'완료하지 못한 학습은 다음 주 계획에 부담 없이 다시 배치해 드릴게요.';document.querySelector('#report-rate').textContent=rate+'%';document.querySelector('#report-exp').textContent='+'+(done*168);document.querySelector('#report-days').textContent=new Set(weekProgress.days).size+'일';document.querySelector('#next-strategy').textContent=complete?currentPlan.next:'학습량을 20% 줄이고, 완료하지 못한 핵심 활동을 다음 주 앞부분에 다시 배치할게요.';document.querySelector('#report-modal').classList.add('open');document.querySelector('#report-modal').setAttribute('aria-hidden','false')}
+renderDays();renderTasks();updateGoal();document.querySelector('#weekly-report-btn').addEventListener('click',openReport);document.querySelector('#report-close').addEventListener('click',()=>document.querySelector('#report-modal').classList.remove('open'));document.querySelector('#report-confirm').addEventListener('click',()=>document.querySelector('#report-modal').classList.remove('open'));document.querySelector('.book-start').addEventListener('click',()=>{document.querySelector('#ai-experience').scrollIntoView({behavior:'smooth'});notify(`${currentPlan.book} 학습을 이어갈게요`)})
