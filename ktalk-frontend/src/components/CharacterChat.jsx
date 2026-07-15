@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
 import { TAB_COLORS } from '../theme'
@@ -16,6 +16,7 @@ function speak(text) {
 }
 
 function CharacterChat() {
+  const inputRef = useRef(null)
   const [input, setInput] = useState('')
   const [language, setLanguage] = useState('')
   const [messages, setMessages] = useState([])
@@ -88,7 +89,12 @@ function CharacterChat() {
 
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '20px', minHeight: '200px', marginBottom: '15px' }}>
           {messages.length === 0 && (
-              <p style={{ color: '#999' }}>예: "I miss you so much" 라고 입력해보세요.</p>
+              <p
+                  style={{ color: '#999', cursor: 'text' }}
+                  onClick={() => inputRef.current?.focus()}
+              >
+                예: "I miss you so much" 라고 입력해보세요.
+              </p>
           )}
           {messages.map((msg, idx) => (
               <div key={idx} style={{ marginBottom: '15px' }}>
@@ -179,6 +185,7 @@ function CharacterChat() {
             <option value="es">Español</option>
           </select>
           <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
