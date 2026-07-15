@@ -4,5 +4,6 @@ export const TAB_COLORS = {
   clip: { accent: '#7c3aed', dark: '#6d28d9', tint: '#f5f3ff' },
   chat: { accent: '#3b82f6', dark: '#1d4ed8', tint: '#eff6ff' },
   pronunciation: { accent: '#f43f5e', dark: '#be123c', tint: '#fff1f2' },
-  personalized: { accent: '#14b8a6', dark: '#0f766e', tint: '#f0fdfa' }
+  personalized: { accent: '#14b8a6', dark: '#0f766e', tint: '#f0fdfa' },
+  assessment: { accent: '#124b43', dark: '#0d332d', tint: '#dcefe8' }
 }
