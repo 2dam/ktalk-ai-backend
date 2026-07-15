@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class PronunciationCoachController {
 
     private final PronunciationCoachService pronunciationCoachService;

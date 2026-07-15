@@ -22,23 +22,23 @@ public class PronunciationCoachService {
     @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
-    private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
-
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final GeminiApiClient geminiApiClient;
 
     public PronunciationCoachService(@Qualifier("audioWebClient") WebClient webClient,
-                                      ObjectMapper objectMapper) {
+                                      ObjectMapper objectMapper,
+                                      GeminiApiClient geminiApiClient) {
         this.webClient = webClient;
         this.objectMapper = objectMapper;
+        this.geminiApiClient = geminiApiClient;
     }
 
     public PronunciationFeedbackResponse evaluate(MultipartFile audioFile, String targetText) {
         try {
             byte[] audioBytes = audioFile.getBytes();
             String audioBase64 = Base64.getEncoder().encodeToString(audioBytes);
-            String mimeType = resolveMimeType(audioFile.getOriginalFilename(), audioFile.getContentType());
+            String mimeType = AudioMimeTypeResolver.resolveMimeType(audioFile.getOriginalFilename(), audioFile.getContentType());
 
             String prompt = buildPrompt(targetText);
 
@@ -54,15 +54,9 @@ public class PronunciationCoachService {
                     ))
             );
 
-            String response = webClient.post()
-                    .uri(GEMINI_URL + "?key=" + geminiApiKey)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+            String text = geminiApiClient.generateText(webClient, geminiApiKey, body);
 
-            return parseResponse(response, targetText);
+            return parseResponse(text, targetText);
         } catch (Exception e) {
             log.error("발음 평가 실패: {}", e.getMessage(), e);
             throw new RuntimeException("발음 평가 실패: " + e.getMessage());
@@ -94,17 +88,9 @@ public class PronunciationCoachService {
                 """.formatted(targetText);
     }
 
-    private PronunciationFeedbackResponse parseResponse(String rawResponse, String targetText) {
+    private PronunciationFeedbackResponse parseResponse(String text, String targetText) {
         try {
-            JsonNode root = objectMapper.readTree(rawResponse);
-            String text = root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
-
-            String cleaned = text.strip();
-            if (cleaned.startsWith("```")) {
-                cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
-            }
+            String cleaned = GeminiApiClient.stripMarkdownFences(text);
 
             JsonNode parsed = objectMapper.readTree(cleaned);
             String transcribedText = parsed.path("transcribedText").asText("");
@@ -118,22 +104,8 @@ public class PronunciationCoachService {
 
             return new PronunciationFeedbackResponse(targetText, transcribedText, score, feedback, tips);
         } catch (Exception e) {
-            log.error("발음 평가 응답 파싱 실패: {}", rawResponse, e);
+            log.error("발음 평가 응답 파싱 실패: {}", text, e);
             throw new RuntimeException("응답 파싱 실패: " + e.getMessage());
         }
-    }
-
-    private String resolveMimeType(String filename, String contentType) {
-        if (contentType != null && contentType.startsWith("audio/")) {
-            return contentType;
-        }
-        if (filename != null) {
-            if (filename.endsWith(".mp3")) return "audio/mp3";
-            if (filename.endsWith(".wav")) return "audio/wav";
-            if (filename.endsWith(".ogg")) return "audio/ogg";
-            if (filename.endsWith(".m4a")) return "audio/m4a";
-            if (filename.endsWith(".webm")) return "audio/webm";
-        }
-        return "audio/webm"; // 브라우저 기본 녹음 포맷
     }
 }

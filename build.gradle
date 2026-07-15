@@ -42,21 +42,10 @@ dependencies {
     // .env 파일 읽기
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 
-    // OpenAI API 클라이언트 (ChatGPT 연동용)
-    implementation 'com.theokanning.openai-gpt3-java:client:0.18.2'
-    implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
-
-    // YouTube Data API (콘텐츠 메타데이터 조회용)
-    implementation 'com.google.api-client:google-api-client:2.2.0'
-    implementation 'com.google.apis:google-api-services-youtube:v3-rev20230816-2.0.0'
-
     // JWT (인증용 - 추후 적용)
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-
-    // OkHttp (HTTP 클라이언트)
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'

@@ -7,9 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class MockAIService implements AIService {
+public class MockAIService {
 
-    @Override
     public Content generateContent(String topic) {
         Content content = new Content();
 
@@ -62,7 +61,6 @@ public class MockAIService implements AIService {
         return content;
     }
 
-    @Override
     public String generateDialogue(Content content) {
         String level = content.getKoreanLevel();
         String title = content.getTitle();

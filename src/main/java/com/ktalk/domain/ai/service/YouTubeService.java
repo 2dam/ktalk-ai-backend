@@ -22,10 +22,6 @@ public class YouTubeService {
     @Value("${youtube.api.key}")
     private String apiKey;
 
-    public List<VideoInfo> searchVideos(String query, int maxResults) {
-        return searchVideos(query, maxResults, false);
-    }
-
     // preferShort: 특정 대사/가사 하나만 담긴 짧은 클립(쇼츠, 하이라이트)을 우선적으로 찾고 싶을 때 사용.
     // 유튜브 API는 특정 순간의 타임스탬프를 알려주지 않으므로, 이미 그 부분만 잘라서 올라온
     // 4분 미만 영상(주로 쇼츠/하이라이트)을 우선 검색하는 방식으로 근접하게 구현한다.

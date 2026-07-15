@@ -19,6 +19,7 @@ public class GeminiService {
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final GeminiApiClient geminiApiClient;
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -33,21 +34,10 @@ public class GeminiService {
                     )
             );
 
-            String response = webClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .scheme("https")
-                            .host("generativelanguage.googleapis.com")
-                            .path("/v1beta/models/gemini-flash-latest:generateContent")
-                            .queryParam("key", apiKey)
-                            .build())
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+            String text = geminiApiClient.generateText(webClient, apiKey, requestBody);
 
             log.info("Gemini 응답 수신 완료");
-            return parseQuizResponse(response, questionCount);
+            return parseQuizResponse(text, questionCount);
         } catch (Exception e) {
             log.error("Gemini API 호출 실패: {}", e.getMessage(), e);
             return generateFallbackQuizzes(questionCount);
@@ -73,18 +63,9 @@ public class GeminiService {
             """.formatted(count, transcript.substring(0, Math.min(transcript.length(), 1000)));
     }
 
-    private List<QuizQuestion> parseQuizResponse(String response, int count) {
+    private List<QuizQuestion> parseQuizResponse(String text, int count) {
         List<QuizQuestion> questions = new ArrayList<>();
         try {
-            JsonNode root = objectMapper.readTree(response);
-            String text = root.path("candidates")
-                    .path(0)
-                    .path("content")
-                    .path("parts")
-                    .path(0)
-                    .path("text")
-                    .asText();
-
             // JSON 부분 추출 (마크다운 코드 블록 제거)
             String jsonPart = text.replaceAll("```json\\n?", "").replaceAll("```", "").trim();
             JsonNode quizArray = objectMapper.readTree(jsonPart);

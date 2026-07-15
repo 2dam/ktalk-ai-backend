@@ -1,13 +1,14 @@
 package com.ktalk.domain.ai.controller;
 
-import com.ktalk.domain.ai.service.AIService;
 import com.ktalk.domain.ai.service.GeminiService;
+import com.ktalk.domain.ai.service.MockAIService;
 import com.ktalk.domain.ai.service.TTSRateLimitService;
 import com.ktalk.domain.ai.service.TTSService;
 import com.ktalk.domain.ai.service.YouTubeService;
 import com.ktalk.domain.content.entity.Content;
 import com.ktalk.domain.content.repository.ContentRepository;
 import com.ktalk.global.response.ApiResponse;
+import com.ktalk.global.web.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class AIController {
     private final GeminiService geminiService;
     private final TTSService ttsService;
     private final TTSRateLimitService ttsRateLimitService;
-    private final AIService aiService;
+    private final MockAIService aiService;
     private final ContentRepository contentRepository;
 
     @PostMapping("/generate")
@@ -100,7 +101,7 @@ public class AIController {
     public ResponseEntity<ApiResponse> textToSpeech(@RequestBody Map<String, String> body,
                                                     HttpServletRequest request) {
         try {
-            if (!ttsRateLimitService.tryAcquire(clientKey(request))) {
+            if (!ttsRateLimitService.tryAcquire(RequestUtils.clientKey(request))) {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                         .body(ApiResponse.error("음성 요청이 많습니다. 잠시 후 다시 시도해주세요."));
             }
@@ -119,7 +120,7 @@ public class AIController {
     public ResponseEntity<ApiResponse> textToSpeechDialogue(@RequestBody Map<String, Object> body,
                                                             HttpServletRequest request) {
         try {
-            if (!ttsRateLimitService.tryAcquire(clientKey(request))) {
+            if (!ttsRateLimitService.tryAcquire(RequestUtils.clientKey(request))) {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                         .body(ApiResponse.error("음성 요청이 많습니다. 잠시 후 다시 시도해주세요."));
             }
@@ -140,13 +141,5 @@ public class AIController {
     @GetMapping("/health")
     public ResponseEntity<ApiResponse> health() {
         return ResponseEntity.ok(ApiResponse.success("AI Server is running! 🚀"));
-    }
-
-    private String clientKey(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

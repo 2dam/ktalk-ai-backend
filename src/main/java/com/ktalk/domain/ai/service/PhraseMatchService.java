@@ -22,11 +22,9 @@ public class PhraseMatchService {
     @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
-    private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
-
-    private final WebClient webClient = WebClient.create();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    private final GeminiApiClient geminiApiClient;
 
     public PhraseMatchResponse matchPhrases(PhraseMatchRequest request) {
         String prompt = buildPrompt(request.getText(), request.getLanguage());
@@ -77,36 +75,13 @@ public class PhraseMatchService {
                         Map.of("parts", List.of(Map.of("text", prompt)))
                 )
         );
-
-        String response = webClient.post()
-                .uri(GEMINI_URL + "?key=" + geminiApiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
-
-        try {
-            JsonNode root = objectMapper.readTree(response);
-            return root
-                    .path("candidates").get(0)
-                    .path("content")
-                    .path("parts").get(0)
-                    .path("text")
-                    .asText();
-        } catch (Exception e) {
-            log.error("Failed to parse Gemini response: {}", response, e);
-            throw new RuntimeException("Gemini API 응답 파싱 실패");
-        }
+        return geminiApiClient.generateText(webClient, geminiApiKey, body);
     }
 
     private PhraseMatchResponse parseResponse(String inputText, String rawJson) {
         try {
             // Gemini가 가끔 ```json ... ``` 블록을 붙이는 경우 제거
-            String cleaned = rawJson.strip();
-            if (cleaned.startsWith("```")) {
-                cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
-            }
+            String cleaned = GeminiApiClient.stripMarkdownFences(rawJson);
 
             JsonNode root = objectMapper.readTree(cleaned);
             String detectedLanguage = root.path("detectedLanguage").asText("unknown");

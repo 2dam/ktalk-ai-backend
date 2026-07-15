@@ -22,26 +22,26 @@ public class VoiceMatchService {
     @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
-    private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
-
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final TTSService ttsService;
+    private final GeminiApiClient geminiApiClient;
 
     public VoiceMatchService(@Qualifier("audioWebClient") WebClient webClient,
                              ObjectMapper objectMapper,
-                             TTSService ttsService) {
+                             TTSService ttsService,
+                             GeminiApiClient geminiApiClient) {
         this.webClient = webClient;
         this.objectMapper = objectMapper;
         this.ttsService = ttsService;
+        this.geminiApiClient = geminiApiClient;
     }
 
     public VoiceMatchResponse processVoice(MultipartFile audioFile) throws Exception {
         // 1. 오디오 파일을 base64로 인코딩
         byte[] audioBytes = audioFile.getBytes();
         String audioBase64 = Base64.getEncoder().encodeToString(audioBytes);
-        String mimeType = resolveMimeType(audioFile.getOriginalFilename(), audioFile.getContentType());
+        String mimeType = AudioMimeTypeResolver.resolveMimeType(audioFile.getOriginalFilename(), audioFile.getContentType());
 
         // 2. Gemini에 오디오 전송 → 외국어 인식 + Kpop/Kdrama 한국어 표현 탐색
         String geminiJson = callGeminiWithAudio(audioBase64, mimeType);
@@ -78,23 +78,7 @@ public class VoiceMatchService {
                 ))
         );
 
-        String response = webClient.post()
-                .uri(GEMINI_URL + "?key=" + geminiApiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
-
-        try {
-            JsonNode root = objectMapper.readTree(response);
-            return root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
-        } catch (Exception e) {
-            log.error("Gemini 응답 파싱 실패: {}", response, e);
-            throw new RuntimeException("Gemini API 응답 파싱 실패");
-        }
+        return geminiApiClient.generateText(webClient, geminiApiKey, body);
     }
 
     private String buildGeminiPrompt() {
@@ -132,10 +116,7 @@ public class VoiceMatchService {
 
     private ParsedGeminiResult parseGeminiResult(String rawJson) {
         try {
-            String cleaned = rawJson.strip();
-            if (cleaned.startsWith("```")) {
-                cleaned = cleaned.replaceAll("^```[a-z]*\\n?", "").replaceAll("```$", "").strip();
-            }
+            String cleaned = GeminiApiClient.stripMarkdownFences(rawJson);
 
             JsonNode root = objectMapper.readTree(cleaned);
             String transcription = root.path("transcription").asText();
@@ -174,22 +155,6 @@ public class VoiceMatchService {
     private String callGoogleTts(String text) {
         // 자연스러운 한국어 여성 음성, 약간 천천히 (학습용) — 캐싱은 TTSService가 처리
         return ttsService.synthesize(text, "FEMALE");
-    }
-
-    // ── 유틸 ────────────────────────────────────────────────────────────────
-
-    private String resolveMimeType(String filename, String contentType) {
-        if (contentType != null && contentType.startsWith("audio/")) {
-            return contentType;
-        }
-        if (filename != null) {
-            if (filename.endsWith(".mp3")) return "audio/mp3";
-            if (filename.endsWith(".wav")) return "audio/wav";
-            if (filename.endsWith(".ogg")) return "audio/ogg";
-            if (filename.endsWith(".m4a")) return "audio/m4a";
-            if (filename.endsWith(".webm")) return "audio/webm";
-        }
-        return "audio/webm"; // 브라우저 기본 녹음 포맷
     }
 
     private record ParsedGeminiResult(
