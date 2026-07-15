@@ -1,0 +1,1 @@
+{"name":"K-talk 맞춤 한국어 학습","short_name":"K-talk","description":"K-콘텐츠와 AI로 배우는 개인 맞춤 한국어 학습 앱","start_url":"./index.html","scope":"./","display":"standalone","background_color":"#f9faf7","theme_color":"#124b43","orientation":"portrait-primary","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

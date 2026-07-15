@@ -8,12 +8,20 @@
   --k-muted: #6e7c79;
 }
 
-.ktalk-shell {
+.ktalk-shell,
+.welcome-shell {
   position: relative;
   min-height: 100svh;
   color: var(--k-ink);
   font-family: "DM Sans", "Noto Sans KR", sans-serif;
   background: linear-gradient(135deg, #fbfcf8 0%, #ffffff 50%, #edf5f1 100%);
+}
+
+.welcome-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 
 .site-header {
@@ -95,6 +103,7 @@
 .start-review,
 .password-panel button,
 .auth-submit,
+.plan-button,
 .google-login {
   min-height: 42px;
   border: 0;
@@ -320,6 +329,127 @@
   font-size: 10px;
 }
 
+/* ---- Welcome (pre-login) screen ---- */
+
+.welcome-card {
+  width: min(360px, 100%);
+  padding: 40px 28px 32px;
+  border-radius: 32px;
+  text-align: center;
+}
+
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 40px;
+}
+
+.welcome-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.welcome-brand span {
+  color: var(--k-ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.welcome-icon {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--k-mint);
+  font-size: 36px;
+}
+
+.welcome-title {
+  margin: 0 0 24px;
+  color: var(--k-ink);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.welcome-features {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.value-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid #e3e8e5;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.value-item span:first-child {
+  flex-shrink: 0;
+  font-size: 22px;
+}
+
+.value-item span:last-child {
+  color: var(--k-ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.welcome-pricing {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.welcome-plan {
+  display: grid;
+  gap: 4px;
+  min-height: 94px;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid #e3e8e5;
+  border-radius: 18px;
+  background: #ffffff;
+  text-align: left;
+}
+
+.welcome-plan span {
+  color: #4f887d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.welcome-plan strong {
+  color: var(--k-ink);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.welcome-plan small {
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.welcome-cta {
+  width: 100%;
+}
+
 /* ---- Dashboard preview card (visual) ---- */
 
 .glass-card {
@@ -363,7 +493,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #e6c2a6;
+  background: var(--k-mint);
   font-size: 16px;
 }
 
@@ -383,7 +513,7 @@
   letter-spacing: 1.2px;
 }
 
-.progress-ring span {
+.progress-ring span:not(.type-label) {
   display: block;
   margin: 6px 0;
   color: #ffd09c;
@@ -481,7 +611,7 @@
 .mission-strip,
 .section-block,
 .loop-section,
-.pricing-note {
+.pricing-section {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
 }
@@ -533,7 +663,7 @@
 
 .section-heading h2,
 .loop-section h2,
-.pricing-note h2 {
+.pricing-section h2 {
   margin: 0;
   color: var(--k-ink);
   font-family: "Noto Sans KR", sans-serif;
@@ -714,62 +844,157 @@
   border-radius: 12px !important;
 }
 
-/* ---- Bottom CTA ---- */
+/* ---- Pricing (Stripe plans) ---- */
 
-.pricing-note {
-  display: grid;
-  justify-items: center;
-  text-align: center;
-  gap: 14px;
-  padding: 65px 0 80px;
+.pricing-section {
+  padding: 64px 0 84px;
 }
 
-.pricing-note button.secondary-cta {
-  display: inline-flex;
+.pricing-heading {
+  max-width: 780px;
+}
+
+.pricing-switch {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  background: var(--k-coral);
-  border: 0;
-  border-radius: 12px;
-  padding: 0 23px;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 22px;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
-}
-
-.auth-modal {
-  position: relative;
-  width: min(440px, 100%);
-  border-radius: 24px;
+  gap: 10px;
+  width: fit-content;
+  margin: 2px 0 20px;
+  padding: 7px;
+  border: 1px solid #e3e8e5;
+  border-radius: 999px;
   background: #ffffff;
-  box-shadow: 0 34px 90px rgba(15, 23, 42, 0.28);
 }
 
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 50%;
-  color: var(--k-muted);
-  background: var(--k-mint);
-  font-size: 24px;
-  cursor: pointer;
+.pricing-switch span,
+.pricing-switch strong {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
 }
+
+.pricing-switch span {
+  color: var(--k-muted);
+}
+
+.pricing-switch strong {
+  color: #ffffff;
+  background: var(--k-ink);
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.pricing-card {
+  display: grid;
+  gap: 18px;
+  align-content: space-between;
+  min-height: 430px;
+  padding: 22px;
+  border: 1px solid #e3e8e5;
+  border-radius: 26px;
+  background: #ffffff;
+}
+
+.pricing-card.recommended {
+  border-color: rgba(18, 75, 67, 0.32);
+  background: linear-gradient(180deg, var(--k-mint), #ffffff 60%);
+  transform: translateY(-8px);
+}
+
+.pricing-card-top {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #e3e8e5;
+  border-radius: 999px;
+  color: var(--k-green);
+  background: var(--k-mint);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pricing-card h3 {
+  margin: 0;
+  color: var(--k-ink);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.price-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.price-line strong {
+  color: var(--k-ink);
+  font-size: 42px;
+  font-weight: 800;
+}
+
+.price-line small,
+.pricing-card p,
+.plan-features {
+  color: var(--k-muted);
+}
+
+.pricing-card p {
+  line-height: 1.55;
+}
+
+.plan-features {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.plan-features li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.plan-features li::before {
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  color: var(--k-green);
+  content: '+';
+  font-weight: 800;
+}
+
+.plan-button {
+  width: 100%;
+  min-height: 46px;
+}
+
+.plan-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+/* ---- Auth (kept for future login form use) ---- */
 
 .auth-card {
   padding: 30px;
@@ -844,6 +1069,8 @@
   cursor: pointer;
 }
 
+/* ---- Footer ---- */
+
 footer.site-footer {
   display: flex;
   justify-content: space-between;
@@ -876,8 +1103,13 @@ footer.site-footer {
   }
 
   .mission-strip,
-  .feature-grid {
+  .feature-grid,
+  .pricing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-card.recommended {
+    transform: none;
   }
 
   .loop-steps {
@@ -899,7 +1131,7 @@ footer.site-footer {
   .mission-strip,
   .section-block,
   .loop-section,
-  .pricing-note,
+  .pricing-section,
   footer.site-footer {
     width: min(100% - 24px, 1180px);
   }
@@ -916,6 +1148,7 @@ footer.site-footer {
   .trust-row,
   .mission-strip,
   .feature-grid,
+  .pricing-grid,
   .app-tabs {
     grid-template-columns: 1fr;
   }
@@ -927,14 +1160,28 @@ footer.site-footer {
     border-radius: 20px;
   }
 
-  .pricing-note {
-    align-items: flex-start;
-    text-align: left;
+  .pricing-switch {
+    width: 100%;
+    border-radius: 24px;
+  }
+
+  .pricing-switch span,
+  .pricing-switch strong {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
   .section-heading h2,
   .loop-section h2,
-  .pricing-note h2 {
+  .pricing-section h2 {
     font-size: 26px;
+  }
+
+  .price-line strong {
+    font-size: 36px;
+  }
+
+  .welcome-card {
+    padding: 32px 22px 28px;
   }
 }
