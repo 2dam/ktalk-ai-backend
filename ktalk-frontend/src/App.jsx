@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import WelcomeScreen from './WelcomeScreen'
 import ContentManager from './components/ContentManager'
@@ -19,6 +19,26 @@ const TABS = [
   { id: 'pronunciation', label: 'AI 발음 코치', short: '발음' },
   { id: 'personalized', label: '개인화 복습', short: '복습' },
   { id: 'assessment', label: '학습 유형 진단', short: '유형진단' },
+]
+
+const TOPIK_MENU_GROUPS = [
+  {
+    label: '학습 콘텐츠',
+    items: [
+      { label: '기출문제집', tabId: 'contents' },
+      { label: '모의고사', tabId: 'chat' },
+      { label: '오답노트', tabId: 'personalized' },
+      { label: '학습 유형 진단', tabId: 'assessment' },
+    ],
+  },
+  {
+    label: '급수별 코스',
+    items: [
+      { label: '1~2급', anchorId: 'topik-course' },
+      { label: '3~4급', anchorId: 'topik-course' },
+      { label: '5~6급', anchorId: 'topik-course' },
+    ],
+  },
 ]
 
 const missionCards = [
@@ -84,6 +104,21 @@ function App() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
+  const [topikMenuOpen, setTopikMenuOpen] = useState(false)
+  const topikMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!topikMenuOpen) return
+
+    const handleClickOutside = (event) => {
+      if (topikMenuRef.current && !topikMenuRef.current.contains(event.target)) {
+        setTopikMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [topikMenuOpen])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -165,6 +200,15 @@ function App() {
     document.getElementById('ai-experience')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  const handleTopikMenuSelect = (item) => {
+    if (item.tabId) {
+      jumpToExperience(item.tabId)
+    } else if (item.anchorId) {
+      document.getElementById(item.anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    setTopikMenuOpen(false)
+  }
+
   // 인증 확인이 끝나기 전에는 웰컴 화면도, 기존 화면도 아닌 빈 배경만
   // 보여준다 — 안 그러면 이미 로그인된 사용자에게도 웰컴 화면이 잠깐
   // 번쩍이고 사라지는 깜빡임이 생긴다.
@@ -192,6 +236,36 @@ function App() {
         <nav className="header-nav" aria-label="주요 메뉴">
           <a href="#features">기능</a>
           <a href="#ai-experience">복습</a>
+          <div className="topik-menu" ref={topikMenuRef}>
+            <button
+              type="button"
+              className={`topik-menu-trigger ${topikMenuOpen ? 'open' : ''}`}
+              aria-expanded={topikMenuOpen}
+              aria-haspopup="true"
+              onClick={() => setTopikMenuOpen((value) => !value)}
+            >
+              TOPIK <span>▾</span>
+            </button>
+            {topikMenuOpen && (
+              <div className="topik-dropdown" role="menu">
+                {TOPIK_MENU_GROUPS.map((group) => (
+                  <div className="topik-dropdown-group" key={group.label}>
+                    <span className="topik-dropdown-label">{group.label}</span>
+                    {group.items.map((item) => (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        key={item.label}
+                        onClick={() => handleTopikMenuSelect(item)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className="header-actions">
@@ -262,10 +336,10 @@ function App() {
             </div>
           </div>
 
-          <aside className="dashboard-preview glass-card" aria-label="학습 유형 진단 결과 미리보기">
+          <aside className="dashboard-preview glass-card" id="topik-course" aria-label="학습 유형 진단 결과 미리보기">
             <div className="preview-top">
               <div>
-                <span className="preview-kicker">MY LEARNING MAP</span>
+                <span className="preview-kicker">TOPIK 코스</span>
                 <h2>회원님의 맞춤 학습</h2>
               </div>
               <span className="streak-badge">🧠</span>

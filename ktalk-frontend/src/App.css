@@ -90,6 +90,86 @@
   color: var(--k-green);
 }
 
+.topik-menu {
+  position: relative;
+}
+
+.topik-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: none;
+  background: none;
+  color: #54635f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.topik-menu-trigger:hover,
+.topik-menu-trigger.open {
+  color: var(--k-green);
+}
+
+.topik-menu-trigger span {
+  font-size: 10px;
+  transition: transform 180ms ease;
+}
+
+.topik-menu-trigger.open span {
+  transform: rotate(180deg);
+}
+
+.topik-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24px;
+  padding: 16px 18px;
+  background: #ffffff;
+  border: 1px solid #dfe6e2;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(20, 64, 56, 0.16);
+  z-index: 60;
+}
+
+.topik-dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.topik-dropdown-label {
+  color: #4f887d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.topik-dropdown-group button {
+  border: none;
+  background: none;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--k-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.topik-dropdown-group button:hover {
+  background: var(--k-mint);
+  color: var(--k-green);
+}
+
 .header-actions {
   display: flex;
   justify-content: flex-end;
