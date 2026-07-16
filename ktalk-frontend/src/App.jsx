@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { AuthCard } from './WelcomeScreen'
+import TopikPage from './components/TopikPage'
 import ContentManager from './components/ContentManager'
 import ClipAndLearn from './components/ClipAndLearn'
 import CharacterChat from './components/CharacterChat'
@@ -21,24 +22,12 @@ const TABS = [
   { id: 'assessment', label: '학습 유형 진단', short: '유형진단' },
 ]
 
-const TOPIK_MENU_GROUPS = [
-  {
-    label: '학습 콘텐츠',
-    items: [
-      { label: '기출문제집', tabId: 'contents' },
-      { label: '모의고사', tabId: 'chat' },
-      { label: '오답노트', tabId: 'personalized' },
-      { label: '학습 유형 진단', tabId: 'assessment' },
-    ],
-  },
-  {
-    label: '급수별 코스',
-    items: [
-      { label: '1~2급', anchorId: 'topik-course' },
-      { label: '3~4급', anchorId: 'topik-course' },
-      { label: '5~6급', anchorId: 'topik-course' },
-    ],
-  },
+const WEEK_METRICS = [
+  { label: '정답률', tabId: 'assessment' },
+  { label: '취약 단원', tabId: 'personalized' },
+  { label: '수업참여도', tabId: 'clip' },
+  { label: '모의고사', tabId: 'chat' },
+  { label: '금주복습', tabId: 'personalized' },
 ]
 
 const missionCards = [
@@ -104,21 +93,23 @@ function App() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
-  const [topikMenuOpen, setTopikMenuOpen] = useState(false)
-  const topikMenuRef = useRef(null)
+  const [route, setRoute] = useState(() => window.location.pathname)
+  const [pendingScroll, setPendingScroll] = useState(null)
 
   useEffect(() => {
-    if (!topikMenuOpen) return
+    const handlePopState = () => setRoute(window.location.pathname)
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
-    const handleClickOutside = (event) => {
-      if (topikMenuRef.current && !topikMenuRef.current.contains(event.target)) {
-        setTopikMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [topikMenuOpen])
+  // 라우트/탭 전환과 같은 렌더에서 스크롤을 요청하면 대상 엘리먼트가
+  // 아직 DOM에 없을 수 있다. 커밋 이후에 실행되는 effect에서 스크롤해야
+  // requestAnimationFrame 타이밍에 기대지 않고 항상 최신 DOM을 스크롤한다.
+  useEffect(() => {
+    if (!pendingScroll) return
+    document.getElementById(pendingScroll)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setPendingScroll(null)
+  }, [pendingScroll, route, activeTab])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -195,18 +186,38 @@ function App() {
     }
   }
 
-  const jumpToExperience = (tabId = 'contents') => {
-    setActiveTab(tabId)
-    document.getElementById('ai-experience')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path)
+    setRoute(path)
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const handleTopikMenuSelect = (item) => {
-    if (item.tabId) {
-      jumpToExperience(item.tabId)
-    } else if (item.anchorId) {
-      document.getElementById(item.anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const goToSection = (id) => (event) => {
+    event.preventDefault()
+    if (route !== '/') {
+      navigateTo('/')
     }
-    setTopikMenuOpen(false)
+    setPendingScroll(id)
+  }
+
+  const jumpToExperience = (tabId = 'contents') => {
+    if (route !== '/') {
+      navigateTo('/')
+    }
+    setActiveTab(tabId)
+    setPendingScroll('ai-experience')
+  }
+
+  const jumpToTopikCourse = () => {
+    if (route !== '/') {
+      navigateTo('/')
+    }
+    setPendingScroll('topik-course')
+  }
+
+  const goToTopikPage = (event) => {
+    event?.preventDefault()
+    navigateTo('/topik')
   }
 
   // 인증 확인이 끝나기 전에는 웰컴 화면도, 기존 화면도 아닌 빈 배경만
@@ -219,7 +230,7 @@ function App() {
   return (
     <div className="ktalk-shell">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="K-Talk AI 홈">
+        <a className="brand" href="/" onClick={(event) => { event.preventDefault(); navigateTo('/') }} aria-label="K-Talk AI 홈">
           <img src={ktalkLogo} alt="" className="brand-logo" />
           <span>
             <strong>K-Talk AI</strong>
@@ -228,38 +239,15 @@ function App() {
         </a>
 
         <nav className="header-nav" aria-label="주요 메뉴">
-          <a href="#features">기능</a>
-          <a href="#ai-experience">복습</a>
-          <div className="topik-menu" ref={topikMenuRef}>
-            <button
-              type="button"
-              className={`topik-menu-trigger ${topikMenuOpen ? 'open' : ''}`}
-              aria-expanded={topikMenuOpen}
-              aria-haspopup="true"
-              onClick={() => setTopikMenuOpen((value) => !value)}
-            >
-              TOPIK <span>▾</span>
-            </button>
-            {topikMenuOpen && (
-              <div className="topik-dropdown" role="menu">
-                {TOPIK_MENU_GROUPS.map((group) => (
-                  <div className="topik-dropdown-group" key={group.label}>
-                    <span className="topik-dropdown-label">{group.label}</span>
-                    {group.items.map((item) => (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        key={item.label}
-                        onClick={() => handleTopikMenuSelect(item)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <a href="#features" onClick={goToSection('features')}>기능</a>
+          <a href="#ai-experience" onClick={goToSection('ai-experience')}>복습</a>
+          <a
+            href="/topik"
+            className={`topik-nav-link ${route === '/topik' ? 'active' : ''}`}
+            onClick={goToTopikPage}
+          >
+            TOPIK
+          </a>
         </nav>
 
         <div className="header-actions">
@@ -307,6 +295,13 @@ function App() {
         </form>
       )}
 
+      {route === '/topik' ? (
+        <TopikPage
+          onSelectTab={jumpToExperience}
+          onSelectLevel={jumpToTopikCourse}
+          onBack={() => navigateTo('/')}
+        />
+      ) : (
       <main id="top">
         <section className="hero-section">
           <div className="hero-copy">
@@ -339,7 +334,7 @@ function App() {
           <aside className="dashboard-preview glass-card" id="topik-course" aria-label="학습 유형 진단 결과 미리보기">
             <div className="preview-top">
               <div>
-                <span className="topik-badge">TOPIK 코스</span>
+                <button type="button" className="topik-badge" onClick={goToTopikPage}>TOPIK 코스</button>
                 <h2>회원님의 맞춤 학습</h2>
               </div>
               <span className="streak-badge">🧠</span>
@@ -362,11 +357,16 @@ function App() {
               </div>
             </div>
             <div className="week-grid">
-              <span>정답률</span>
-              <span>취약 단원</span>
-              <span>수업참여도</span>
-              <span>모의고사</span>
-              <span>금주복습</span>
+              {WEEK_METRICS.map((metric, index) => (
+                <button
+                  key={metric.label}
+                  type="button"
+                  className={index === 0 ? 'active' : ''}
+                  onClick={() => jumpToExperience(metric.tabId)}
+                >
+                  {metric.label}
+                </button>
+              ))}
             </div>
             <button type="button" className="start-review" onClick={() => jumpToExperience('assessment')}>
               내 학습 유형 진단하기
@@ -544,6 +544,7 @@ function App() {
           </div>
         </section>
       </main>
+      )}
 
       <footer className="site-footer">
         <span>© 2026 K-Talk AI · Made with ♥ in Seoul</span>

@@ -10,4 +10,9 @@ public class SpaController {
     public String oauthRedirect() {
         return "forward:/index.html";
     }
+
+    @GetMapping("/topik")
+    public String topikPage() {
+        return "forward:/index.html";
+    }
 }

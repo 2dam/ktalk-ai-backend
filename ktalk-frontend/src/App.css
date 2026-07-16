@@ -96,86 +96,14 @@
   color: var(--k-green);
 }
 
-.topik-menu {
-  position: relative;
-}
-
-.topik-menu-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 4px;
-  border: none;
-  background: none;
+.header-nav a.topik-nav-link {
   color: var(--k-coral);
-  font-size: 13px;
   font-weight: 800;
-  cursor: pointer;
-  transition: color 180ms ease;
 }
 
-.topik-menu-trigger:hover,
-.topik-menu-trigger.open {
+.header-nav a.topik-nav-link:hover,
+.header-nav a.topik-nav-link.active {
   color: #d85f49;
-}
-
-.topik-menu-trigger span {
-  font-size: 10px;
-  transition: transform 180ms ease;
-}
-
-.topik-menu-trigger.open span {
-  transform: rotate(180deg);
-}
-
-.topik-dropdown {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 24px;
-  padding: 16px 18px;
-  background: #ffffff;
-  border: 1px solid #dfe6e2;
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgba(20, 64, 56, 0.16);
-  z-index: 60;
-  max-width: calc(100vw - 24px);
-}
-
-.topik-dropdown-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 120px;
-}
-
-.topik-dropdown-label {
-  color: #4f887d;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-}
-
-.topik-dropdown-group button {
-  border: none;
-  background: none;
-  padding: 7px 8px;
-  border-radius: 8px;
-  text-align: left;
-  color: var(--k-ink);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.topik-dropdown-group button:hover {
-  background: var(--k-mint);
-  color: var(--k-green);
 }
 
 .header-actions {
@@ -564,12 +492,14 @@
 .topik-badge {
   display: inline-block;
   padding: 6px 14px;
+  border: none;
   border-radius: 999px;
   background: var(--k-coral);
   color: #ffffff;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.3px;
+  cursor: pointer;
 }
 
 .preview-top h2 {
@@ -676,16 +606,24 @@
   gap: 5px;
 }
 
-.week-grid span {
+.week-grid button {
   padding: 8px 2px;
   text-align: center;
   border: 1px solid #e3e8e5;
   border-radius: 8px;
+  background: #ffffff;
   font-size: 8px;
-  color: var(--k-muted);
+  font-weight: 700;
+  color: var(--k-ink);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
-.week-grid span:first-child {
+.week-grid button:hover {
+  border-color: #8db6ad;
+}
+
+.week-grid button.active {
   border-color: #8db6ad;
   background: var(--k-mint);
   color: var(--k-ink);
@@ -1167,6 +1105,106 @@
   cursor: pointer;
 }
 
+/* ---- TOPIK page ---- */
+
+.topik-page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 60px 0 90px;
+}
+
+.topik-page-head {
+  max-width: 640px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.topik-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  border: none;
+  background: none;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.topik-back:hover {
+  color: var(--k-green);
+}
+
+.topik-page-head .topik-badge {
+  margin-bottom: 16px;
+}
+
+.topik-page-head h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 800;
+  color: var(--k-ink);
+}
+
+.topik-page-head p {
+  color: var(--k-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.topik-page-group {
+  margin-bottom: 40px;
+}
+
+.topik-page-group h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--k-ink);
+}
+
+.topik-page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.topik-page-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 22px;
+  border: 1px solid #dfe6e2;
+  border-radius: 20px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.topik-page-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(20, 64, 56, 0.12);
+  border-color: #8db6ad;
+}
+
+.topik-page-card-icon {
+  font-size: 22px;
+}
+
+.topik-page-card b {
+  font-size: 16px;
+  color: var(--k-ink);
+}
+
+.topik-page-card small {
+  color: var(--k-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* ---- Footer ---- */
 
 footer.site-footer {
@@ -1188,20 +1226,6 @@ footer.site-footer {
 
   .header-nav {
     order: 3;
-    width: 100%;
-  }
-
-  .topik-dropdown {
-    left: auto;
-    right: 0;
-    transform: none;
-    flex-direction: column;
-    gap: 14px;
-    width: 190px;
-  }
-
-  .topik-dropdown-group {
-    min-width: 0;
     width: 100%;
   }
 
