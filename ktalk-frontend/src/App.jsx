@@ -339,7 +339,7 @@ function App() {
           <aside className="dashboard-preview glass-card" id="topik-course" aria-label="학습 유형 진단 결과 미리보기">
             <div className="preview-top">
               <div>
-                <span className="preview-kicker">TOPIK 코스</span>
+                <span className="topik-badge">TOPIK 코스</span>
                 <h2>회원님의 맞춤 학습</h2>
               </div>
               <span className="streak-badge">🧠</span>
