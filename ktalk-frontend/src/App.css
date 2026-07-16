@@ -24,6 +24,12 @@
   padding: 24px;
 }
 
+.auth-inline-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
 .site-header {
   position: sticky;
   top: 0;

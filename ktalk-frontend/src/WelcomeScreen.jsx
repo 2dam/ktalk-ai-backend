@@ -14,7 +14,7 @@ const WELCOME_PLANS = [
   { name: 'Business', price: '$19.90', label: '강사와 팀' },
 ]
 
-function WelcomeScreen({ onAuthenticated }) {
+export function AuthCard({ onAuthenticated }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
@@ -53,7 +53,6 @@ function WelcomeScreen({ onAuthenticated }) {
   }
 
   return (
-    <div className="welcome-shell">
       <div className="welcome-card glass-card auth-card">
         <div className="welcome-brand">
           <img src={ktalkLogo} alt="" className="welcome-logo" />
@@ -153,6 +152,13 @@ function WelcomeScreen({ onAuthenticated }) {
           )}
         </div>
       </div>
+  )
+}
+
+function WelcomeScreen({ onAuthenticated }) {
+  return (
+    <div className="welcome-shell">
+      <AuthCard onAuthenticated={onAuthenticated} />
     </div>
   )
 }

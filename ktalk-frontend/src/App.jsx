@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import WelcomeScreen from './WelcomeScreen'
+import { AuthCard } from './WelcomeScreen'
 import ContentManager from './components/ContentManager'
 import ClipAndLearn from './components/ClipAndLearn'
 import CharacterChat from './components/CharacterChat'
@@ -216,12 +216,6 @@ function App() {
     return <div className="welcome-shell" />
   }
 
-  // 로그인 전 방문자는 전체 기능 화면 대신 로그인/회원가입 폼이 있는
-  // 웰컴 화면만 본다. 진단 결과 등은 실제 로그인된 사용자에게만 연결된다.
-  if (!isLoggedIn) {
-    return <WelcomeScreen onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />
-  }
-
   return (
     <div className="ktalk-shell">
       <header className="site-header">
@@ -269,11 +263,17 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <div className="user-chip">
-            <span>{user.username}</span>
-            <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
-            <button type="button" onClick={handleLogout}>로그아웃</button>
-          </div>
+          {isLoggedIn ? (
+            <div className="user-chip">
+              <span>{user.username}</span>
+              <button type="button" onClick={() => setShowPasswordForm((value) => !value)}>설정</button>
+              <button type="button" onClick={handleLogout}>로그아웃</button>
+            </div>
+          ) : (
+            <button type="button" className="login-button" onClick={() => jumpToExperience()}>
+              로그인 / 회원가입
+            </button>
+          )}
         </div>
       </header>
 
@@ -426,28 +426,36 @@ function App() {
 
           <RecommendedChannels />
 
-          <nav className="app-tabs" aria-label="AI 학습 기능">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={activeTab === tab.id ? 'active' : ''}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <span>{tab.label}</span>
-                <small>{tab.short}</small>
-              </button>
-            ))}
-          </nav>
+          {isLoggedIn ? (
+            <>
+              <nav className="app-tabs" aria-label="AI 학습 기능">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={activeTab === tab.id ? 'active' : ''}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <span>{tab.label}</span>
+                    <small>{tab.short}</small>
+                  </button>
+                ))}
+              </nav>
 
-          <div className="tool-surface glass-card">
-            {activeTab === 'contents' && <ContentManager />}
-            {activeTab === 'clip' && <ClipAndLearn />}
-            {activeTab === 'chat' && <CharacterChat />}
-            {activeTab === 'pronunciation' && <PronunciationCoach />}
-            {activeTab === 'personalized' && <PersonalizedLearning onNavigate={setActiveTab} />}
-            {activeTab === 'assessment' && <AssessmentSurvey />}
-          </div>
+              <div className="tool-surface glass-card">
+                {activeTab === 'contents' && <ContentManager />}
+                {activeTab === 'clip' && <ClipAndLearn />}
+                {activeTab === 'chat' && <CharacterChat />}
+                {activeTab === 'pronunciation' && <PronunciationCoach />}
+                {activeTab === 'personalized' && <PersonalizedLearning onNavigate={setActiveTab} />}
+                {activeTab === 'assessment' && <AssessmentSurvey />}
+              </div>
+            </>
+          ) : (
+            <div className="auth-inline-wrap">
+              <AuthCard onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />
+            </div>
+          )}
         </section>
 
         <section className="pricing-section" id="pricing">
