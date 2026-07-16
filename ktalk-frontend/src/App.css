@@ -1036,6 +1036,12 @@
   padding: 0 14px;
 }
 
+.auth-error {
+  margin: -4px 0 0;
+  color: #c0392b;
+  font-size: 13px;
+}
+
 .auth-submit {
   margin-top: 4px;
   color: #ffffff;
