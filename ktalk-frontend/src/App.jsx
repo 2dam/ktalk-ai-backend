@@ -288,11 +288,11 @@ function App() {
               </div>
             </div>
             <div className="week-grid">
-              <span>월<br />클립</span>
-              <span>화<br />회화</span>
-              <span>수<br />발음</span>
-              <span>목<br />회화</span>
-              <span>금<br />복습</span>
+              <span>정답률</span>
+              <span>취약 단원</span>
+              <span>수업참여도</span>
+              <span>모의고사</span>
+              <span>금주복습</span>
             </div>
             <button type="button" className="start-review" onClick={() => jumpToExperience('assessment')}>
               내 학습 유형 진단하기
