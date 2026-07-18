@@ -38,33 +38,6 @@ const missionCards = [
   { title: '추천 유튜브 학습', value: '5개', copy: '내 수준 맞춤 클립', tone: 'amber' },
 ]
 
-const featureCards = [
-  {
-    title: '학습 유형 진단',
-    copy: '20문항 진단으로 6가지 유형 중 나에게 맞는 유형을 찾고, 맞춤 교재·커리큘럼을 추천받습니다.',
-  },
-  {
-    title: '유튜브 클립 학습',
-    copy: '좋아하는 영상에서 표현을 뽑아 짧은 미션으로 학습합니다.',
-  },
-  {
-    title: 'AI 회화 연습',
-    copy: '오늘 배운 표현을 실제 대화처럼 말하며 복습합니다.',
-  },
-  {
-    title: '발음 코치',
-    copy: '내 발음을 듣고 자연스러운 억양과 정확도를 피드백합니다.',
-  },
-  {
-    title: '오답노트',
-    copy: '틀린 표현을 자동으로 모아 다음 복습 루프로 보냅니다.',
-  },
-  {
-    title: '개인화 추천',
-    copy: '레벨, 관심사, 학습 기록에 맞춰 다음 콘텐츠를 추천합니다.',
-  },
-]
-
 const howSteps = [
   {
     kicker: '01 · DISCOVER',
@@ -386,17 +359,23 @@ function App() {
 
         <section className="section-block" id="features">
           <div className="section-heading">
-            <span className="eyebrow">Feature Cards</span>
+            <span className="eyebrow">Learning Navigation</span>
             <h2>말하고, 틀리고, 다시 익히는 학습 루프</h2>
           </div>
-          <div className="feature-grid">
-            {featureCards.map((feature) => (
-              <article className="feature-card glass-card" key={feature.title}>
-                <h3>{feature.title}</h3>
-                <p>{feature.copy}</p>
-              </article>
-            ))}
-          </div>
+          {isLoggedIn ? (
+            <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
+                진행 중인 Learning Navigation은 아래 AI Learning Lab에서 이어갈 수 있어요.
+              </p>
+              <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
+                AI Learning Lab로 이동 →
+              </button>
+            </div>
+          ) : (
+            <div className="tool-surface glass-card">
+              <LearningNavigation />
+            </div>
+          )}
         </section>
 
         <section className="loop-section">
