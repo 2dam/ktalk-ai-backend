@@ -403,8 +403,6 @@ function App() {
             <p>콘텐츠 생성, 유튜브 학습, 회화, 발음 코치까지 모든 기능을 여기서 바로 사용할 수 있습니다.</p>
           </div>
 
-          <RecommendedChannels />
-
           {isLoggedIn ? (
             <div className="tool-surface glass-card">
               <LearningNavigation target={navTarget} />
@@ -414,6 +412,8 @@ function App() {
               <AuthCard onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />
             </div>
           )}
+
+          <RecommendedChannels />
         </section>
 
         <section className="pricing-section" id="pricing">
