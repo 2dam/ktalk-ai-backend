@@ -2,27 +2,25 @@ import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { AuthCard } from './WelcomeScreen'
 import TopikPage from './components/TopikPage'
-import ContentManager from './components/ContentManager'
-import ClipAndLearn from './components/ClipAndLearn'
-import CharacterChat from './components/CharacterChat'
-import PronunciationCoach from './components/PronunciationCoach'
-import PersonalizedLearning from './components/PersonalizedLearning'
-import AssessmentSurvey from './components/AssessmentSurvey'
 import LearningNavigation from './components/LearningNavigation'
 import RecommendedChannels from './components/RecommendedChannels'
 import { AUTH_URL } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
 
-const TABS = [
-  { id: 'contents', label: 'AI 콘텐츠', short: '콘텐츠' },
-  { id: 'clip', label: '유튜브 클립 학습', short: '클립' },
-  { id: 'chat', label: 'AI 회화 연습', short: '회화' },
-  { id: 'pronunciation', label: 'AI 발음 코치', short: '발음' },
-  { id: 'personalized', label: '개인화 복습', short: '복습' },
-  { id: 'assessment', label: '학습 유형 진단', short: '유형진단' },
-  { id: 'navigation', label: 'Learning Navigation', short: '내비게이션' },
-]
+// Learning Navigation이 전체 학습 과정을 아우르는 하나의 방법론이 되면서,
+// 예전에 독립된 탭이었던 기능들은 이제 그 방법론의 어느 단계에 속하는 도구인지로
+// 재배치된다. 옛 tabId를 남겨두는 건 TopikPage/히어로/가격 섹션 등 기존 진입점들이
+// 그대로 동작하게 하기 위함이다 — 그 버튼들은 여전히 tabId를 넘기고, 여기서 그걸
+// 해당 단계 + 도구로 해석한다.
+const TAB_TO_STAGE = {
+  assessment: { stage: 'interest', tool: 'assessment' },
+  contents: { stage: 'infer', tool: 'contents' },
+  clip: { stage: 'infer', tool: 'clip' },
+  chat: { stage: 'pattern', tool: 'chat' },
+  personalized: { stage: 'sensory', tool: 'personalized' },
+  pronunciation: { stage: 'sensory', tool: 'pronunciation' },
+}
 
 const WEEK_METRICS = [
   { label: '정답률', tabId: 'assessment' },
@@ -91,7 +89,7 @@ const howSteps = [
 function App() {
   const [user, setUser] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [activeTab, setActiveTab] = useState('contents')
+  const [navTarget, setNavTarget] = useState(null)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordChanging, setPasswordChanging] = useState(false)
@@ -111,7 +109,7 @@ function App() {
     if (!pendingScroll) return
     document.getElementById(pendingScroll)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setPendingScroll(null)
-  }, [pendingScroll, route, activeTab])
+  }, [pendingScroll, route, navTarget])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -123,8 +121,8 @@ function App() {
     }
 
     const tabParam = params.get('tab')
-    if (tabParam && TABS.some((tab) => tab.id === tabParam)) {
-      setActiveTab(tabParam)
+    if (tabParam && TAB_TO_STAGE[tabParam]) {
+      setNavTarget(TAB_TO_STAGE[tabParam])
     }
 
     const token = localStorage.getItem('token')
@@ -206,7 +204,7 @@ function App() {
     if (route !== '/') {
       navigateTo('/')
     }
-    setActiveTab(tabId)
+    setNavTarget(TAB_TO_STAGE[tabId] || { stage: 'interest' })
     setPendingScroll('ai-experience')
   }
 
@@ -429,31 +427,9 @@ function App() {
           <RecommendedChannels />
 
           {isLoggedIn ? (
-            <>
-              <nav className="app-tabs" aria-label="AI 학습 기능">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={activeTab === tab.id ? 'active' : ''}
-                    onClick={() => setActiveTab(tab.id)}
-                  >
-                    <span>{tab.label}</span>
-                    <small>{tab.short}</small>
-                  </button>
-                ))}
-              </nav>
-
-              <div className="tool-surface glass-card">
-                {activeTab === 'contents' && <ContentManager />}
-                {activeTab === 'clip' && <ClipAndLearn />}
-                {activeTab === 'chat' && <CharacterChat />}
-                {activeTab === 'pronunciation' && <PronunciationCoach />}
-                {activeTab === 'personalized' && <PersonalizedLearning onNavigate={setActiveTab} />}
-                {activeTab === 'assessment' && <AssessmentSurvey />}
-                {activeTab === 'navigation' && <LearningNavigation />}
-              </div>
-            </>
+            <div className="tool-surface glass-card">
+              <LearningNavigation target={navTarget} />
+            </div>
           ) : (
             <div className="auth-inline-wrap">
               <AuthCard onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />

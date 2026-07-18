@@ -1,7 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import AssessmentSurvey from './AssessmentSurvey'
+import ContentManager from './ContentManager'
+import ClipAndLearn from './ClipAndLearn'
+import CharacterChat from './CharacterChat'
+import PronunciationCoach from './PronunciationCoach'
+import PersonalizedLearning from './PersonalizedLearning'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -52,8 +58,44 @@ function StageTracker({ stage }) {
   )
 }
 
-function LearningNavigation() {
+function EmptyLessonNotice({ onStart }) {
+  return (
+    <div style={{
+      padding: '16px', borderRadius: '8px', backgroundColor: '#fff7ed',
+      border: '1px solid #fde68a', marginBottom: '16px', textAlign: 'left',
+    }}>
+      <p style={{ margin: '0 0 10px' }}>아직 시작한 학습이 없어요. 관심사를 먼저 골라야 이 단계의 문장/패턴이 준비돼요.</p>
+      <button
+        type="button"
+        onClick={onStart}
+        style={{
+          padding: '8px 16px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white',
+          border: 'none', borderRadius: '999px', fontSize: '13px',
+        }}
+      >
+        관심사 고르러 가기 →
+      </button>
+    </div>
+  )
+}
+
+function PracticeTool({ id, title, openTool, setOpenTool, children }) {
+  const isOpen = openTool === id
+  return (
+    <details
+      open={isOpen}
+      onToggle={(e) => setOpenTool(e.target.open ? id : null)}
+      style={{ marginTop: '16px', border: '1px solid #eee', borderRadius: '8px', padding: '14px 16px' }}
+    >
+      <summary style={{ cursor: 'pointer', fontWeight: 700, color: ACCENT_DARK }}>{title}</summary>
+      {isOpen && <div style={{ marginTop: '16px' }}>{children}</div>}
+    </details>
+  )
+}
+
+function LearningNavigation({ target }) {
   const [stage, setStage] = useState('interest')
+  const [openTool, setOpenTool] = useState(null)
   const [interest, setInterest] = useState('')
   const [lesson, setLesson] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -73,8 +115,18 @@ function LearningNavigation() {
   // 언어 감각 단계
   const [repeatCount, setRepeatCount] = useState(0)
 
+  // 외부(홈 히어로, TOPIK 페이지, 가격표 등)에서 특정 도구로 바로 이동해달라는
+  // 요청이 오면, 이제는 별도 탭이 아니라 그 도구가 속한 단계로 이동하고 해당
+  // 도구 패널을 펼쳐서 보여준다.
+  useEffect(() => {
+    if (!target) return
+    setStage(target.stage)
+    if (target.tool) setOpenTool(target.tool)
+  }, [target])
+
   const resetAll = () => {
     setStage('interest')
+    setOpenTool(null)
     setInterest('')
     setLesson(null)
     setError('')
@@ -198,11 +250,18 @@ function LearningNavigation() {
               {isGenerating ? '만드는 중...' : '시작하기 →'}
             </button>
           </div>
+
+          <PracticeTool id="assessment" title="🧠 아직 내 학습 유형을 모른다면? 진단부터 해보기" openTool={openTool} setOpenTool={setOpenTool}>
+            <AssessmentSurvey />
+          </PracticeTool>
         </div>
       )}
 
-      {stage === 'infer' && lesson && (
+      {stage === 'infer' && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
+          {!lesson && <EmptyLessonNotice onStart={() => setStage('interest')} />}
+          {lesson && (
+          <>
           <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
             관심사: {lesson.interest} · 이 문장은 무슨 뜻일까요?
           </div>
@@ -293,11 +352,23 @@ function LearningNavigation() {
           >
             다음: 패턴 응용하기 →
           </button>
+          </>
+          )}
+
+          <PracticeTool id="contents" title="📚 내가 만든 콘텐츠로 유추 연습 더 하기" openTool={openTool} setOpenTool={setOpenTool}>
+            <ContentManager />
+          </PracticeTool>
+          <PracticeTool id="clip" title="🎬 유튜브 클립에서 표현 찾아 유추하기" openTool={openTool} setOpenTool={setOpenTool}>
+            <ClipAndLearn />
+          </PracticeTool>
         </div>
       )}
 
-      {stage === 'pattern' && lesson && (
+      {stage === 'pattern' && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
+          {!lesson && <EmptyLessonNotice onStart={() => setStage('interest')} />}
+          {lesson && (
+          <>
           <h3 style={{ marginTop: 0 }}>이제 당신이 선생님이에요 🧑‍🏫</h3>
           <p style={{ color: '#666' }}>방금 배운 문장의 패턴을 다른 사람에게 설명한다고 생각하고 적어보세요.</p>
 
@@ -369,11 +440,20 @@ function LearningNavigation() {
               </button>
             </>
           )}
+          </>
+          )}
+
+          <PracticeTool id="chat" title="💬 AI와 실전 회화로 패턴 응용해보기" openTool={openTool} setOpenTool={setOpenTool}>
+            <CharacterChat />
+          </PracticeTool>
         </div>
       )}
 
-      {stage === 'sensory' && lesson && (
+      {stage === 'sensory' && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
+          {!lesson && <EmptyLessonNotice onStart={() => setStage('interest')} />}
+          {lesson && (
+          <>
           <h3 style={{ marginTop: 0 }}>언어 감각 훈련</h3>
           <p style={{ color: '#666' }}>{lesson.sensoryImagery}</p>
 
@@ -429,6 +509,17 @@ function LearningNavigation() {
             >
               학습 완료 🎉
             </button>
+          </div>
+          </>
+          )}
+
+          <div style={{ textAlign: 'left' }}>
+            <PracticeTool id="pronunciation" title="🎙 발음 코치에게 확인받기" openTool={openTool} setOpenTool={setOpenTool}>
+              <PronunciationCoach />
+            </PracticeTool>
+            <PracticeTool id="personalized" title="🔁 개인화 복습으로 반복하기" openTool={openTool} setOpenTool={setOpenTool}>
+              <PersonalizedLearning onNavigate={() => { setStage('infer'); setOpenTool('contents') }} />
+            </PracticeTool>
           </div>
         </div>
       )}
