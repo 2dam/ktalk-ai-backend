@@ -8,6 +8,7 @@ import CharacterChat from './components/CharacterChat'
 import PronunciationCoach from './components/PronunciationCoach'
 import PersonalizedLearning from './components/PersonalizedLearning'
 import AssessmentSurvey from './components/AssessmentSurvey'
+import LearningNavigation from './components/LearningNavigation'
 import RecommendedChannels from './components/RecommendedChannels'
 import { AUTH_URL } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'pronunciation', label: 'AI 발음 코치', short: '발음' },
   { id: 'personalized', label: '개인화 복습', short: '복습' },
   { id: 'assessment', label: '학습 유형 진단', short: '유형진단' },
+  { id: 'navigation', label: 'Learning Navigation', short: '내비게이션' },
 ]
 
 const WEEK_METRICS = [
@@ -449,6 +451,7 @@ function App() {
                 {activeTab === 'pronunciation' && <PronunciationCoach />}
                 {activeTab === 'personalized' && <PersonalizedLearning onNavigate={setActiveTab} />}
                 {activeTab === 'assessment' && <AssessmentSurvey />}
+                {activeTab === 'navigation' && <LearningNavigation />}
               </div>
             </>
           ) : (
