@@ -155,12 +155,3 @@ export function AuthCard({ onAuthenticated }) {
   )
 }
 
-function WelcomeScreen({ onAuthenticated }) {
-  return (
-    <div className="welcome-shell">
-      <AuthCard onAuthenticated={onAuthenticated} />
-    </div>
-  )
-}
-
-export default WelcomeScreen
