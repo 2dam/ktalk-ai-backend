@@ -55,11 +55,9 @@
 }
 
 .brand-logo {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 12px 24px rgba(18, 75, 67, 0.18);
 }
 
 .brand strong {
@@ -363,10 +361,9 @@
 }
 
 .welcome-logo {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
-  border-radius: 8px;
 }
 
 .welcome-brand span {
