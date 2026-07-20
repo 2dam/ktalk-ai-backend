@@ -8,6 +8,7 @@ import ClipAndLearn from './ClipAndLearn'
 import CharacterChat from './CharacterChat'
 import PronunciationCoach from './PronunciationCoach'
 import PersonalizedLearning from './PersonalizedLearning'
+import ReviewAlarm from './ReviewAlarm'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -20,6 +21,7 @@ const STAGES = [
   { id: 'infer', label: '유추 연습' },
   { id: 'pattern', label: '패턴 응용' },
   { id: 'sensory', label: '언어 감각' },
+  { id: 'review', label: '복습 알람' },
   { id: 'done', label: '완료' },
 ]
 
@@ -115,6 +117,26 @@ function LearningNavigation({ target }) {
   // 언어 감각 단계
   const [repeatCount, setRepeatCount] = useState(0)
 
+  // 복습 알람: 지금 복습할 문장 개수 (앱 내 알람 배지)
+  const [dueCount, setDueCount] = useState(0)
+
+  const fetchDueCount = async () => {
+    if (!hasToken()) {
+      setDueCount(0)
+      return
+    }
+    try {
+      const res = await axios.get(`${REVIEW_URL}/count`, { headers: authHeaders() })
+      setDueCount(res.data?.data?.dueCount ?? 0)
+    } catch {
+      // 알람 배지 조회는 실패해도 조용히 무시
+    }
+  }
+
+  useEffect(() => {
+    fetchDueCount()
+  }, [])
+
   // 외부(홈 히어로, TOPIK 페이지, 가격표 등)에서 특정 도구로 바로 이동해달라는
   // 요청이 오면, 이제는 별도 탭이 아니라 그 도구가 속한 단계로 이동하고 해당
   // 도구 패널을 펼쳐서 보여준다.
@@ -199,6 +221,25 @@ function LearningNavigation({ target }) {
       </div>
 
       <StageTracker stage={stage} />
+
+      {dueCount > 0 && stage !== 'review' && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStage('review')}
+          onKeyDown={(e) => { if (e.key === 'Enter') setStage('review') }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+            padding: '12px 16px', borderRadius: '10px', cursor: 'pointer', marginBottom: '16px',
+            backgroundColor: ACCENT_TINT, border: '1px solid ' + ACCENT,
+          }}
+        >
+          <span style={{ fontWeight: 700, color: ACCENT_DARK }}>
+            🔔 복습할 문장이 {dueCount}개 있어요
+          </span>
+          <span style={{ color: ACCENT_DARK, fontSize: '14px' }}>지금 복습하기 →</span>
+        </div>
+      )}
 
       {error && (
         <p style={{ color: '#dc3545', padding: '10px 15px', backgroundColor: '#fff5f5', borderRadius: '8px' }}>
@@ -498,7 +539,7 @@ function LearningNavigation({ target }) {
           <div>
             <button
               type="button"
-              onClick={() => setStage('done')}
+              onClick={() => setStage('review')}
               disabled={repeatCount < SENSORY_TARGET_REPEATS}
               style={{
                 width: '100%', padding: '14px', fontSize: '16px',
@@ -507,7 +548,7 @@ function LearningNavigation({ target }) {
                 color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              학습 완료 🎉
+              다음: 복습 알람 →
             </button>
           </div>
           </>
@@ -521,6 +562,30 @@ function LearningNavigation({ target }) {
               <PersonalizedLearning onNavigate={() => { setStage('infer'); setOpenTool('contents') }} />
             </PracticeTool>
           </div>
+        </div>
+      )}
+
+      {stage === 'review' && (
+        <ReviewAlarm
+          justLearned={lesson}
+          onComplete={() => { fetchDueCount(); setStage('done') }}
+        />
+      )}
+
+      {stage === 'done' && !lesson && (
+        <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '10px' }}>🎉</div>
+          <h3 style={{ marginTop: 0 }}>복습을 마쳤어요!</h3>
+          <button
+            type="button"
+            onClick={resetAll}
+            style={{
+              padding: '14px 28px', fontSize: '16px', cursor: 'pointer', backgroundColor: ACCENT,
+              color: 'white', border: 'none', borderRadius: '8px',
+            }}
+          >
+            새로운 관심사로 학습 시작하기
+          </button>
         </div>
       )}
 
