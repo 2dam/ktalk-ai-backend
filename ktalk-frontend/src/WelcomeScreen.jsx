@@ -76,16 +76,6 @@ export function AuthCard({ onAuthenticated }) {
           ))}
         </div>
 
-        <div className="welcome-pricing" aria-label="요금제">
-          {WELCOME_PLANS.map((plan) => (
-            <div className="welcome-plan" key={plan.name}>
-              <span>{plan.name}</span>
-              <strong>{plan.price}</strong>
-              <small>{plan.label}</small>
-            </div>
-          ))}
-        </div>
-
         <div className="auth-heading">
           <h2>{mode === 'login' ? '로그인하고 시작하기' : '무료로 회원가입'}</h2>
           <p>
@@ -150,6 +140,16 @@ export function AuthCard({ onAuthenticated }) {
               <button type="button" onClick={() => switchMode('login')}>로그인</button>
             </>
           )}
+        </div>
+
+        <div className="welcome-pricing" aria-label="요금제">
+          {WELCOME_PLANS.map((plan) => (
+            <div className="welcome-plan" key={plan.name}>
+              <span>{plan.name}</span>
+              <strong>{plan.price}</strong>
+              <small>{plan.label}</small>
+            </div>
+          ))}
         </div>
       </div>
   )
