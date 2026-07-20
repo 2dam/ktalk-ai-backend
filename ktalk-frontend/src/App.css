@@ -1249,3 +1249,72 @@ footer.site-footer {
     padding: 32px 22px 28px;
   }
 }
+
+/* ===== 로그인 모달 (버튼 클릭 시 팝업) ===== */
+.auth-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.auth-modal {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  animation: authPop 0.18s ease-out;
+}
+
+@keyframes authPop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.auth-card-compact {
+  position: relative;
+  margin: 0;
+  width: 100%;
+}
+
+.auth-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: #555;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.auth-close:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* 랜딩 중앙: 로그인 카드 대신 놓는 안내 CTA */
+.auth-cta-card {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.auth-cta-card h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.auth-cta-card p {
+  margin: 0 0 20px;
+  color: var(--k-muted, #666);
+}

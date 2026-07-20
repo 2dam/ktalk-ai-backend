@@ -68,6 +68,15 @@ function App() {
   const [passwordChanging, setPasswordChanging] = useState(false)
   const [route, setRoute] = useState(() => window.location.pathname)
   const [pendingScroll, setPendingScroll] = useState(null)
+  const [showAuth, setShowAuth] = useState(false)
+
+  // 로그인 모달이 열려 있을 때 Esc로 닫기
+  useEffect(() => {
+    if (!showAuth) return
+    const onKey = (event) => { if (event.key === 'Escape') setShowAuth(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showAuth])
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname)
@@ -231,7 +240,7 @@ function App() {
               <button type="button" onClick={handleLogout}>로그아웃</button>
             </div>
           ) : (
-            <button type="button" className="login-button" onClick={() => jumpToExperience()}>
+            <button type="button" className="login-button" onClick={() => setShowAuth(true)}>
               로그인 / 회원가입
             </button>
           )}
@@ -409,7 +418,13 @@ function App() {
             </div>
           ) : (
             <div className="auth-inline-wrap">
-              <AuthCard onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />
+              <div className="auth-cta-card glass-card">
+                <h3>로그인하고 학습을 이어가세요</h3>
+                <p>학습 유형 진단 결과와 복습 기록이 저장돼, 다음에 이어서 학습할 수 있어요.</p>
+                <button type="button" className="primary-cta" onClick={() => setShowAuth(true)}>
+                  로그인 / 회원가입
+                </button>
+              </div>
             </div>
           )}
 
@@ -502,6 +517,18 @@ function App() {
           </div>
         </section>
       </main>
+      )}
+
+      {showAuth && !isLoggedIn && (
+        <div className="auth-modal-overlay" onClick={() => setShowAuth(false)}>
+          <div className="auth-modal" onClick={(event) => event.stopPropagation()}>
+            <AuthCard
+              compact
+              onClose={() => setShowAuth(false)}
+              onAuthenticated={(loggedInUser) => { setUser(loggedInUser); setShowAuth(false) }}
+            />
+          </div>
+        </div>
       )}
 
       <footer className="site-footer">
