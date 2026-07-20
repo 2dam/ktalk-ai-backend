@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { AI_URL } from '../api'
+import { AI_URL, REVIEW_URL, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import AssessmentSurvey from './AssessmentSurvey'
 import ContentManager from './ContentManager'
@@ -9,6 +9,7 @@ import CharacterChat from './CharacterChat'
 import PronunciationCoach from './PronunciationCoach'
 import PersonalizedLearning from './PersonalizedLearning'
 import ReviewAlarm from './ReviewAlarm'
+import NativeUsage from './NativeUsage'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -19,6 +20,7 @@ const SUGGESTED_INTERESTS = ['축구', 'K-POP', '드라마', '게임', '요리',
 const STAGES = [
   { id: 'interest', label: '관심사 찾기' },
   { id: 'infer', label: '유추 연습' },
+  { id: 'native', label: '원어민 실사용' },
   { id: 'pattern', label: '패턴 응용' },
   { id: 'sensory', label: '언어 감각' },
   { id: 'review', label: '복습 알람' },
@@ -216,7 +218,7 @@ function LearningNavigation({ target }) {
       <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
         <h2>🧭 Learning Navigation</h2>
         <p style={{ margin: 0 }}>
-          관심사에서 시작해 유추 → 패턴 응용 → 언어 감각 훈련까지, 스스로 찾아가는 4단계 학습 흐름이에요.
+          관심사에서 시작해 유추 → 원어민 실사용 → 패턴 응용 → 언어 감각 → 복습까지, 스스로 찾아가는 학습 흐름이에요.
         </p>
       </div>
 
@@ -384,14 +386,14 @@ function LearningNavigation({ target }) {
 
           <button
             type="button"
-            onClick={() => setStage('pattern')}
+            onClick={() => setStage('native')}
             disabled={!revealedMeaning}
             style={{
               width: '100%', padding: '14px', fontSize: '16px', cursor: revealedMeaning ? 'pointer' : 'not-allowed',
               backgroundColor: revealedMeaning ? ACCENT : '#ccc', color: 'white', border: 'none', borderRadius: '8px',
             }}
           >
-            다음: 패턴 응용하기 →
+            다음: 원어민은 이렇게 써요 →
           </button>
           </>
           )}
@@ -403,6 +405,18 @@ function LearningNavigation({ target }) {
             <ClipAndLearn />
           </PracticeTool>
         </div>
+      )}
+
+      {stage === 'native' && (
+        <>
+          {!lesson ? (
+            <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
+              <EmptyLessonNotice onStart={() => setStage('interest')} />
+            </div>
+          ) : (
+            <NativeUsage lesson={lesson} onNext={() => setStage('pattern')} />
+          )}
+        </>
       )}
 
       {stage === 'pattern' && (
