@@ -48,7 +48,7 @@ function formatWhen(iso) {
  * - 지금 복습할 문장(알람 대상)이 있으면 플래시카드로 복습 세션을 진행한다.
  * - 복습 결과(다시/어려움/좋음/쉬움)에 따라 다음 알람 시각이 자동으로 정해진다.
  */
-function ReviewAlarm({ justLearned, onComplete }) {
+function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
   const [status, setStatus] = useState('loading') // loading | need-login | ready | error
   const [error, setError] = useState('')
   const [savedInfo, setSavedInfo] = useState(null) // 방금 저장된 항목(다음 복습 시각 안내용)
@@ -166,14 +166,23 @@ function ReviewAlarm({ justLearned, onComplete }) {
   if (status === 'need-login') {
     return (
       <div style={box}>
-        <h3 style={{ marginTop: 0 }}>🔔 복습 알람</h3>
+        <h3 style={{ marginTop: 0 }}>🔔 복습 알람은 회원 전용이에요</h3>
         <p style={{ color: '#666' }}>
           복습 알람은 배운 문장을 <b>망각곡선(간격 반복)</b>에 따라 다시 꺼내주는 기능이에요.
-          어디서 복습했는지 기억해 두려면 로그인이 필요해요.
+          어디서 어떤 문장을 배웠는지 기억해 두려면 계정이 필요해요.
         </p>
-        <p style={{ color: '#999', fontSize: '14px' }}>로그인 후 이 단계로 돌아오면 복습이 시작됩니다.</p>
+        <p style={{ color: '#999', fontSize: '14px' }}>가입은 몇 초면 끝나고, 바로 복습이 시작됩니다.</p>
+        {onRequireAuth && (
+          <button type="button" onClick={onRequireAuth} style={primaryBtn}>
+            로그인 / 회원가입하고 복습 시작하기
+          </button>
+        )}
         {onComplete && (
-          <button type="button" onClick={onComplete} style={primaryBtn}>
+          <button
+            type="button"
+            onClick={onComplete}
+            style={{ ...primaryBtn, backgroundColor: '#fff', color: '#666', border: '1px solid #ddd', marginTop: '8px' }}
+          >
             지금은 건너뛰기 →
           </button>
         )}

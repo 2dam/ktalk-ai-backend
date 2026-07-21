@@ -371,20 +371,14 @@ function App() {
             <span className="eyebrow">Learning Navigation</span>
             <h2>말하고, 틀리고, 다시 익히는 학습 루프</h2>
           </div>
-          {isLoggedIn ? (
-            <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
-                진행 중인 Learning Navigation은 아래 AI Learning Lab에서 이어갈 수 있어요.
-              </p>
-              <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
-                AI Learning Lab로 이동 →
-              </button>
-            </div>
-          ) : (
-            <div className="tool-surface glass-card">
-              <LearningNavigation />
-            </div>
-          )}
+          <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
+              아래 AI Learning Lab에서 관심사부터 복습까지 바로 학습을 시작할 수 있어요.
+            </p>
+            <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
+              AI Learning Lab로 이동 →
+            </button>
+          </div>
         </section>
 
         <section className="loop-section">
@@ -412,21 +406,9 @@ function App() {
             <p>콘텐츠 생성, 유튜브 학습, 회화, 발음 코치까지 모든 기능을 여기서 바로 사용할 수 있습니다.</p>
           </div>
 
-          {isLoggedIn ? (
-            <div className="tool-surface glass-card">
-              <LearningNavigation target={navTarget} />
-            </div>
-          ) : (
-            <div className="auth-inline-wrap">
-              <div className="auth-cta-card glass-card">
-                <h3>로그인하고 학습을 이어가세요</h3>
-                <p>학습 유형 진단 결과와 복습 기록이 저장돼, 다음에 이어서 학습할 수 있어요.</p>
-                <button type="button" className="primary-cta" onClick={() => setShowAuth(true)}>
-                  로그인 / 회원가입
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="tool-surface glass-card">
+            <LearningNavigation target={navTarget} onRequireAuth={() => setShowAuth(true)} />
+          </div>
 
           <RecommendedChannels />
         </section>

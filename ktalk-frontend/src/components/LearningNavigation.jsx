@@ -97,7 +97,7 @@ function PracticeTool({ id, title, openTool, setOpenTool, children }) {
   )
 }
 
-function LearningNavigation({ target }) {
+function LearningNavigation({ target, onRequireAuth }) {
   const [stage, setStage] = useState('interest')
   const [openTool, setOpenTool] = useState(null)
   const [interest, setInterest] = useState('')
@@ -583,6 +583,7 @@ function LearningNavigation({ target }) {
         <ReviewAlarm
           justLearned={lesson}
           onComplete={() => { fetchDueCount(); setStage('done') }}
+          onRequireAuth={onRequireAuth}
         />
       )}
 
