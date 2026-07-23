@@ -221,7 +221,7 @@ function App() {
         </a>
 
         <nav className="header-nav" aria-label="주요 메뉴">
-          <a href="#features" onClick={goToSection('features')}>기능</a>
+          <a href="#ai-experience" onClick={goToSection('ai-experience')}>기능</a>
           <a href="#ai-experience" onClick={goToSection('ai-experience')}>복습</a>
           <a
             href="/topik"
@@ -364,21 +364,6 @@ function App() {
               <small>{card.copy}</small>
             </article>
           ))}
-        </section>
-
-        <section className="section-block" id="features">
-          <div className="section-heading">
-            <span className="eyebrow">Learning Navigation</span>
-            <h2>말하고, 틀리고, 다시 익히는 학습 루프</h2>
-          </div>
-          <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
-              아래 AI Learning Lab에서 관심사부터 복습까지 바로 학습을 시작할 수 있어요.
-            </p>
-            <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
-              AI Learning Lab로 이동 →
-            </button>
-          </div>
         </section>
 
         <section className="loop-section">
