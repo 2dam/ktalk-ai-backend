@@ -2,7 +2,7 @@ services:
   - type: web
     name: ktalk-ai
     env: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
     envVars:
@@ -59,6 +59,6 @@ services:
 
 databases:
   - name: ktalk-db
-    plan: free
+    plan: basic-256mb
     databaseName: ktalk
     user: ktalk
