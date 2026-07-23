@@ -14,7 +14,7 @@ const WELCOME_PLANS = [
   { name: 'Business', price: '$19.90', label: '강사와 팀' },
 ]
 
-export function AuthCard({ onAuthenticated }) {
+export function AuthCard({ onAuthenticated, onClose, compact = false }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
@@ -53,38 +53,35 @@ export function AuthCard({ onAuthenticated }) {
   }
 
   return (
-      <div className="welcome-card glass-card auth-card">
+      <div className={`welcome-card glass-card auth-card${compact ? ' auth-card-compact' : ''}`}>
+        {onClose && (
+          <button type="button" className="auth-close" onClick={onClose} aria-label="닫기">×</button>
+        )}
         <div className="welcome-brand">
           <img src={ktalkLogo} alt="" className="welcome-logo" />
           <span>ktalk</span>
         </div>
 
-        <div className="welcome-icon">💬</div>
+        {!compact && <div className="welcome-icon">💬</div>}
 
-        <h1 className="welcome-title">
-          매일 5분,
-          <br />
-          AI와 진짜 한국어 회화
-        </h1>
+        {!compact && (
+          <h1 className="welcome-title">
+            매일 5분,
+            <br />
+            AI와 진짜 한국어 회화
+          </h1>
+        )}
 
-        <div className="welcome-features">
-          {WELCOME_FEATURES.map((item) => (
-            <div className="value-item" key={item.copy}>
-              <span>{item.icon}</span>
-              <span>{item.copy}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="welcome-pricing" aria-label="요금제">
-          {WELCOME_PLANS.map((plan) => (
-            <div className="welcome-plan" key={plan.name}>
-              <span>{plan.name}</span>
-              <strong>{plan.price}</strong>
-              <small>{plan.label}</small>
-            </div>
-          ))}
-        </div>
+        {!compact && (
+          <div className="welcome-features">
+            {WELCOME_FEATURES.map((item) => (
+              <div className="value-item" key={item.copy}>
+                <span>{item.icon}</span>
+                <span>{item.copy}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="auth-heading">
           <h2>{mode === 'login' ? '로그인하고 시작하기' : '무료로 회원가입'}</h2>
@@ -151,6 +148,18 @@ export function AuthCard({ onAuthenticated }) {
             </>
           )}
         </div>
+
+        {!compact && (
+          <div className="welcome-pricing" aria-label="요금제">
+            {WELCOME_PLANS.map((plan) => (
+              <div className="welcome-plan" key={plan.name}>
+                <span>{plan.name}</span>
+                <strong>{plan.price}</strong>
+                <small>{plan.label}</small>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
   )
 }

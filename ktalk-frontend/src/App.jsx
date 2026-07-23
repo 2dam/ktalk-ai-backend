@@ -68,6 +68,15 @@ function App() {
   const [passwordChanging, setPasswordChanging] = useState(false)
   const [route, setRoute] = useState(() => window.location.pathname)
   const [pendingScroll, setPendingScroll] = useState(null)
+  const [showAuth, setShowAuth] = useState(false)
+
+  // 로그인 모달이 열려 있을 때 Esc로 닫기
+  useEffect(() => {
+    if (!showAuth) return
+    const onKey = (event) => { if (event.key === 'Escape') setShowAuth(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showAuth])
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname)
@@ -231,7 +240,7 @@ function App() {
               <button type="button" onClick={handleLogout}>로그아웃</button>
             </div>
           ) : (
-            <button type="button" className="login-button" onClick={() => jumpToExperience()}>
+            <button type="button" className="login-button" onClick={() => setShowAuth(true)}>
               로그인 / 회원가입
             </button>
           )}
@@ -362,20 +371,14 @@ function App() {
             <span className="eyebrow">Learning Navigation</span>
             <h2>말하고, 틀리고, 다시 익히는 학습 루프</h2>
           </div>
-          {isLoggedIn ? (
-            <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
-                진행 중인 Learning Navigation은 아래 AI Learning Lab에서 이어갈 수 있어요.
-              </p>
-              <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
-                AI Learning Lab로 이동 →
-              </button>
-            </div>
-          ) : (
-            <div className="tool-surface glass-card">
-              <LearningNavigation />
-            </div>
-          )}
+          <div className="tool-surface glass-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <p style={{ margin: '0 0 16px', color: 'var(--k-muted)' }}>
+              아래 AI Learning Lab에서 관심사부터 복습까지 바로 학습을 시작할 수 있어요.
+            </p>
+            <button type="button" className="primary-cta" onClick={goToSection('ai-experience')}>
+              AI Learning Lab로 이동 →
+            </button>
+          </div>
         </section>
 
         <section className="loop-section">
@@ -403,15 +406,9 @@ function App() {
             <p>콘텐츠 생성, 유튜브 학습, 회화, 발음 코치까지 모든 기능을 여기서 바로 사용할 수 있습니다.</p>
           </div>
 
-          {isLoggedIn ? (
-            <div className="tool-surface glass-card">
-              <LearningNavigation target={navTarget} />
-            </div>
-          ) : (
-            <div className="auth-inline-wrap">
-              <AuthCard onAuthenticated={(loggedInUser) => setUser(loggedInUser)} />
-            </div>
-          )}
+          <div className="tool-surface glass-card">
+            <LearningNavigation target={navTarget} onRequireAuth={() => setShowAuth(true)} />
+          </div>
 
           <RecommendedChannels />
         </section>
@@ -502,6 +499,18 @@ function App() {
           </div>
         </section>
       </main>
+      )}
+
+      {showAuth && !isLoggedIn && (
+        <div className="auth-modal-overlay" onClick={() => setShowAuth(false)}>
+          <div className="auth-modal" onClick={(event) => event.stopPropagation()}>
+            <AuthCard
+              compact
+              onClose={() => setShowAuth(false)}
+              onAuthenticated={(loggedInUser) => { setUser(loggedInUser); setShowAuth(false) }}
+            />
+          </div>
+        </div>
       )}
 
       <footer className="site-footer">

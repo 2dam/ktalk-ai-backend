@@ -26,6 +26,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'LOCAL'")
+    @Column(nullable = false, length = 20)
     private String provider = "LOCAL";
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { AI_URL, ASSEMBLY_URL } from '../api'
+import { AI_URL, ASSEMBLY_URL, REVIEW_URL, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import AssessmentSurvey from './AssessmentSurvey'
 import ContentManager from './ContentManager'
@@ -8,6 +8,8 @@ import ClipAndLearn from './ClipAndLearn'
 import CharacterChat from './CharacterChat'
 import PronunciationCoach from './PronunciationCoach'
 import PersonalizedLearning from './PersonalizedLearning'
+import ReviewAlarm from './ReviewAlarm'
+import NativeUsage from './NativeUsage'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -18,12 +20,15 @@ const SUGGESTED_INTERESTS = ['축구', 'K-POP', '드라마', '게임', '요리',
 const STAGE_LABELS = {
   interest: '관심사 찾기',
   infer: '유추 연습',
+  native: '원어민 실사용',
   pattern: '패턴 응용',
   sensory: '언어 감각',
+  review: '복습 알람',
   done: '완료',
 }
 
-const DEFAULT_STAGES = ['interest', 'infer', 'pattern', 'sensory', 'done'].map((id) => ({ id, label: STAGE_LABELS[id] }))
+const DEFAULT_STAGES = ['interest', 'infer', 'native', 'pattern', 'sensory', 'review', 'done']
+  .map((id) => ({ id, label: STAGE_LABELS[id] }))
 
 // Assembly의 블록 타입을 화면 단계(stage)로 매핑한다. 백엔드가 블록 구성을 바꾸면
 // (예: 퀴즈 블록 추가) 이 표만 넓히면 되고, 프런트가 순서를 다시 하드코딩할 필요는 없다.
@@ -35,7 +40,9 @@ const BLOCK_TYPE_TO_STAGE = {
 }
 
 // Assembly 조회에 성공하면 그 블록 순서로 단계 트래커를 만들고, 실패했거나 아직
-// 조회 전이면 기본 5단계로 대체한다 (하드코딩 STAGES를 완전히 대체하지 않고 폴백으로 남겨둠).
+// 조회 전이면 기본 7단계로 대체한다 (하드코딩 STAGES를 완전히 대체하지 않고 폴백으로 남겨둠).
+// native/review는 LearningBlock과 무관하게 항상 존재하는 별도 기능이라, infer 다음엔 native를,
+// sensory 다음엔 review를 고정으로 끼워 넣는다.
 function buildStages(assembly) {
   if (!assembly?.blocks?.length) return DEFAULT_STAGES
 
@@ -47,7 +54,14 @@ function buildStages(assembly) {
     }
   }
 
-  const ids = ['interest', ...middleStageIds, 'done']
+  const withFixedStages = []
+  for (const id of middleStageIds) {
+    withFixedStages.push(id)
+    if (id === 'infer') withFixedStages.push('native')
+    if (id === 'sensory') withFixedStages.push('review')
+  }
+
+  const ids = ['interest', ...withFixedStages, 'done']
   return ids.map((id) => ({ id, label: STAGE_LABELS[id] || id }))
 }
 
@@ -163,7 +177,7 @@ function PracticeTool({ id, title, openTool, setOpenTool, children }) {
   )
 }
 
-function LearningNavigation({ target }) {
+function LearningNavigation({ target, onRequireAuth }) {
   const [stage, setStage] = useState('interest')
   const [openTool, setOpenTool] = useState(null)
   const [interest, setInterest] = useState('')
@@ -188,6 +202,26 @@ function LearningNavigation({ target }) {
 
   // 언어 감각 단계
   const [repeatCount, setRepeatCount] = useState(0)
+
+  // 복습 알람: 지금 복습할 문장 개수 (앱 내 알람 배지)
+  const [dueCount, setDueCount] = useState(0)
+
+  const fetchDueCount = async () => {
+    if (!hasToken()) {
+      setDueCount(0)
+      return
+    }
+    try {
+      const res = await axios.get(`${REVIEW_URL}/count`, { headers: authHeaders() })
+      setDueCount(res.data?.data?.dueCount ?? 0)
+    } catch {
+      // 알람 배지 조회는 실패해도 조용히 무시
+    }
+  }
+
+  useEffect(() => {
+    fetchDueCount()
+  }, [])
 
   // 외부(홈 히어로, TOPIK 페이지, 가격표 등)에서 특정 도구로 바로 이동해달라는
   // 요청이 오면, 이제는 별도 탭이 아니라 그 도구가 속한 단계로 이동하고 해당
@@ -286,13 +320,32 @@ function LearningNavigation({ target }) {
       <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
         <h2>🧭 Learning Navigation</h2>
         <p style={{ margin: 0 }}>
-          관심사에서 시작해 유추 → 패턴 응용 → 언어 감각 훈련까지, 스스로 찾아가는 4단계 학습 흐름이에요.
+          관심사에서 시작해 유추 → 원어민 실사용 → 패턴 응용 → 언어 감각 → 복습까지, 스스로 찾아가는 학습 흐름이에요.
         </p>
       </div>
 
       <StageTracker stage={stage} stages={stages} />
 
       <ConnectionsPanel connections={connections} onJump={handleStart} />
+
+      {dueCount > 0 && stage !== 'review' && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStage('review')}
+          onKeyDown={(e) => { if (e.key === 'Enter') setStage('review') }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+            padding: '12px 16px', borderRadius: '10px', cursor: 'pointer', marginBottom: '16px',
+            backgroundColor: ACCENT_TINT, border: '1px solid ' + ACCENT,
+          }}
+        >
+          <span style={{ fontWeight: 700, color: ACCENT_DARK }}>
+            🔔 복습할 문장이 {dueCount}개 있어요
+          </span>
+          <span style={{ color: ACCENT_DARK, fontSize: '14px' }}>지금 복습하기 →</span>
+        </div>
+      )}
 
       {error && (
         <p style={{ color: '#dc3545', padding: '10px 15px', backgroundColor: '#fff5f5', borderRadius: '8px' }}>
@@ -437,14 +490,14 @@ function LearningNavigation({ target }) {
 
           <button
             type="button"
-            onClick={() => setStage('pattern')}
+            onClick={() => setStage('native')}
             disabled={!revealedMeaning}
             style={{
               width: '100%', padding: '14px', fontSize: '16px', cursor: revealedMeaning ? 'pointer' : 'not-allowed',
               backgroundColor: revealedMeaning ? ACCENT : '#ccc', color: 'white', border: 'none', borderRadius: '8px',
             }}
           >
-            다음: 패턴 응용하기 →
+            다음: 원어민은 이렇게 써요 →
           </button>
           </>
           )}
@@ -456,6 +509,18 @@ function LearningNavigation({ target }) {
             <ClipAndLearn />
           </PracticeTool>
         </div>
+      )}
+
+      {stage === 'native' && (
+        <>
+          {!lesson ? (
+            <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
+              <EmptyLessonNotice onStart={() => setStage('interest')} />
+            </div>
+          ) : (
+            <NativeUsage lesson={lesson} onNext={() => setStage('pattern')} />
+          )}
+        </>
       )}
 
       {stage === 'pattern' && (
@@ -592,7 +657,7 @@ function LearningNavigation({ target }) {
           <div>
             <button
               type="button"
-              onClick={() => setStage('done')}
+              onClick={() => setStage('review')}
               disabled={repeatCount < SENSORY_TARGET_REPEATS}
               style={{
                 width: '100%', padding: '14px', fontSize: '16px',
@@ -601,7 +666,7 @@ function LearningNavigation({ target }) {
                 color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              학습 완료 🎉
+              다음: 복습 알람 →
             </button>
           </div>
           </>
@@ -615,6 +680,31 @@ function LearningNavigation({ target }) {
               <PersonalizedLearning onNavigate={() => { setStage('infer'); setOpenTool('contents') }} />
             </PracticeTool>
           </div>
+        </div>
+      )}
+
+      {stage === 'review' && (
+        <ReviewAlarm
+          justLearned={lesson}
+          onComplete={() => { fetchDueCount(); setStage('done') }}
+          onRequireAuth={onRequireAuth}
+        />
+      )}
+
+      {stage === 'done' && !lesson && (
+        <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '10px' }}>🎉</div>
+          <h3 style={{ marginTop: 0 }}>복습을 마쳤어요!</h3>
+          <button
+            type="button"
+            onClick={resetAll}
+            style={{
+              padding: '14px 28px', fontSize: '16px', cursor: 'pointer', backgroundColor: ACCENT,
+              color: 'white', border: 'none', borderRadius: '8px',
+            }}
+          >
+            새로운 관심사로 학습 시작하기
+          </button>
         </div>
       )}
 
