@@ -8,6 +8,7 @@ import com.ktalk.domain.ai.service.GuidedLearningService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,6 +17,14 @@ import org.springframework.web.bind.annotation.*;
 public class GuidedLearningController {
 
     private final GuidedLearningService guidedLearningService;
+
+    // JwtAuthenticationFilter가 유효한 토큰의 사용자 ID를 principal로 세팅해둔다.
+    // 로그인 없이도 호출 가능한 엔드포인트라 토큰이 없으면 null을 허용한다.
+    private Long getCurrentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication != null ? authentication.getPrincipal() : null;
+        return principal instanceof Long userId ? userId : null;
+    }
 
     /**
      * POST /api/ai/guided-learning/generate
@@ -29,7 +38,7 @@ public class GuidedLearningController {
     @PostMapping("/generate")
     public ResponseEntity<GuidedLearningResponse> generateLesson(
             @Valid @RequestBody GuidedLearningRequest request) {
-        GuidedLearningResponse response = guidedLearningService.generateLesson(request);
+        GuidedLearningResponse response = guidedLearningService.generateLesson(request, getCurrentUserId());
         return ResponseEntity.ok(response);
     }
 

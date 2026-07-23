@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { AI_URL } from '../api'
+import { AI_URL, ASSEMBLY_URL } from '../api'
 import { TAB_COLORS } from '../theme'
 import AssessmentSurvey from './AssessmentSurvey'
 import ContentManager from './ContentManager'
@@ -15,13 +15,41 @@ const ACCENT_TINT = TAB_COLORS.navigation.tint
 
 const SUGGESTED_INTERESTS = ['축구', 'K-POP', '드라마', '게임', '요리', '여행', '영화', '반려동물']
 
-const STAGES = [
-  { id: 'interest', label: '관심사 찾기' },
-  { id: 'infer', label: '유추 연습' },
-  { id: 'pattern', label: '패턴 응용' },
-  { id: 'sensory', label: '언어 감각' },
-  { id: 'done', label: '완료' },
-]
+const STAGE_LABELS = {
+  interest: '관심사 찾기',
+  infer: '유추 연습',
+  pattern: '패턴 응용',
+  sensory: '언어 감각',
+  done: '완료',
+}
+
+const DEFAULT_STAGES = ['interest', 'infer', 'pattern', 'sensory', 'done'].map((id) => ({ id, label: STAGE_LABELS[id] }))
+
+// Assembly의 블록 타입을 화면 단계(stage)로 매핑한다. 백엔드가 블록 구성을 바꾸면
+// (예: 퀴즈 블록 추가) 이 표만 넓히면 되고, 프런트가 순서를 다시 하드코딩할 필요는 없다.
+const BLOCK_TYPE_TO_STAGE = {
+  DIALOGUE: 'infer',
+  VOCABULARY: 'infer',
+  SENTENCE_PATTERN: 'pattern',
+  SENSORY_DRILL: 'sensory',
+}
+
+// Assembly 조회에 성공하면 그 블록 순서로 단계 트래커를 만들고, 실패했거나 아직
+// 조회 전이면 기본 5단계로 대체한다 (하드코딩 STAGES를 완전히 대체하지 않고 폴백으로 남겨둠).
+function buildStages(assembly) {
+  if (!assembly?.blocks?.length) return DEFAULT_STAGES
+
+  const middleStageIds = []
+  for (const block of assembly.blocks) {
+    const stageId = BLOCK_TYPE_TO_STAGE[block.type]
+    if (stageId && middleStageIds[middleStageIds.length - 1] !== stageId) {
+      middleStageIds.push(stageId)
+    }
+  }
+
+  const ids = ['interest', ...middleStageIds, 'done']
+  return ids.map((id) => ({ id, label: STAGE_LABELS[id] || id }))
+}
 
 const SENSORY_TARGET_REPEATS = 5
 
@@ -34,11 +62,11 @@ function speak(text) {
   window.speechSynthesis.speak(utterance)
 }
 
-function StageTracker({ stage }) {
-  const currentIndex = STAGES.findIndex((s) => s.id === stage)
+function StageTracker({ stage, stages }) {
+  const currentIndex = stages.findIndex((s) => s.id === stage)
   return (
     <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
-      {STAGES.map((s, idx) => (
+      {stages.map((s, idx) => (
         <div key={s.id} style={{ flex: 1, textAlign: 'center' }}>
           <div
             style={{
@@ -79,6 +107,48 @@ function EmptyLessonNotice({ onStart }) {
   )
 }
 
+// "발견형" 지식 확장 패널: 이 레슨의 단어(태그)가 이미 존재하는 다른 주제의 블록과
+// 겹치면, 그 주제로 바로 넘어갈 수 있는 버튼을 보여준다. 콘텐츠가 쌓일수록 연결이 늘어난다.
+function ConnectionsPanel({ connections, onJump }) {
+  if (!connections.length) return null
+  return (
+    <div style={{
+      padding: '14px 16px', borderRadius: '8px', backgroundColor: '#f5f3ff',
+      border: '1px solid #ddd6fe', marginBottom: '16px',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '14px', color: '#5b21b6' }}>
+        🔗 이 단어들로 이어지는 다른 주제
+      </div>
+      {connections.map((conn) => (
+        <div key={conn.tag + '|' + conn.matchedTag} style={{ marginBottom: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ color: '#666' }}>
+            <b>{conn.tag}</b>
+            {conn.matchType === 'SIMILAR' && (
+              <span style={{ color: '#999', fontWeight: 400 }}>
+                {' '}≈ {conn.matchedTag} ({Math.round(conn.similarity * 100)}%)
+              </span>
+            )}
+            {' '}→
+          </span>
+          {conn.relatedAssemblies.map((r) => (
+            <button
+              key={r.assemblyId}
+              type="button"
+              onClick={() => onJump(r.interestTag)}
+              style={{
+                padding: '4px 12px', borderRadius: '999px', border: '1px solid #a78bfa',
+                backgroundColor: '#fff', color: '#5b21b6', cursor: 'pointer', fontSize: '12px',
+              }}
+            >
+              {r.interestTag}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function PracticeTool({ id, title, openTool, setOpenTool, children }) {
   const isOpen = openTool === id
   return (
@@ -98,8 +168,12 @@ function LearningNavigation({ target }) {
   const [openTool, setOpenTool] = useState(null)
   const [interest, setInterest] = useState('')
   const [lesson, setLesson] = useState(null)
+  const [assembly, setAssembly] = useState(null)
+  const [connections, setConnections] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
+
+  const stages = useMemo(() => buildStages(assembly), [assembly])
 
   // 유추 연습 단계
   const [guess, setGuess] = useState('')
@@ -129,6 +203,8 @@ function LearningNavigation({ target }) {
     setOpenTool(null)
     setInterest('')
     setLesson(null)
+    setAssembly(null)
+    setConnections([])
     setError('')
     setGuess('')
     setHintCount(0)
@@ -154,10 +230,26 @@ function LearningNavigation({ target }) {
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
       })
       setLesson(response.data)
+      setAssembly(null)
+      setConnections([])
       setGuess('')
       setHintCount(0)
       setRevealedMeaning(false)
       setStage('infer')
+
+      // 단계 트래커를 이 레슨의 실제 블록 구성으로 그려주기 위한 조회.
+      // 실패해도 학습 흐름 자체엔 지장이 없으므로(기본 5단계로 폴백) 조용히 무시한다.
+      if (response.data.assemblyId) {
+        axios.get(`${ASSEMBLY_URL}/${response.data.assemblyId}`)
+          .then((res) => setAssembly(res.data.data))
+          .catch((err) => console.warn('Assembly 조회 실패, 기본 단계로 표시합니다.', err))
+
+        // "발견형" 지식 확장: 이 레슨의 단어가 이미 존재하는 다른 주제와도 겹치면
+        // 그 주제로 넘어갈 수 있는 연결을 보여준다. 아직 다른 주제가 없으면 빈 목록.
+        axios.get(`${ASSEMBLY_URL}/${response.data.assemblyId}/connections`)
+          .then((res) => setConnections(res.data.data || []))
+          .catch((err) => console.warn('연결 조회 실패, 확장 패널 없이 진행합니다.', err))
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'AI가 문장을 만들지 못했어요. Gemini API 키가 설정되어 있는지 확인해주세요.')
     } finally {
@@ -198,7 +290,9 @@ function LearningNavigation({ target }) {
         </p>
       </div>
 
-      <StageTracker stage={stage} />
+      <StageTracker stage={stage} stages={stages} />
+
+      <ConnectionsPanel connections={connections} onJump={handleStart} />
 
       {error && (
         <p style={{ color: '#dc3545', padding: '10px 15px', backgroundColor: '#fff5f5', borderRadius: '8px' }}>

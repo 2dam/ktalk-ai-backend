@@ -12,6 +12,7 @@ import java.util.List;
  * 관심사 입력 한 번으로 세 단계를 모두 진행할 수 있도록 Gemini에게 한 번에 생성시킨다.
  */
 @Getter
+@Setter
 @AllArgsConstructor
 public class GuidedLearningResponse {
 
@@ -25,6 +26,7 @@ public class GuidedLearningResponse {
     private String sensoryWord;             // 언어 감각 훈련에 쓸 핵심 단어
     private String sensoryImagery;          // 그 단어를 익힐 때 떠올릴 감각적 이미지/상황
     private String sensoryInstruction;      // 소리 내어 반복하라는 구체적 지시문
+    private String assemblyId;              // 이 레슨을 구성하는 블록들을 묶은 Assembly ID (조회/진행상태 갱신용)
 
     // Jackson이 Gemini 응답(JsonNode)을 convertValue로 역직렬화하려면
     // 기본 생성자 + setter가 필요하다 (AllArgsConstructor만으로는 인식 못 함)

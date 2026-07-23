@@ -5,3 +5,4 @@ export const AI_URL = `${API_BASE}/api/ai`
 export const AUTH_URL = `${API_BASE}/api/auth`
 export const LEARNING_URL = `${API_BASE}/api/learning`
 export const ASSESSMENT_URL = `${API_BASE}/api/assessment`
+export const ASSEMBLY_URL = `${API_BASE}/api/assembly`

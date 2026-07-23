@@ -7,12 +7,23 @@ import com.ktalk.domain.ai.dto.GuidedLearningRequest;
 import com.ktalk.domain.ai.dto.GuidedLearningResponse;
 import com.ktalk.domain.ai.dto.TeachBackRequest;
 import com.ktalk.domain.ai.dto.TeachBackResponse;
+import com.ktalk.domain.block.entity.Assembly;
+import com.ktalk.domain.block.entity.AssemblyBlock;
+import com.ktalk.domain.block.entity.BlockSource;
+import com.ktalk.domain.block.entity.BlockType;
+import com.ktalk.domain.block.entity.LearningBlock;
+import com.ktalk.domain.block.repository.AssemblyRepository;
+import com.ktalk.domain.block.repository.LearningBlockRepository;
+import com.ktalk.domain.block.service.TagEmbeddingService;
+import com.ktalk.domain.user.entity.User;
+import com.ktalk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,17 +36,99 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GuidedLearningService {
 
+    private static final String DEFAULT_LEVEL = "TOPIK1-3";
+
     @Value("${GEMINI_API_KEY:}")
     private String geminiApiKey;
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final GeminiApiClient geminiApiClient;
+    private final LearningBlockRepository learningBlockRepository;
+    private final AssemblyRepository assemblyRepository;
+    private final UserRepository userRepository;
+    private final TagEmbeddingService tagEmbeddingService;
 
-    public GuidedLearningResponse generateLesson(GuidedLearningRequest request) {
+    public GuidedLearningResponse generateLesson(GuidedLearningRequest request, Long userId) {
         String prompt = buildLessonPrompt(request.getInterest());
         String rawJson = callGemini(prompt);
-        return parseLessonResponse(request.getInterest(), rawJson);
+        GuidedLearningResponse response = parseLessonResponse(request.getInterest(), rawJson);
+        response.setAssemblyId(persistAsAssembly(request.getInterest(), userId, response));
+        return response;
+    }
+
+    /**
+     * 생성된 레슨 조각들을 재사용 가능한 LearningBlock 4개로 쪼개 저장하고,
+     * 순서(position)를 보존한 Assembly로 묶는다. 실패해도 레슨 응답 자체는 정상 반환한다.
+     */
+    private String persistAsAssembly(String interest, Long userId, GuidedLearningResponse response) {
+        try {
+            Assembly assembly = new Assembly();
+            assembly.setInterestTag(interest);
+            assembly.setKoreanLevel(DEFAULT_LEVEL);
+            if (userId != null) {
+                userRepository.findById(userId).ifPresent(assembly::setUser);
+            }
+
+            addBlock(assembly, 0, BlockType.DIALOGUE, interest, orderedPayload(
+                    "sentence", response.getSentence(),
+                    "hints", response.getHints(),
+                    "meaning", response.getMeaning()
+            ), List.of(interest));
+            addBlock(assembly, 1, BlockType.VOCABULARY, interest, orderedPayload(
+                    "vocab", response.getVocab()
+            ), vocabWords(response.getVocab()));
+            addBlock(assembly, 2, BlockType.SENTENCE_PATTERN, interest, orderedPayload(
+                    "pattern", response.getPattern(),
+                    "patternExplanation", response.getPatternExplanation()
+            ), List.of(interest));
+            addBlock(assembly, 3, BlockType.SENSORY_DRILL, interest, orderedPayload(
+                    "sensoryWord", response.getSensoryWord(),
+                    "sensoryImagery", response.getSensoryImagery(),
+                    "sensoryInstruction", response.getSensoryInstruction()
+            ), List.of(response.getSensoryWord()));
+
+            return assemblyRepository.save(assembly).getId();
+        } catch (Exception e) {
+            log.error("Assembly 저장 실패 (레슨 응답은 정상 반환)", e);
+            return null;
+        }
+    }
+
+    private List<String> vocabWords(List<GuidedLearningResponse.VocabItem> vocab) {
+        if (vocab == null) return List.of();
+        return vocab.stream().map(GuidedLearningResponse.VocabItem::getWord).toList();
+    }
+
+    private Map<String, Object> orderedPayload(Object... keyValuePairs) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        for (int i = 0; i < keyValuePairs.length; i += 2) {
+            payload.put((String) keyValuePairs[i], keyValuePairs[i + 1]);
+        }
+        return payload;
+    }
+
+    /**
+     * outputTags는 "발견형" 지식 확장의 연결점이다: 나중에 다른 관심사의 블록이 같은 태그를
+     * 가지면(예: "운동장") 서로 다른 주제를 잇는 연결로 노출된다 (AssemblyService.getConnections 참고).
+     */
+    private void addBlock(Assembly assembly, int position, BlockType type, String interest,
+                           Map<String, Object> payloadFields, List<String> outputTags) throws Exception {
+        LearningBlock block = new LearningBlock();
+        block.setType(type);
+        block.setKoreanLevel(DEFAULT_LEVEL);
+        block.setInterestTag(interest);
+        block.setSource(BlockSource.AI_GENERATED);
+        block.setPayload(objectMapper.writeValueAsString(payloadFields));
+        block.setOutputTags(outputTags);
+        LearningBlock saved = learningBlockRepository.save(block);
+        tagEmbeddingService.ensureEmbeddings(outputTags);
+
+        AssemblyBlock assemblyBlock = new AssemblyBlock();
+        assemblyBlock.setAssembly(assembly);
+        assemblyBlock.setBlock(saved);
+        assemblyBlock.setPosition(position);
+        assembly.getBlocks().add(assemblyBlock);
     }
 
     public TeachBackResponse evaluateTeachBack(TeachBackRequest request) {
@@ -150,7 +243,8 @@ public class GuidedLearningService {
                     root.path("patternExplanation").asText(""),
                     root.path("sensoryWord").asText(""),
                     root.path("sensoryImagery").asText(""),
-                    root.path("sensoryInstruction").asText("")
+                    root.path("sensoryInstruction").asText(""),
+                    null
             );
         } catch (Exception e) {
             log.error("Failed to parse guided learning lesson response: {}", rawJson, e);
