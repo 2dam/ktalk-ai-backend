@@ -1014,9 +1014,13 @@
 }
 
 .google-login {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
   margin-top: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   color: var(--k-ink);
   background: var(--k-cream);
   text-decoration: none;
