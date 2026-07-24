@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import TopikQuiz from './TopikQuiz'
+
 const CONTENT_ITEMS = [
   { label: '기출문제집', tabId: 'contents', icon: '📘', desc: '실제 시험과 같은 난이도의 기출문제로 실전 감각을 익혀요.' },
   { label: '모의고사', tabId: 'chat', icon: '⏱', desc: '시간 제한 모의고사로 실전처럼 풀어보고 점수를 확인해요.' },
@@ -11,7 +14,13 @@ const LEVEL_ITEMS = [
   { label: '5~6급', desc: '고급 학습자를 위한 심화 작문·토론 커리큘럼' },
 ]
 
-function TopikPage({ onSelectTab, onSelectLevel, onBack }) {
+function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
+  const [quizOpen, setQuizOpen] = useState(false)
+
+  if (quizOpen) {
+    return <TopikQuiz onBack={() => setQuizOpen(false)} onRequireAuth={onRequireAuth} />
+  }
+
   return (
     <main className="topik-page" id="top">
       <div className="topik-page-head">
@@ -47,7 +56,7 @@ function TopikPage({ onSelectTab, onSelectLevel, onBack }) {
               type="button"
               className="topik-page-card"
               key={item.label}
-              onClick={onSelectLevel}
+              onClick={() => setQuizOpen(true)}
             >
               <b>{item.label}</b>
               <small>{item.desc}</small>

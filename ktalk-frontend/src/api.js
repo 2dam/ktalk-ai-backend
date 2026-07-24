@@ -8,6 +8,7 @@ export const ASSESSMENT_URL = `${API_BASE}/api/assessment`
 export const ASSEMBLY_URL = `${API_BASE}/api/assembly`
 export const REVIEW_URL = `${API_BASE}/api/review`
 export const DICTIONARY_URL = `${API_BASE}/api/dictionary`
+export const TOPIK_URL = `${API_BASE}/api/topik`
 
 // 로그인 토큰이 있으면 Authorization 헤더를 붙여준다. (복습 알람은 로그인 사용자 전용)
 export function authHeaders(extra = {}) {

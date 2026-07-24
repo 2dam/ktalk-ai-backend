@@ -7,6 +7,7 @@ import com.ktalk.domain.topik.entity.Word;
 import com.ktalk.domain.topik.repository.QuizItemRepository;
 import com.ktalk.domain.topik.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.List;
  * TopikLevelClassifierService로 분류하고, DistractorGeneratorService가 고른 오답을
  * 정답(단어의 뜻)과 섞어 보기를 구성한다. 두 기능을 하나의 문항 생성 흐름으로 묶는 지점이다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuizItemService {
@@ -62,5 +64,32 @@ public class QuizItemService {
 
         QuizItem saved = quizItemRepository.save(item);
         return QuizItemResponse.from(saved);
+    }
+
+    public record BulkGenerateResult(int created, int skipped) {}
+
+    /**
+     * 난이도 분류는 됐지만 아직 퀴즈 문항이 없는 단어를 모두 찾아 한 번에 문항으로 만든다.
+     * 프론트에서 "출제할 문항이 없다"는 응답을 받았을 때 관리자가 누를 수 있는 버튼용.
+     * 단어 하나가 실패해도(예: 오답 후보 부족) 나머지는 계속 진행한다.
+     */
+    @Transactional
+    public BulkGenerateResult generateAllMissing() {
+        List<Word> candidates = wordRepository.findAll().stream()
+                .filter(word -> !quizItemRepository.existsByWordId(word.getId()))
+                .toList();
+
+        int created = 0;
+        int skipped = 0;
+        for (Word word : candidates) {
+            try {
+                createFromWord(word.getId());
+                created++;
+            } catch (Exception e) {
+                skipped++;
+                log.warn("퀴즈 문항 자동 생성 건너뜀: word='{}'", word.getText(), e);
+            }
+        }
+        return new BulkGenerateResult(created, skipped);
     }
 }

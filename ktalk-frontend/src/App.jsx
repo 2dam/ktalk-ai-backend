@@ -190,13 +190,6 @@ function App() {
     setPendingScroll('ai-experience')
   }
 
-  const jumpToTopikCourse = () => {
-    if (route !== '/') {
-      navigateTo('/')
-    }
-    setPendingScroll('topik-course')
-  }
-
   const goToTopikPage = (event) => {
     event?.preventDefault()
     navigateTo('/topik')
@@ -280,8 +273,8 @@ function App() {
       {route === '/topik' ? (
         <TopikPage
           onSelectTab={jumpToExperience}
-          onSelectLevel={jumpToTopikCourse}
           onBack={() => navigateTo('/')}
+          onRequireAuth={() => setShowAuth(true)}
         />
       ) : (
       <main id="top">

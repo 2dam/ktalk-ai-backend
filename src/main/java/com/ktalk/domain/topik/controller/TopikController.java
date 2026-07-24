@@ -87,6 +87,14 @@ public class TopikController {
         }
     }
 
+    /** 아직 퀴즈 문항이 없는 단어를 전부 찾아 한 번에 문항으로 만든다(초기 문항 뱅크 부트스트랩용). */
+    @PostMapping("/quiz-items/generate-all")
+    public ResponseEntity<ApiResponse> generateAllQuizItems() {
+        var result = quizItemService.generateAllMissing();
+        String message = "문항 %d개를 만들었어요 (건너뜀 %d개).".formatted(result.created(), result.skipped());
+        return ResponseEntity.ok(ApiResponse.success(result, message));
+    }
+
     // ----- 적응형 퀴즈 -----
 
     /** 현재 추정 등급에 맞는 다음 문제. */

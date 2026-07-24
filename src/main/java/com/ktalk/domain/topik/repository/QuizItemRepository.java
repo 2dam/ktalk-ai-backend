@@ -11,4 +11,6 @@ public interface QuizItemRepository extends JpaRepository<QuizItem, String> {
     List<QuizItem> findByTopikLevel(TopikLevel topikLevel);
 
     List<QuizItem> findByTopikLevelIn(List<TopikLevel> topikLevels);
+
+    boolean existsByWordId(String wordId);
 }
