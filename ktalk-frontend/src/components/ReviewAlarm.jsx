@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { REVIEW_URL, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
+import ClickableKorean from './ClickableKorean'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -235,7 +236,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
             backgroundColor: '#f9fafb', marginBottom: '14px',
             display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
           }}>
-            {card.sentence}
+            <ClickableKorean text={card.sentence} />
             <button
               type="button"
               onClick={() => speak(card.sentence)}

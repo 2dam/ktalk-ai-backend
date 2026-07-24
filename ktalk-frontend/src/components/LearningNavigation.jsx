@@ -10,6 +10,7 @@ import PronunciationCoach from './PronunciationCoach'
 import PersonalizedLearning from './PersonalizedLearning'
 import ReviewAlarm from './ReviewAlarm'
 import NativeUsage from './NativeUsage'
+import ClickableKorean from './ClickableKorean'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -417,7 +418,7 @@ function LearningNavigation({ target, onRequireAuth }) {
             fontSize: '24px', fontWeight: 700, padding: '20px', borderRadius: '12px',
             backgroundColor: ACCENT_TINT, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px',
           }}>
-            {lesson.sentence}
+            <ClickableKorean text={lesson.sentence} />
             <button
               type="button"
               onClick={() => speak(lesson.sentence)}
@@ -481,7 +482,7 @@ function LearningNavigation({ target, onRequireAuth }) {
               <div style={{ fontSize: '13px', color: '#666', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {lesson.vocab?.map((item, idx) => (
                   <span key={idx} style={{ padding: '4px 10px', backgroundColor: '#fff', borderRadius: '999px', border: '1px solid #ddd' }}>
-                    {item.word} = {item.meaning}
+                    <ClickableKorean text={item.word} /> = {item.meaning}
                   </span>
                 ))}
               </div>
@@ -532,7 +533,7 @@ function LearningNavigation({ target, onRequireAuth }) {
           <p style={{ color: '#666' }}>방금 배운 문장의 패턴을 다른 사람에게 설명한다고 생각하고 적어보세요.</p>
 
           <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '16px', fontSize: '15px' }}>
-            {lesson.sentence} <span style={{ color: '#999', fontSize: '13px' }}>({lesson.meaning})</span>
+            <ClickableKorean text={lesson.sentence} /> <span style={{ color: '#999', fontSize: '13px' }}>({lesson.meaning})</span>
           </div>
 
           <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
@@ -620,7 +621,7 @@ function LearningNavigation({ target, onRequireAuth }) {
             fontSize: '40px', fontWeight: 800, color: ACCENT_DARK, margin: '20px 0',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px',
           }}>
-            {lesson.sensoryWord}
+            <ClickableKorean text={lesson.sensoryWord} />
             <button
               type="button"
               onClick={() => speak(lesson.sensoryWord)}
