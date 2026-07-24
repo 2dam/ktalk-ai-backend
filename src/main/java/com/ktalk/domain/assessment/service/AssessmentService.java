@@ -54,6 +54,29 @@ public class AssessmentService {
         return AssessmentResultResponse.of(learnerType, areaScores, selfRegulationScore, sense, result.getCreatedAt());
     }
 
+    /**
+     * 20문항 설문 없이 학습 유형을 바로 지정한다. 커리큘럼 콘텐츠를 테스트할 때 진단을
+     * 반복해서 풀지 않아도 되도록 만든 지름길이다 — 점수 필드는 중립값으로 채운다.
+     */
+    @Transactional
+    public AssessmentResultResponse quickAssign(Long userId, LearnerType learnerType) {
+        AssessmentResult result = new AssessmentResult();
+        result.setUserId(userId);
+        result.setLearnerType(learnerType);
+        result.setSensePreference(LearnerType.SensePreference.MIXED);
+        result.setSelfRegulationScore(3.5);
+        result.setAreaAScore(3.0);
+        result.setAreaBScore(3.0);
+        result.setAreaCScore(3.0);
+        result.setAreaDScore(3.0);
+        result.setAreaEScore(3.0);
+        resultRepository.save(result);
+
+        Map<String, Double> areaScores = Map.of("A", 3.0, "B", 3.0, "C", 3.0, "D", 3.0, "E", 3.0);
+        return AssessmentResultResponse.of(learnerType, areaScores, 3.5,
+                LearnerType.SensePreference.MIXED, result.getCreatedAt());
+    }
+
     @Transactional(readOnly = true)
     public AssessmentResultResponse getLatestResult(Long userId) {
         AssessmentResult result = resultRepository.findTopByUserIdOrderByCreatedAtDesc(userId)

@@ -13,6 +13,15 @@ const ACCENT_TINT = TAB_COLORS.navigation.tint
 
 const NEEDS_ASSESSMENT_MESSAGE = '먼저 학습 유형 진단을 완료해주세요.'
 
+const LEARNER_TYPES = [
+  { value: 'STRATEGIC_ANALYST', label: '전략적 분석가' },
+  { value: 'VISUAL_IMMERSIVE', label: '시각적 몰입형' },
+  { value: 'AUDITORY_EMPATHETIC', label: '청각적 교감형' },
+  { value: 'EXPERIENTIAL_ACTOR', label: '체험적 실행형' },
+  { value: 'ADAPTIVE_MIXED', label: '혼합 적응형' },
+  { value: 'SNS_DEPENDENT', label: 'SNS 의존형' },
+]
+
 function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
   const loggedIn = hasToken()
 
@@ -20,6 +29,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [completing, setCompleting] = useState(false)
+  const [assigning, setAssigning] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -46,6 +56,23 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const handleQuickAssign = async (learnerType) => {
+    setAssigning(true)
+    setError('')
+    try {
+      await axios.post(
+        `${API_BASE}/api/assessment/quick-assign`,
+        { learnerType },
+        { headers: authHeaders({ 'Content-Type': 'application/json; charset=utf-8' }) },
+      )
+      await load()
+    } catch (err) {
+      setError(err.response?.data?.message || '유형 배정에 실패했어요.')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   const handleComplete = async () => {
     setCompleting(true)
@@ -91,6 +118,30 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
         <span className="topik-badge">TOPIK 코스</span>
         <h1>오늘의 커리큘럼</h1>
         <p>학습 유형 진단 결과에 맞춘 8주 커리큘럼을 하루 단위로 진행해요.</p>
+      </div>
+
+      <div style={{
+        padding: '10px 14px', borderRadius: '8px', backgroundColor: '#f9fafb',
+        border: '1px dashed #ddd', marginBottom: '16px', fontSize: '12px', color: '#888',
+      }}>
+        🔧 테스트용: 20문항 진단 없이 유형 바로 배정
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+          {LEARNER_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => handleQuickAssign(type.value)}
+              disabled={assigning}
+              style={{
+                padding: '4px 10px', fontSize: '12px', borderRadius: '999px',
+                border: '1px solid #ccc', backgroundColor: '#fff',
+                cursor: assigning ? 'not-allowed' : 'pointer', color: '#555',
+              }}
+            >
+              {type.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>

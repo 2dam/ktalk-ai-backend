@@ -3,6 +3,7 @@ package com.ktalk.domain.assessment.controller;
 import com.ktalk.domain.assessment.dto.AssessmentQuestion;
 import com.ktalk.domain.assessment.dto.AssessmentResultResponse;
 import com.ktalk.domain.assessment.dto.AssessmentSubmitRequest;
+import com.ktalk.domain.assessment.dto.QuickAssignRequest;
 import com.ktalk.domain.assessment.service.AssessmentQuestionProvider;
 import com.ktalk.domain.assessment.service.AssessmentService;
 import com.ktalk.global.response.ApiResponse;
@@ -46,6 +47,22 @@ public class AssessmentController {
         } catch (Exception e) {
             log.error("학습 유형 진단 실패", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("진단 실패: " + e.getMessage()));
+        }
+    }
+
+    /** 20문항 설문 없이 유형을 바로 지정하는 테스트용 지름길. */
+    @PostMapping("/quick-assign")
+    public ResponseEntity<ApiResponse> quickAssign(@RequestBody QuickAssignRequest request) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("로그인이 필요합니다."));
+        }
+        try {
+            AssessmentResultResponse result = assessmentService.quickAssign(userId, request.learnerType());
+            return ResponseEntity.ok(ApiResponse.success(result, request.learnerType().getLabel() + "(으)로 배정했어요."));
+        } catch (Exception e) {
+            log.error("빠른 유형 배정 실패", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("배정 실패: " + e.getMessage()));
         }
     }
 
