@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import TopikQuiz from './TopikQuiz'
+import TodayCurriculum from './TodayCurriculum'
 
 const CONTENT_ITEMS = [
   { label: '기출문제집', tabId: 'contents', icon: '📘', desc: '실제 시험과 같은 난이도의 기출문제로 실전 감각을 익혀요.' },
@@ -15,10 +16,19 @@ const LEVEL_ITEMS = [
 ]
 
 function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
-  const [quizOpen, setQuizOpen] = useState(false)
+  const [view, setView] = useState('menu')
 
-  if (quizOpen) {
-    return <TopikQuiz onBack={() => setQuizOpen(false)} onRequireAuth={onRequireAuth} />
+  if (view === 'quiz') {
+    return <TopikQuiz onBack={() => setView('menu')} onRequireAuth={onRequireAuth} />
+  }
+  if (view === 'curriculum') {
+    return (
+      <TodayCurriculum
+        onBack={() => setView('menu')}
+        onRequireAuth={onRequireAuth}
+        onGoToAssessment={() => onSelectTab('assessment')}
+      />
+    )
   }
 
   return (
@@ -29,6 +39,20 @@ function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
         <h1>나에게 맞는 TOPIK 학습을 선택하세요</h1>
         <p>기출문제, 모의고사, 오답노트부터 급수별 코스까지 한 곳에서 시작해보세요.</p>
       </div>
+
+      <section className="topik-page-group">
+        <h2>오늘의 커리큘럼</h2>
+        <button
+          type="button"
+          className="topik-page-card"
+          onClick={() => setView('curriculum')}
+          style={{ width: '100%', textAlign: 'left' }}
+        >
+          <span className="topik-page-card-icon">📅</span>
+          <b>오늘의 학습 시작하기</b>
+          <small>학습 유형 진단 결과에 맞춘 8주(56일) 커리큘럼을 매일 하나씩 진행해요.</small>
+        </button>
+      </section>
 
       <section className="topik-page-group">
         <h2>학습 콘텐츠</h2>
@@ -56,7 +80,7 @@ function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
               type="button"
               className="topik-page-card"
               key={item.label}
-              onClick={() => setQuizOpen(true)}
+              onClick={() => setView('quiz')}
             >
               <b>{item.label}</b>
               <small>{item.desc}</small>
