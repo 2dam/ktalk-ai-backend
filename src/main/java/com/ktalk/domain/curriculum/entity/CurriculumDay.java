@@ -45,6 +45,6 @@ public class CurriculumDay {
     private String task;
 
     @OneToMany(mappedBy = "day", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("order ASC")
+    @OrderBy("orderIndex ASC")
     private List<CurriculumPassage> passages = new ArrayList<>();
 }

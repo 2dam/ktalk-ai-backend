@@ -35,8 +35,9 @@ public class CurriculumPassage {
     @Column(nullable = false)
     private PassageCategory category;
 
-    @Column(nullable = false)
-    private int order;
+    // "order"는 PostgreSQL 예약어라 컬럼명으로 못 써서 order_index로 매핑한다.
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex;
 
     /** 문제 유형 라벨. 예: "이어질 대답 고르기", "문장 순서 배열". */
     private String subType;
@@ -45,6 +46,6 @@ public class CurriculumPassage {
     private String passageText;
 
     @OneToMany(mappedBy = "passage", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("order ASC")
+    @OrderBy("orderIndex ASC")
     private List<CurriculumProblem> problems = new ArrayList<>();
 }

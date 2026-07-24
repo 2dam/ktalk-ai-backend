@@ -610,7 +610,7 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
             CurriculumPassage passage = new CurriculumPassage();
             passage.setDay(dayEntity);
             passage.setCategory(passageSeed.category());
-            passage.setOrder(p + 1);
+            passage.setOrderIndex(p + 1);
             passage.setSubType(passageSeed.subType());
             passage.setPassageText(passageSeed.passageText());
             passage.setProblems(buildProblems(passage, passageSeed.problems()));
@@ -625,7 +625,7 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
             ProblemSeed problemSeed = problemSeeds.get(i);
             CurriculumProblem problem = new CurriculumProblem();
             problem.setPassage(passage);
-            problem.setOrder(i + 1);
+            problem.setOrderIndex(i + 1);
             problem.setQuestionText(problemSeed.question());
             problem.setOptions(problemSeed.options().stream().map(OptionSeed::text).toList());
             problem.setCorrectAnswerIndex(problemSeed.correctIndex());

@@ -29,8 +29,9 @@ public class CurriculumProblem {
     @JoinColumn(name = "passage_id", nullable = false)
     private CurriculumPassage passage;
 
-    @Column(nullable = false)
-    private int order;
+    // "order"는 PostgreSQL 예약어라 컬럼명으로 못 써서 order_index로 매핑한다.
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex;
 
     @Column(nullable = false, length = 1000)
     private String questionText;
