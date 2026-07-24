@@ -32,12 +32,15 @@ public class CurriculumDataLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (curriculumRepository.count() > 0) {
-            return;
+        // 커리큘럼별로 따로 확인한다 — 나중에 유형이 추가돼도(예: StrategicAnalystCurriculumDataLoader)
+        // 이미 심어진 다른 유형이 있다고 건너뛰지 않도록.
+        if (curriculumRepository.findByLearnerType(LearnerType.VISUAL_IMMERSIVE).isEmpty()) {
+            seedVisualImmersive();
         }
-        seedVisualImmersive();
-        seedExperientialActor();
-        System.out.println("✅ TOPIK 커리큘럼 2종(시각적 몰입형/체험적 실행형) 생성 완료");
+        if (curriculumRepository.findByLearnerType(LearnerType.EXPERIENTIAL_ACTOR).isEmpty()) {
+            seedExperientialActor();
+        }
+        System.out.println("✅ TOPIK 커리큘럼(시각적 몰입형/체험적 실행형) 확인 완료");
     }
 
     private void seedVisualImmersive() {

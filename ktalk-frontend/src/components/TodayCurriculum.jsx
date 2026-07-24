@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_BASE, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
+import CurriculumPassageCard from './CurriculumPassageCard'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -89,7 +90,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
         <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
         <span className="topik-badge">TOPIK 코스</span>
         <h1>오늘의 커리큘럼</h1>
-        <p>학습 유형 진단 결과에 맞춘 8주(56일) 커리큘럼을 하루 단위로 진행해요.</p>
+        <p>학습 유형 진단 결과에 맞춘 8주 커리큘럼을 하루 단위로 진행해요.</p>
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
@@ -165,6 +166,14 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                       {data.template}
                     </pre>
                   </details>
+                )}
+
+                {data.passages?.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    {data.passages.map((passage, idx) => (
+                      <CurriculumPassageCard key={passage.id} passage={passage} index={idx} />
+                    ))}
+                  </div>
                 )}
 
                 {data.recommendedWords?.length > 0 && (

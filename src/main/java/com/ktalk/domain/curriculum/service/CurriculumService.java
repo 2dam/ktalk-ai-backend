@@ -3,10 +3,14 @@ package com.ktalk.domain.curriculum.service;
 import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.assessment.repository.AssessmentResultRepository;
 import com.ktalk.domain.curriculum.dto.CurriculumDayResponse;
+import com.ktalk.domain.curriculum.dto.PassageResponse;
+import com.ktalk.domain.curriculum.dto.ProblemAnswerResponse;
 import com.ktalk.domain.curriculum.entity.Curriculum;
 import com.ktalk.domain.curriculum.entity.CurriculumDay;
+import com.ktalk.domain.curriculum.entity.CurriculumProblem;
 import com.ktalk.domain.curriculum.entity.UserCurriculumProgress;
 import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumProblemRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumRepository;
 import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
 import com.ktalk.domain.topik.entity.TopikLevel;
@@ -22,8 +26,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 학습 유형 진단(AssessmentResult.learnerType) 결과에 맞는 8주(56일) 커리큘럼을
- * 하루 단위로 내려주고 진행 상황을 추적한다. 사용자가 처음 오늘의 학습을 조회하는
+ * 학습 유형 진단(AssessmentResult.learnerType) 결과에 맞는 8주 커리큘럼을 하루
+ * 단위로 내려주고 진행 상황을 추적한다. 사용자가 처음 오늘의 학습을 조회하는
  * 순간, 가장 최근 진단 결과로 커리큘럼을 배정한다(진단을 안 했으면 안내 메시지).
  */
 @Service
@@ -34,6 +38,7 @@ public class CurriculumService {
 
     private final CurriculumRepository curriculumRepository;
     private final CurriculumDayRepository curriculumDayRepository;
+    private final CurriculumProblemRepository curriculumProblemRepository;
     private final UserCurriculumProgressRepository progressRepository;
     private final AssessmentResultRepository assessmentResultRepository;
     private final UserRepository userRepository;
@@ -49,9 +54,26 @@ public class CurriculumService {
     public CurriculumDayResponse completeToday(Long userId) {
         UserCurriculumProgress progress = progressRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalStateException("아직 배정된 커리큘럼이 없습니다. 먼저 오늘의 학습을 조회하세요."));
-        progress.completeToday();
+        int totalDays = totalDays(progress.getCurriculum());
+        progress.completeToday(totalDays);
         progressRepository.save(progress);
         return buildResponse(progress);
+    }
+
+    /** 지문 하나에 딸린 문제 하나를 채점한다. 로그인 없이도 풀 수 있는 정적 문제집이라
+     * 별도 사용자 상태를 남기지 않는다(오답노트 등 개인화가 필요해지면 여기에 추가). */
+    @Transactional(readOnly = true)
+    public ProblemAnswerResponse submitAnswer(String problemId, int selectedIndex) {
+        CurriculumProblem problem = curriculumProblemRepository.findById(problemId)
+                .orElseThrow(() -> new IllegalArgumentException("문제를 찾을 수 없습니다: " + problemId));
+
+        return new ProblemAnswerResponse(
+                selectedIndex == problem.getCorrectAnswerIndex(),
+                problem.getCorrectAnswerIndex(),
+                problem.getOptionExplanations(),
+                problem.getTrapNote(),
+                problem.getStrategyTip()
+        );
     }
 
     private UserCurriculumProgress getOrAssignProgress(Long userId) {
@@ -77,15 +99,22 @@ public class CurriculumService {
         return progressRepository.save(progress);
     }
 
+    private int totalDays(Curriculum curriculum) {
+        return (int) curriculumDayRepository.countByCurriculumId(curriculum.getId());
+    }
+
     private CurriculumDayResponse buildResponse(UserCurriculumProgress progress) {
         Curriculum curriculum = progress.getCurriculum();
-        if (progress.isFinished()) {
-            return finishedResponse(curriculum, progress);
+        int totalDays = totalDays(curriculum);
+        if (progress.isFinished(totalDays)) {
+            return finishedResponse(curriculum, progress, totalDays);
         }
 
         CurriculumDay day = curriculumDayRepository
                 .findByCurriculumIdAndDayNumber(curriculum.getId(), progress.getCurrentDay())
                 .orElseThrow(() -> new IllegalStateException("커리큘럼 데이터가 손상됐습니다: day " + progress.getCurrentDay()));
+
+        List<PassageResponse> passages = day.getPassages().stream().map(PassageResponse::from).toList();
 
         return new CurriculumDayResponse(
                 curriculum.getId(),
@@ -98,14 +127,15 @@ public class CurriculumService {
                 day.getDayNumber(),
                 day.getDayInWeek(),
                 day.getTask(),
-                Curriculum.TOTAL_DAYS,
+                totalDays,
                 progress.getCompletedDayCount(),
                 false,
-                recommendedWords(curriculum)
+                recommendedWords(curriculum),
+                passages
         );
     }
 
-    private CurriculumDayResponse finishedResponse(Curriculum curriculum, UserCurriculumProgress progress) {
+    private CurriculumDayResponse finishedResponse(Curriculum curriculum, UserCurriculumProgress progress, int totalDays) {
         return new CurriculumDayResponse(
                 curriculum.getId(),
                 curriculum.getTitle(),
@@ -114,12 +144,13 @@ public class CurriculumService {
                 "완주",
                 "",
                 null,
-                Curriculum.TOTAL_DAYS,
-                7,
-                "8주 커리큘럼을 모두 완료했어요! 수고하셨습니다.",
-                Curriculum.TOTAL_DAYS,
+                totalDays,
+                0,
+                "커리큘럼을 모두 완료했어요! 수고하셨습니다.",
+                totalDays,
                 progress.getCompletedDayCount(),
                 true,
+                List.of(),
                 List.of()
         );
     }

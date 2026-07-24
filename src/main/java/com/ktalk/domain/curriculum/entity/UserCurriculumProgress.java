@@ -52,18 +52,18 @@ public class UserCurriculumProgress {
         }
     }
 
-    public boolean isFinished() {
-        return completedDayCount >= Curriculum.TOTAL_DAYS;
+    public boolean isFinished(int totalDays) {
+        return completedDayCount >= totalDays;
     }
 
     /** 오늘 학습을 완료 처리하고 다음 날로 넘어간다. 이미 끝났으면 아무것도 하지 않는다. */
-    public void completeToday() {
-        if (isFinished()) {
+    public void completeToday(int totalDays) {
+        if (isFinished(totalDays)) {
             return;
         }
         completedDayCount += 1;
         lastCompletedAt = LocalDateTime.now();
-        if (currentDay < Curriculum.TOTAL_DAYS) {
+        if (currentDay < totalDays) {
             currentDay += 1;
         }
     }

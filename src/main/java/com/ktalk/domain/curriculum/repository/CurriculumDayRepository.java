@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface CurriculumDayRepository extends JpaRepository<CurriculumDay, String> {
 
     Optional<CurriculumDay> findByCurriculumIdAndDayNumber(String curriculumId, int dayNumber);
+
+    long countByCurriculumId(String curriculumId);
 }

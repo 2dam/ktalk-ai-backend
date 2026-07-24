@@ -16,7 +16,8 @@ public record CurriculumDayResponse(
         int totalDays,
         int completedDayCount,
         boolean finished,
-        List<RecommendedWordResponse> recommendedWords
+        List<RecommendedWordResponse> recommendedWords,
+        List<PassageResponse> passages
 ) {
     public record RecommendedWordResponse(String text, String meaning) {}
 }
