@@ -35,20 +35,16 @@ public class CurriculumProblem {
     @Column(nullable = false, length = 1000)
     private String questionText;
 
-    @ElementCollection
-    @CollectionTable(name = "curriculum_problem_option", joinColumns = @JoinColumn(name = "problem_id"))
-    @OrderColumn(name = "option_index")
-    @Column(name = "option_text", length = 500)
+    @Convert(converter = StringListJsonConverter.class)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private List<String> options;
 
     @Column(nullable = false)
     private int correctAnswerIndex;
 
     /** options와 같은 순서. 보기별 오답 분석("①: ...", "②: ..." 등)이 여기 들어간다. */
-    @ElementCollection
-    @CollectionTable(name = "curriculum_problem_option_note", joinColumns = @JoinColumn(name = "problem_id"))
-    @OrderColumn(name = "option_index")
-    @Column(name = "note", length = 500)
+    @Convert(converter = StringListJsonConverter.class)
+    @Column(columnDefinition = "TEXT")
     private List<String> optionExplanations;
 
     /** 🧠 함정 요약. */
