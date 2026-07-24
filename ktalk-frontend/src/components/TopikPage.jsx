@@ -50,7 +50,7 @@ function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
         >
           <span className="topik-page-card-icon">📅</span>
           <b>오늘의 학습 시작하기</b>
-          <small>학습 유형 진단 결과에 맞춘 8주(56일) 커리큘럼을 매일 하나씩 진행해요.</small>
+          <small>학습 유형 진단 결과에 맞춘 8주 커리큘럼을 매일 하나씩 진행해요.</small>
         </button>
       </section>
 
