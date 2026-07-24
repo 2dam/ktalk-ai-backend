@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * 표기가 달라도 뜻이 가까운 태그(예: "축구장" ≈ "운동장")를 찾기 위한 임베딩 캐시 + 유사도 검색.
@@ -78,6 +79,17 @@ public class TagEmbeddingService {
         }
         results.sort((a, b) -> Double.compare(b.similarity(), a.similarity()));
         return results.size() > limit ? results.subList(0, limit) : results;
+    }
+
+    /** 캐시된 임베딩 벡터를 그대로 꺼내온다. 다른 도메인(예: TOPIK 오답 생성)에서 재사용. */
+    @Transactional(readOnly = true)
+    public Optional<double[]> getVector(String tag) {
+        return tagEmbeddingRepository.findByTag(normalize(tag)).map(entity -> parse(entity.getEmbedding()));
+    }
+
+    /** 코사인 유사도 계산을 다른 도메인에서도 재사용할 수 있도록 공개한다. */
+    public double similarity(double[] a, double[] b) {
+        return cosineSimilarity(a, b);
     }
 
     private String normalize(String tag) {
