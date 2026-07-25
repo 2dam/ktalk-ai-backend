@@ -92,6 +92,9 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
         curriculumDayRepository.deleteAll(days);
         userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
         curriculumRepository.delete(existing);
+        // Hibernate는 같은 플러시 안에서 INSERT를 DELETE보다 먼저 실행하므로, 여기서 flush하지
+        // 않으면 이후 같은 learner_type으로 새 Curriculum을 저장할 때 unique 제약을 위반한다.
+        curriculumRepository.flush();
     }
 
     // ===================== WEEK 1: 1~2급 기초 다지기 (실제 문제 80개) =====================
