@@ -4,6 +4,7 @@ import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.curriculum.entity.*;
 import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
 import com.ktalk.domain.topik.entity.TopikLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
@@ -28,6 +29,7 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
 
     private final CurriculumRepository curriculumRepository;
     private final CurriculumDayRepository curriculumDayRepository;
+    private final UserCurriculumProgressRepository userCurriculumProgressRepository;
 
     private record OptionSeed(String text, String note) {}
     private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
@@ -43,6 +45,11 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
         return new ProblemSeed(question, options, correctIndex, trapNote, strategyTip);
     }
 
+    /** 전략 팁 없이 오답 분석/함정 포인트만 있는 문항용. */
+    private static ProblemSeed q(String question, List<OptionSeed> options, int correctIndex, String trapNote) {
+        return new ProblemSeed(question, options, correctIndex, trapNote, null);
+    }
+
     private static PassageSeed onePassage(PassageCategory category, String subType, String passageText, ProblemSeed problem) {
         return new PassageSeed(category, subType, passageText, List.of(problem));
     }
@@ -54,9 +61,9 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (curriculumRepository.findByLearnerType(LearnerType.STRATEGIC_ANALYST).isPresent()) {
-            return;
-        }
+        // 콘텐츠를 계속 이어받는 중이라, 이미 있으면 건너뛰는 대신 지우고 새로 심는다.
+        // (CurriculumDay는 Curriculum/CurriculumWeek의 cascade 대상이 아니라서 직접 지워야 한다.)
+        curriculumRepository.findByLearnerType(LearnerType.STRATEGIC_ANALYST).ifPresent(this::deleteExisting);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.STRATEGIC_ANALYST);
@@ -71,10 +78,18 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8());
         saveCurriculumWithDays(curriculum, weeks);
 
-        System.out.println("✅ TOPIK 커리큘럼(전략적 분석가) 생성 완료 — WEEK1 문제 40개 포함");
+        System.out.println("✅ TOPIK 커리큘럼(전략적 분석가) 생성 완료 — WEEK1 문제 80개 포함");
     }
 
-    // ===================== WEEK 1: 1~2급 기초 다지기 (실제 문제 40개) =====================
+    /** 재시딩 전 기존 커리큘럼을 지운다. day는 부모의 cascade 대상이 아니라 먼저 지워야 한다. */
+    private void deleteExisting(Curriculum existing) {
+        List<CurriculumDay> days = curriculumDayRepository.findByCurriculumId(existing.getId());
+        curriculumDayRepository.deleteAll(days);
+        userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
+        curriculumRepository.delete(existing);
+    }
+
+    // ===================== WEEK 1: 1~2급 기초 다지기 (실제 문제 80개) =====================
 
     private static final String WEEK1_ANSWER_NOTE_TEMPLATE = """
             [오답 노트 템플릿 - 1차 40문항용]
@@ -465,6 +480,339 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
                                 "두 문장에서 핵심 키워드를 추출하세요. '가게', '물건'→쇼핑, '싸요', '할인'→가격/세일. 이를 종합하면 '세일/쇼핑 정보'가 도출됩니다."))
         );
 
+        // ----- 2차 40문항 (독립 세트): 직장·가족행사·교통·계절·취미 / 공공안내문·일기·여행·건강·문화 -----
+        List<PassageSeed> listening2nd1to10 = List.of(
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 내일이 무슨 요일이에요?\n남자: 금요일이에요.\n여자: 아, 그럼 내일이면 주말이네요! 주말에 뭐 할 거예요?",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("저는 주말에 일해요.", "정답: '주말에 뭐 할 거예요?'라는 질문에 대한 구체적 계획입니다."),
+                                opt("네, 내일은 금요일이에요.", "첫 번째 질문의 답변을 반복했을 뿐, 두 번째 질문에 답하지 않습니다."),
+                                opt("저는 주말을 좋아해요.", "'좋아해요'는 의견으로, 구체적 계획을 묻는 질문에 부적절합니다."),
+                                opt("아니요, 내일은 주말이 아니에요.", "남자가 '금요일'이라고 답했으므로 내일이 주말이라는 사실과 반대됩니다.")
+                        ), 0, "첫 질문에 대한 답변에 집중하게 하여 두 번째 질문을 무시하게 함.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 이번 주말에 여행 갈 거예요?\n여자: 아니요, 저는 집에서 쉴 거예요.\n남자: 아, 그래요? 그럼 저는 친구와 영화를 보러 갈 거예요.",
+                        q("여자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("저도 집에서 쉴 거예요.", "남자의 계획(영화)과 다른 이야기를 하는 것으로 응답이 아닙니다."),
+                                opt("네, 여행 가요.", "여자는 '여행 안 간다'고 했으므로 모순됩니다."),
+                                opt("영화 재미있게 보세요.", "정답: 상대방의 계획에 대한 정중한 반응입니다."),
+                                opt("저는 영화를 싫어해요.", "상대방 계획에 대한 격려나 반응이 아닙니다.")
+                        ), 2, "상대방의 계획에 대한 정중한 반응을 선택하지 못하게 함.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 오늘 날씨가 정말 좋지 않아요?\n남자: 네, 그래서 저는 공원에 가고 싶어요.\n여자: 저도요! 그럼 같이 갈까요?",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 날씨가 좋아요.", "날씨에 대한 동의로, '같이 갈까요?'라는 제안에 응답하지 않습니다."),
+                                opt("네, 좋아요. 같이 가요.", "정답: 제안을 수락하는 자연스러운 응답입니다."),
+                                opt("아니요, 저는 공원이 싫어요.", "'공원에 가고 싶어요'와 모순됩니다."),
+                                opt("네, 저는 집에 갈 거예요.", "제안을 정중히 거절하는 응답이 아닙니다.")
+                        ), 1, "날씨 대화에 집중하게 하여 제안을 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 생일에 뭐 받고 싶어요?\n여자: 저는 가방을 받고 싶어요.\n남자: 그럼 제가 가방을 선물할게요.",
+                        q("여자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 저는 가방이 없어요.", "가방 유무는 질문과 무관합니다."),
+                                opt("네, 고마워요. 정말 좋아요.", "정답: 선물 제안에 대한 정중한 수락과 감사 표현입니다."),
+                                opt("아니요, 가방은 안 받아요.", "받고 싶다고 했으므로 모순됩니다."),
+                                opt("네, 저는 시계를 받고 싶어요.", "이미 가방을 원한다고 답했으므로 대화 흐름을 깨뜨립니다.")
+                        ), 1, "선물 제안에 대한 정중한 수락과 감사 표현을 선택하지 못하게 함.")),
+                onePassage(PassageCategory.LISTENING, "행동/상황 파악",
+                        "여자: 여기서 일한 지 얼마나 됐어요?\n남자: 3년 됐어요. 그런데 내일부터 다른 지점으로 옮겨요.\n여자: 아, 그래요? 그럼 이제 여기서 못 보겠네요.",
+                        q("남자가 있는 곳으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("남자는 회사에서 일합니다.", "정답: '일한 지'와 '지점'이라는 표현으로 직장 생활을 추론할 수 있습니다."),
+                                opt("남자는 학교에서 공부합니다.", "공부와 무관한 대화입니다."),
+                                opt("남자는 식당에서 요리합니다.", "'지점'은 식당 요리보다 회사/가게의 분점을 가리킵니다."),
+                                opt("남자는 병원에서 진료합니다.", "'지점'은 병원보다 회사/가게에서 자주 쓰입니다.")
+                        ), 0, "'일한 지'만으로 다양한 직장을 떠올리게 함.")),
+                onePassage(PassageCategory.LISTENING, "행동/상황 파악",
+                        "남자: 이번 주말에 등산 갈 거예요?\n여자: 아니요, 저는 날씨가 너무 더워서 수영장에 갈 거예요.\n남자: 아, 그래요? 그럼 저도 수영장에 갈까요?",
+                        q("여자에 대해 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("여자는 등산을 갑니다.", "'아니요'로 등산을 부정했습니다."),
+                                opt("여자는 수영장에 갑니다.", "정답: '수영장에 갈 거예요'라고 직접 말했습니다."),
+                                opt("여자는 집에 있습니다.", "'수영장에 갈 거예요'로 집에 있지 않습니다."),
+                                opt("여자는 영화를 봅니다.", "영화에 대한 언급이 없습니다.")
+                        ), 1, "'등산' 질문에 집중하게 하여 실제 계획(수영장)을 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "행동/상황 파악",
+                        "여자: 내일 학교에 가요?\n남자: 아니요, 내일은 일요일이에요. 학교에 안 가요.\n여자: 그럼 뭐 할 거예요?",
+                        q("남자에 대해 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("남자는 학교에 갑니다.", "'안 가요'로 학교에 가지 않습니다."),
+                                opt("남자는 집에 있습니다.", "정답: 일요일이라 학교에 안 가므로 집에 있을 가능성이 가장 높습니다."),
+                                opt("남자는 친구를 만납니다.", "친구 만남에 대한 언급이 없습니다."),
+                                opt("남자는 일합니다.", "일에 대한 언급이 없습니다.")
+                        ), 1, "'뭐 할 거예요?'에 대한 직접적 답변이 없으므로 상황을 추론해야 함(일요일이라 집에 있을 가능성이 높음).")),
+                onePassage(PassageCategory.LISTENING, "행동/상황 파악",
+                        "남자: 지하철역이 어디에 있어요?\n여자: 저기 건물 앞에 있어요. 2호선을 타면 돼요.\n남자: 감사합니다. 그럼 2호선을 타고 가야겠네요.",
+                        q("남자가 이용할 교통수단으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("남자는 버스를 탑니다.", "버스에 대한 언급이 없습니다."),
+                                opt("남자는 지하철을 탑니다.", "정답: '지하철역'과 '2호선'이 언급되었습니다."),
+                                opt("남자는 택시를 탑니다.", "택시에 대한 언급이 없습니다."),
+                                opt("남자는 걸어갑니다.", "걸어간다는 언급이 없습니다.")
+                        ), 1, "'지하철역이 어디에 있어요?'라는 질문에 집중하게 하여 실제 교통수단을 추론하게 함.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이 바지가 얼마예요?\n남자: 4만 원이에요. 그런데 오늘은 25% 할인해요.\n여자: 그럼 3만 원이네요.",
+                        q("바지의 최종 가격으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("바지는 4만 원입니다.", "할인 전 가격에 집중하여 할인 적용을 놓친 것입니다."),
+                                opt("바지는 3만 원입니다.", "정답: 4만 원에서 25% 할인한 최종 가격입니다."),
+                                opt("바지는 1만 원입니다.", "할인 금액(1만 원)을 최종 가격으로 착각한 것입니다."),
+                                opt("바지는 5만 원입니다.", "계산 오류입니다(4만+1만=5만).")
+                        ), 1, "할인율(25%) 계산을 정확히 하지 않게 함.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 기차가 몇 시에 출발해요?\n여자: 오후 3시에 출발해요.\n남자: 그럼 2시에 역에 도착해야겠네요.",
+                        q("기차가 출발하는 시간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("기차는 오전 3시에 출발합니다.", "오전/오후 구분을 잘못한 것입니다."),
+                                opt("기차는 오후 3시에 출발합니다.", "정답: 여자가 '오후 3시에 출발해요'라고 말했습니다."),
+                                opt("기차는 오후 2시에 출발합니다.", "도착해야 할 시간(2시)과 출발 시간(3시)을 혼동한 것입니다."),
+                                opt("기차는 오전 2시에 출발합니다.", "오전/오후와 시간 모두 잘못됐습니다.")
+                        ), 1, "'2시에 역에 도착해야겠네요'에 집중하여 출발 시간을 2시로 오해하게 함."))
+        );
+
+        List<PassageSeed> listening2nd11to20 = List.of(
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 수영장이 몇 시에 문을 닫아요?\n남자: 보통 9시에 닫아요. 그런데 오늘은 8시에 닫아요.\n여자: 그럼 지금 7시니까 1시간밖에 없네요.",
+                        q("수영장이 오늘 닫는 시간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("수영장은 9시에 닫습니다.", "'보통'은 9시이지만 '오늘'은 8시입니다."),
+                                opt("수영장은 8시에 닫습니다.", "정답: '오늘은 8시에 닫아요'라고 명시했습니다."),
+                                opt("수영장은 7시에 닫습니다.", "지금 시간(7시)과 혼동한 것입니다."),
+                                opt("수영장은 10시에 닫습니다.", "근거 없는 시간입니다.")
+                        ), 1, "'보통'과 '오늘'의 차이를 구분하지 못하게 함.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이 근처에 은행이 있어요?\n여자: 네, 저기 약국 옆에 있어요.\n남자: 감사합니다. 그럼 약국 옆으로 가야겠네요.",
+                        q("은행의 위치로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("은행은 약국 옆에 있습니다.", "정답: 여자가 직접 말한 위치입니다."),
+                                opt("은행은 약국 뒤에 있습니다.", "'옆'을 '뒤'로 오해한 것입니다."),
+                                opt("은행은 약국 앞에 있습니다.", "'옆'을 '앞'으로 오해한 것입니다."),
+                                opt("은행은 약국 안에 있습니다.", "'옆'을 '안'으로 오해한 것입니다.")
+                        ), 0, "위치를 나타내는 단어('옆')의 정확한 의미를 모르게 함.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "여자: 이번 주말에 뭐 할 거예요?\n남자: 가족과 함께 바다에 갈 거예요.\n여자: 아, 좋겠네요. 저도 가고 싶어요.",
+                        q("두 사람이 무엇에 대해 말하고 있는지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 사람은 가족에 대해 말하고 있습니다.", "'가족'은 주말 계획의 일부로 언급된 것입니다."),
+                                opt("두 사람은 주말 계획에 대해 말하고 있습니다.", "정답: '이번 주말에 뭐 할 거예요?'로 대화가 시작됩니다."),
+                                opt("두 사람은 날씨에 대해 말하고 있습니다.", "날씨에 대한 언급이 없습니다."),
+                                opt("두 사람은 음식에 대해 말하고 있습니다.", "음식에 대한 언급이 없습니다.")
+                        ), 1, "'가족'이나 '바다' 같은 구체적 단어에 집중하게 하여 전체 주제를 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "남자: 오늘 학교에서 뭐 했어요?\n여자: 한국어 시험을 봤어요.\n남자: 아, 그래요? 어땠어요?",
+                        q("두 사람이 무엇에 대해 말하고 있는지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 사람은 시험에 대해 말하고 있습니다.", "정답: 한국어 시험이 대화의 중심입니다."),
+                                opt("두 사람은 운동에 대해 말하고 있습니다.", "운동에 대한 언급이 없습니다."),
+                                opt("두 사람은 음식에 대해 말하고 있습니다.", "음식에 대한 언급이 없습니다."),
+                                opt("두 사람은 날씨에 대해 말하고 있습니다.", "날씨에 대한 언급이 없습니다.")
+                        ), 0, "'학교'라는 장소에 집중하게 하여 구체적 활동(시험)을 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "여자: 내일 눈이 올 거래요.\n남자: 아, 그래요? 그럼 내일은 따뜻하게 입어야겠네요.\n여자: 맞아요. 그리고 우산도 가져가세요.",
+                        q("두 사람이 무엇에 대해 말하고 있는지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 사람은 날씨에 대해 말하고 있습니다.", "정답: 내일 눈이 온다는 예보가 대화의 시작입니다."),
+                                opt("두 사람은 옷에 대해 말하고 있습니다.", "옷은 날씨에 대한 대비책으로 언급된 것입니다."),
+                                opt("두 사람은 음식에 대해 말하고 있습니다.", "음식에 대한 언급이 없습니다."),
+                                opt("두 사람은 여행에 대해 말하고 있습니다.", "여행에 대한 언급이 없습니다.")
+                        ), 0, "'따뜻하게 입어야겠네요', '우산' 같은 대비책에 집중하게 하여 본질적 주제(날씨)를 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "남자: 생일 선물로 뭘 받고 싶어요?\n여자: 저는 책을 받고 싶어요.\n남자: 그럼 책을 선물할게요.",
+                        q("두 사람이 무엇에 대해 말하고 있는지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 사람은 선물에 대해 말하고 있습니다.", "정답: 생일 선물이 대화의 중심입니다."),
+                                opt("두 사람은 음식에 대해 말하고 있습니다.", "음식에 대한 언급이 없습니다."),
+                                opt("두 사람은 운동에 대해 말하고 있습니다.", "운동에 대한 언급이 없습니다."),
+                                opt("두 사람은 여행에 대해 말하고 있습니다.", "여행에 대한 언급이 없습니다.")
+                        ), 0, "'책'이라는 구체적 선물에 집중하게 하여 전체 주제(선물)를 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "흐름 및 추론",
+                        "여자: 어디에 가요?\n남자: 병원에 가요.\n여자: 왜요? 아파요?\n남자: 아니요, 건강 검진을 받으러 가요.",
+                        q("남자가 병원에 가는 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("남자는 아파서 병원에 갑니다.", "'아니요'로 아프지 않음을 명시했습니다."),
+                                opt("남자는 건강 검진을 받으러 병원에 갑니다.", "정답: '건강 검진을 받으러 가요'라고 직접 말했습니다."),
+                                opt("남자는 병원에서 일합니다.", "병원에서 일한다는 언급이 없습니다."),
+                                opt("남자는 병원에 가기 싫어합니다.", "가기 싫어한다는 언급이 없습니다.")
+                        ), 1, "'병원에 가요'라는 장소에 집중하게 하여 구체적 목적(건강 검진)을 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "흐름 및 추론",
+                        "남자: 지금 몇 시예요?\n여자: 4시 50분이에요.\n남자: 벌써 4시 50분이에요? 저는 5시에 회의가 있어요.",
+                        q("남자에 대해 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("남자는 회의에 늦었어요.", "4시 50분이고 회의는 5시이므로 아직 10분 남았습니다."),
+                                opt("남자는 회의 시간이 아직 있어요.", "정답: 5시 회의까지 아직 시간이 남아 있습니다."),
+                                opt("남자는 회의를 취소했어요.", "회의 취소에 대한 언급이 없습니다."),
+                                opt("남자는 회의 장소에 도착했어요.", "회의 장소 도착에 대한 언급이 없습니다.")
+                        ), 1, "'벌써'라는 표현에 놀라서 회의에 늦었다고 오해하게 함.")),
+                onePassage(PassageCategory.LISTENING, "흐름 및 추론",
+                        "여자: 이거 얼마예요?\n남자: 2만 원이에요. 그런데 두 개를 사면 3만 5천 원이에요.\n여자: 그럼 두 개를 살게요.",
+                        q("여자가 구매할 물건의 개수로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("여자는 물건을 한 개 삽니다.", "'두 개를 살게요'라고 명시했습니다."),
+                                opt("여자는 물건을 두 개 삽니다.", "정답: 여자가 직접 말한 개수입니다."),
+                                opt("여자는 물건을 세 개 삽니다.", "세 개에 대한 언급이 없습니다."),
+                                opt("여자는 물건을 사지 않습니다.", "'살게요'로 구매 의사를 밝혔습니다.")
+                        ), 1, "가격 계산에 집중하게 하여 구매 개수를 놓치게 함.")),
+                onePassage(PassageCategory.LISTENING, "흐름 및 추론",
+                        "남자: 주말에 시간 있어요?\n여자: 네, 있어요. 왜요?\n남자: 그럼 같이 영화 보러 갈까요?",
+                        q("여자에 대해 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("여자는 주말에 시간이 없어요.", "'네, 있어요'로 시간이 있습니다."),
+                                opt("여자는 주말에 영화를 봐요.", "정답: 남자의 제안으로 주말에 영화를 보게 될 상황입니다."),
+                                opt("여자는 주말에 일해요.", "일에 대한 언급이 없습니다."),
+                                opt("여자는 주말에 공부해요.", "공부에 대한 언급이 없습니다.")
+                        ), 1, "'시간 있어요?'라는 질문에 집중하게 하여 그다음에 나오는 제안(영화)을 놓치게 함."))
+        );
+
+        List<PassageSeed> reading2nd21to30 = List.of(
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 매일 아침 6시에 일어나서 1시간 동안 운동을 합니다. 그리고 8시에 회사에 출근합니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("저는 6시에 회사에 갑니다.", "기상 시간(6시)과 출근 시간(8시)을 혼동한 것입니다."),
+                                opt("저는 7시까지 운동을 합니다.", "본문에 정확히 명시되지 않은 추론이며 질문의 핵심과 무관합니다."),
+                                opt("저는 8시에 회사에 출근합니다.", "정답: 본문에 명시된 출근 시간입니다."),
+                                opt("저는 9시에 운동을 합니다.", "운동 시간을 9시로 잘못 이해한 것입니다.")
+                        ), 2, "여러 시간 정보 중 하나를 왜곡하게 함.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "이 커피숍은 아침 8시에 문을 엽니다. 그리고 저녁 10시에 문을 닫습니다. 일요일에는 문을 닫습니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("커피숍은 8시에 닫습니다.", "8시는 여는 시간입니다."),
+                                opt("커피숍은 10시에 엽니다.", "10시는 닫는 시간입니다."),
+                                opt("커피숍은 일요일에 쉽니다.", "정답: 본문에 명시된 휴무일입니다."),
+                                opt("커피숍은 9시에 엽니다.", "지문에 없는 시간입니다.")
+                        ), 2, "여러 정보 중 하나를 혼동하게 함.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "내일은 친구의 결혼식이 있습니다. 그래서 저는 선물을 준비했습니다. 그리고 예쁜 옷을 입을 예정입니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("내일은 제 결혼식입니다.", "'친구의 결혼식'으로 명시되어 있습니다."),
+                                opt("내일은 친구의 결혼식입니다.", "정답: 본문 첫 문장과 일치합니다."),
+                                opt("내일은 운동할 예정입니다.", "운동에 대한 언급이 없습니다."),
+                                opt("내일은 회사에 갑니다.", "회사에 대한 언급이 없습니다.")
+                        ), 1, "'선물', '예쁜 옷' 같은 행동에 집중하게 하여 결혼식의 주체를 놓치게 함.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "오늘은 어머니 생신입니다. 그래서 제가 케이크를 준비했습니다. 그리고 꽃도 샀습니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("오늘은 아버지 생신입니다.", "어머니를 아버지로 오해한 것입니다."),
+                                opt("오늘은 어머니 생신입니다.", "정답: 본문 첫 문장과 일치합니다."),
+                                opt("오늘은 제 생일입니다.", "'제 생일'이 아닌 '어머니 생신'입니다."),
+                                opt("오늘은 친구 생일입니다.", "친구가 아닌 어머니의 생신입니다.")
+                        ), 1, "'케이크', '꽃' 같은 선물에 집중하게 하여 생일의 주체를 놓치게 함.")),
+                onePassage(PassageCategory.READING, "실용문 이해",
+                        "[안내문]\n공원은 오전 6시에 문을 열고 오후 8시에 문을 닫습니다. 매주 월요일은 휴원입니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("공원은 오전 7시에 엽니다.", "6시를 7시로 오해한 것입니다."),
+                                opt("공원은 오후 8시에 닫습니다.", "정답: 본문에 명시된 시간입니다."),
+                                opt("공원은 화요일에 쉽니다.", "월요일을 화요일로 오해한 것입니다."),
+                                opt("공원은 오후 9시에 닫습니다.", "8시를 9시로 오해한 것입니다.")
+                        ), 1, "여러 정보 중 하나를 왜곡하게 함.")),
+                onePassage(PassageCategory.READING, "실용문 이해",
+                        "[메모]\n수진아, 내일 2시에 도서관에서 만나자. 중간고사 공부를 같이 하자. -영수-",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("수진과 영수는 내일 만납니다.", "정답: '내일'이라고 명시되어 있습니다."),
+                                opt("수진과 영수는 오늘 만납니다.", "'내일'이라고 명시되어 있습니다."),
+                                opt("수진과 영수는 영화를 봅니다.", "영화에 대한 언급이 없습니다."),
+                                opt("수진과 영수는 운동을 합니다.", "운동에 대한 언급이 없습니다.")
+                        ), 0, "'공부'에 집중하게 하여 만남 자체를 놓치게 함.")),
+                onePassage(PassageCategory.READING, "실용문 이해",
+                        "[안내문]\n지하철을 탈 때는 출입문이 닫히기 전에 안전하게 타세요. 그리고 손잡이를 꼭 잡으세요.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("지하철에서는 손잡이를 잡지 않아도 됩니다.", "'꼭 잡으세요'와 상반됩니다."),
+                                opt("지하철에서는 출입문이 닫힌 후에 타야 합니다.", "'닫히기 전에'와 상반됩니다."),
+                                opt("지하철에서는 안전하게 타야 합니다.", "정답: 본문 전체의 핵심 목적입니다."),
+                                opt("지하철에서는 뛰어야 합니다.", "뛰라는 언급이 없습니다.")
+                        ), 2, "세부 지침에 집중하게 하여 전체 목적(안전)을 놓치게 함.")),
+                onePassage(PassageCategory.READING, "실용문 이해",
+                        "[초대장]\n우리 집들이 파티에 오세요.\n일시: 11월 5일 토요일 오후 3시\n장소: 제 아파트 303호",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("파티는 11월 6일에 합니다.", "5일을 6일로 오해한 것입니다."),
+                                opt("파티는 오후 3시에 시작합니다.", "정답: 본문에 명시된 시각입니다."),
+                                opt("파티는 아파트 304호에서 합니다.", "303호를 304호로 오해한 것입니다."),
+                                opt("파티는 회사에서 합니다.", "아파트를 회사로 오해한 것입니다.")
+                        ), 1, "시간, 장소, 날짜 중 하나를 왜곡하게 함.")),
+                onePassage(PassageCategory.READING, "목적 및 세부 정보 추론",
+                        "오늘은 가을입니다. 날씨가 매우 시원합니다. 그래서 저는 단풍을 보러 공원에 갔습니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("오늘은 봄입니다.", "'가을'을 '봄'으로 오해한 것입니다."),
+                                opt("오늘은 가을입니다.", "정답: 본문 첫 문장과 일치합니다."),
+                                opt("오늘은 날씨가 덥습니다.", "'시원합니다'로 보아 덥지 않습니다."),
+                                opt("오늘은 비가 옵니다.", "비에 대한 언급이 없습니다.")
+                        ), 1, "'단풍'에 집중하게 하여 계절(가을)을 추론하게 함.")),
+                onePassage(PassageCategory.READING, "목적 및 세부 정보 추론",
+                        "저는 매일 저녁 8시에 집에 도착합니다. 그리고 30분 동안 저녁 식사를 합니다. 그다음에 TV를 봅니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("저는 8시에 저녁을 먹습니다.", "8시는 도착 시간입니다."),
+                                opt("저는 8시에 집에 도착합니다.", "정답: 본문에 명시된 귀가 시간입니다."),
+                                opt("저는 9시에 TV를 봅니다.", "TV 시청 시간은 정확히 명시되지 않았습니다."),
+                                opt("저는 7시에 귀가합니다.", "7시는 지문에 없는 시간입니다.")
+                        ), 1, "여러 활동의 시간을 정확히 구분하지 못하게 함."))
+        );
+
+        List<PassageSeed> reading2nd31to40 = List.of(
+                onePassage(PassageCategory.READING, "목적 및 세부 정보 추론",
+                        "이 영화는 정말 재미있습니다. 그래서 저는 두 번이나 봤습니다. 친구들에게도 추천했습니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("저는 영화를 한 번 봤습니다.", "'두 번'을 '한 번'으로 오해한 것입니다."),
+                                opt("저는 영화를 두 번 봤습니다.", "정답: 본문에 명시된 횟수입니다."),
+                                opt("저는 영화를 세 번 봤습니다.", "'두 번'을 '세 번'으로 오해한 것입니다."),
+                                opt("저는 영화를 보지 않았습니다.", "'봤습니다'로 보아 보지 않은 것이 아닙니다.")
+                        ), 1, "'두 번이나'라는 표현에 집중하지 못하게 함.")),
+                onePassage(PassageCategory.READING, "목적 및 세부 정보 추론",
+                        "내일은 친구와 함께 여행을 갈 예정입니다. 그래서 오늘은 짐을 싸고 있습니다.",
+                        q("윗글의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("내일은 여행을 갑니다.", "정답: 본문 첫 문장과 일치합니다."),
+                                opt("내일은 집에 있습니다.", "'여행을 갈 예정'과 상반됩니다."),
+                                opt("내일은 학교에 갑니다.", "학교에 대한 언급이 없습니다."),
+                                opt("내일은 회사에 갑니다.", "회사에 대한 언급이 없습니다.")
+                        ), 0, "'짐을 싸고 있습니다'에 집중하게 하여 실제 계획(여행)을 놓치게 함.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "ㄱ. 그리고 영화를 보기 시작했습니다.\nㄴ. 먼저 극장에 도착했습니다.\nㄷ. 그다음에 팝콘을 샀습니다.\nㄹ. 영화가 끝났습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("ㄴ → ㄷ → ㄱ → ㄹ", "정답: 극장 도착 → 팝콘 구매 → 영화 시작 → 영화 종료의 순서입니다."),
+                                opt("ㄴ → ㄱ → ㄷ → ㄹ", "팝콘 구매(ㄷ)가 영화 보기(ㄱ)보다 먼저여야 합니다."),
+                                opt("ㄷ → ㄴ → ㄱ → ㄹ", "극장 도착(ㄴ)이 먼저여야 합니다."),
+                                opt("ㄹ → ㄴ → ㄷ → ㄱ", "영화 끝(ㄹ)이 마지막이어야 합니다.")
+                        ), 0, "순서 연결어를 무시하게 함.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "ㄱ. 그래서 병원에 갔습니다.\nㄴ. 어제부터 머리가 아팠습니다.\nㄷ. 약을 먹고 퇴원했습니다.\nㄹ. 의사가 진료를 했습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("ㄴ → ㄱ → ㄹ → ㄷ", "정답: 아픔 → 병원 → 진료 → 퇴원의 순서입니다."),
+                                opt("ㄴ → ㄱ → ㄷ → ㄹ", "진료(ㄹ) 후에 약을 먹고 퇴원(ㄷ)해야 합니다."),
+                                opt("ㄱ → ㄴ → ㄹ → ㄷ", "아픔(ㄴ)이 먼저여야 합니다."),
+                                opt("ㄹ → ㄴ → ㄱ → ㄷ", "결과인 진료(ㄹ)가 먼저 올 수 없습니다.")
+                        ), 0, "인과관계를 파악하지 못하게 함.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "ㄱ. 그리고 버스를 기다렸습니다.\nㄴ. 먼저 집에서 나왔습니다.\nㄷ. 그다음에 버스를 탔습니다.\nㄹ. 학교에 도착했습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("ㄴ → ㄱ → ㄷ → ㄹ", "정답: 집에서 나옴 → 기다림 → 버스 탑승 → 도착의 순서입니다."),
+                                opt("ㄴ → ㄷ → ㄱ → ㄹ", "기다림(ㄱ)이 타기(ㄷ)보다 먼저여야 합니다."),
+                                opt("ㄱ → ㄴ → ㄷ → ㄹ", "집에서 나옴(ㄴ)이 먼저여야 합니다."),
+                                opt("ㄹ → ㄴ → ㄱ → ㄷ", "도착(ㄹ)이 마지막이어야 합니다.")
+                        ), 0, "순서 연결어와 자연스러운 흐름을 무시하게 함.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "ㄱ. 그래서 친구에게 전화했습니다.\nㄴ. 약속 시간에 늦었습니다.\nㄷ. 친구가 괜찮다고 했습니다.\nㄹ. 미안하다고 말했습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("ㄴ → ㄱ → ㄹ → ㄷ", "정답: 늦음 → 전화 → 사과 → 친구의 반응 순서입니다."),
+                                opt("ㄴ → ㄱ → ㄷ → ㄹ", "사과(ㄹ) 후에 친구의 반응(ㄷ)이 와야 합니다."),
+                                opt("ㄱ → ㄴ → ㄹ → ㄷ", "늦음(ㄴ)이 먼저여야 합니다."),
+                                opt("ㄹ → ㄴ → ㄱ → ㄷ", "결과인 사과(ㄹ)가 먼저 올 수 없습니다.")
+                        ), 0, "인과관계를 파악하지 못하게 함.")),
+                onePassage(PassageCategory.READING, "공통 주제 파악",
+                        "ㄱ. 내일은 눈이 올 예정입니다. 따라서 따뜻하게 입으세요.\nㄴ. 오늘은 바람이 매우 강합니다. 조심하세요.",
+                        q("무엇에 대한 내용인지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("날씨 정보", "정답: 두 문장 모두 기상 상황을 전달합니다."),
+                                opt("건강 관리", "건강 관리보다는 날씨 정보에 더 가깝습니다."),
+                                opt("여행 계획", "여행 계획 언급이 없습니다."),
+                                opt("학교 생활", "학교 생활 언급이 없습니다.")
+                        ), 0, "행동 지침에 집중하게 하여 본질적 주제(날씨)를 놓치게 함.")),
+                onePassage(PassageCategory.READING, "공통 주제 파악",
+                        "ㄱ. 이 가게는 물건이 매우 싸요.\nㄴ. 오늘은 가방이 50% 할인 중이에요.",
+                        q("무엇에 대한 내용인지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("세일/쇼핑 정보", "정답: 두 문장 모두 가격과 할인 정보를 전달합니다."),
+                                opt("음식/맛집", "음식 언급이 없습니다."),
+                                opt("교통 정보", "교통 언급이 없습니다."),
+                                opt("날씨 정보", "날씨 언급이 없습니다.")
+                        ), 0, "'싸요', '할인'을 종합하여 공통 주제를 도출해야 함.")),
+                onePassage(PassageCategory.READING, "공통 주제 파악",
+                        "ㄱ. 지하철 2호선을 타고 시청역에서 내리세요.\nㄴ. 버스 143번을 타고 은행 앞에서 내리세요.",
+                        q("무엇에 대한 내용인지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("길 찾기/교통", "정답: 두 문장 모두 교통수단과 하차 위치를 안내합니다."),
+                                opt("음식/맛집", "음식 언급이 없습니다."),
+                                opt("날씨/계절", "날씨 언급이 없습니다."),
+                                opt("쇼핑/가격", "쇼핑이나 가격 언급이 없습니다.")
+                        ), 0, "구체적 장소에 집중하게 하여 공통 주제를 놓치게 함.")),
+                onePassage(PassageCategory.READING, "공통 주제 파악",
+                        "ㄱ. 이 식당은 불고기가 유명합니다.\nㄴ. 저는 비빔밥을 자주 먹으러 갑니다.",
+                        q("무엇에 대한 내용인지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("음식/맛집", "정답: 두 문장 모두 음식과 식당 이야기입니다."),
+                                opt("운동/취미", "운동이나 취미 언급이 없습니다."),
+                                opt("쇼핑/가격", "쇼핑이나 가격 언급이 없습니다."),
+                                opt("책/영화", "책이나 영화 언급이 없습니다.")
+                        ), 0, "구체적 단어를 종합하여 공통 주제를 도출해야 함."))
+        );
+
         return new WeekSeed("1~2급 기초 다지기",
                 "TOPIK I 수준의 듣기·읽기 기본기를 다지고 시험 유형에 익숙해진다.",
                 WEEK1_ANSWER_NOTE_TEMPLATE,
@@ -477,7 +825,16 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
                                 reading21to30.toArray(new PassageSeed[0])),
                         day("읽기 유형(어휘·문법·짧은 지문) 집중 2부 - 목적 추론, 문장 순서, 공통 주제",
                                 reading31to40.toArray(new PassageSeed[0])),
-                        day("주간 복습 및 오답 정리 - 이번 주 틀린 문제를 다시 풀고, 오답 노트 템플릿에 취약 유형을 기록하세요.")
+                        day("1차 복습 및 오답 정리 - 이번 주 틀린 문제를 다시 풀고, 오답 노트 템플릿에 취약 유형을 기록하세요."),
+                        day("듣기 2차 1부 - 직장 생활, 가족 행사, 교통/이동",
+                                listening2nd1to10.toArray(new PassageSeed[0])),
+                        day("듣기 2차 2부 - 계절/자연, 취미/여가",
+                                listening2nd11to20.toArray(new PassageSeed[0])),
+                        day("읽기 2차 1부 - 공공장소 안내문, 일기/편지",
+                                reading2nd21to30.toArray(new PassageSeed[0])),
+                        day("읽기 2차 2부 - 여행/관광, 건강/운동, 한국 문화/관습",
+                                reading2nd31to40.toArray(new PassageSeed[0])),
+                        day("2차 복습 및 전체 오답 정리 - 1·2차 문제를 통틀어 취약 유형을 다시 점검하세요.")
                 ));
     }
 
@@ -572,6 +929,7 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
     private void saveCurriculumWithDays(Curriculum curriculum, List<WeekSeed> weekSeeds) {
         List<CurriculumWeek> weeks = new ArrayList<>();
         List<CurriculumDay> allDays = new ArrayList<>();
+        int dayNumber = 0; // 주차별 일수가 달라도(예: WEEK1만 10일) 정확히 이어지도록 누적 계산한다.
 
         for (int w = 0; w < weekSeeds.size(); w++) {
             WeekSeed weekSeed = weekSeeds.get(w);
@@ -587,11 +945,12 @@ public class StrategicAnalystCurriculumDataLoader implements CommandLineRunner {
             List<DaySeed> daySeeds = weekSeed.days();
             for (int d = 0; d < daySeeds.size(); d++) {
                 DaySeed daySeed = daySeeds.get(d);
+                dayNumber++;
                 CurriculumDay dayEntity = new CurriculumDay();
                 dayEntity.setCurriculum(curriculum);
                 dayEntity.setWeek(week);
                 dayEntity.setDayInWeek(d + 1);
-                dayEntity.setDayNumber(w * daySeeds.size() + d + 1);
+                dayEntity.setDayNumber(dayNumber);
                 dayEntity.setTask(daySeed.task());
                 dayEntity.setPassages(buildPassages(dayEntity, daySeed.passages()));
                 allDays.add(dayEntity);

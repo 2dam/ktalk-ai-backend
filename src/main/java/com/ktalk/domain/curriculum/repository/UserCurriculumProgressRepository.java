@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface UserCurriculumProgressRepository extends JpaRepository<UserCurriculumProgress, String> {
 
     Optional<UserCurriculumProgress> findByUserId(Long userId);
+
+    void deleteByCurriculumId(String curriculumId);
 }
