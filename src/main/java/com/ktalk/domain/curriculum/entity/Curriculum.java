@@ -12,13 +12,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 학습 유형 진단(LearnerType) 결과 하나당 8주 커리큘럼 하나가 대응된다. 주당 일수는
- * 커리큘럼마다 다를 수 있어(예: 7일제 vs 5일제) 총 일수를 고정 상수로 두지 않고,
+ * 학습 유형 진단(LearnerType) 결과 하나당 급수단계(1~2급/3~4급/5~6급)별로 독립된 8주
+ * 커리큘럼이 대응된다 — 같은 learnerType이라도 targetLevelFrom이 다르면 서로 다른
+ * Curriculum 레코드다(예: STRATEGIC_ANALYST 1~2급과 STRATEGIC_ANALYST 3~4급은 별개).
+ * 주당 일수는 커리큘럼마다 다를 수 있어(예: 7일제 vs 5일제) 총 일수를 고정 상수로 두지 않고,
  * 실제 등록된 CurriculumDay 개수로 계산한다(CurriculumService 참고).
  * 주차별 상세 내용은 CurriculumWeek, 일 단위로 쪼갠 실제 배분은 CurriculumDay가 갖는다.
  */
 @Entity
-@Table(name = "curriculum", uniqueConstraints = @UniqueConstraint(columnNames = "learner_type"))
+@Table(name = "curriculum", uniqueConstraints = @UniqueConstraint(columnNames = {"learner_type", "target_level_from"}))
 @Getter
 @Setter
 @NoArgsConstructor

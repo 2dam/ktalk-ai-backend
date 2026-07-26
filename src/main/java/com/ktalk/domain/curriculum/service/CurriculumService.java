@@ -85,7 +85,9 @@ public class CurriculumService {
                 .orElseThrow(() -> new IllegalStateException("먼저 학습 유형 진단을 완료해주세요."))
                 .getLearnerType();
 
-        Curriculum curriculum = curriculumRepository.findByLearnerType(learnerType)
+        // 학습유형에 급수단계별(1~2급/3~4급/5~6급) 커리큘럼이 여러 개 있을 수 있어, 가장 낮은
+        // 급수단계부터 시작한다. 상위 급수단계로의 진급 로직은 아직 없다(향후 과제).
+        Curriculum curriculum = curriculumRepository.findFirstByLearnerTypeOrderByTargetLevelFromAsc(learnerType)
                 .orElseThrow(() -> new IllegalStateException(
                         learnerType.getLabel() + " 유형의 상세 커리큘럼은 아직 준비 중이에요."));
 
