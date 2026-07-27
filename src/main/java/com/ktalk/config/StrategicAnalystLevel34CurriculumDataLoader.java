@@ -1,4 +1,4 @@
-﻿package com.ktalk.config;
+package com.ktalk.config;
 
 import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.curriculum.entity.*;
