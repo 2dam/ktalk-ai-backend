@@ -32,7 +32,8 @@ public class StrategicAnalystLevel34CurriculumDataLoader implements CommandLineR
     private final CurriculumDayRepository curriculumDayRepository;
     private final UserCurriculumProgressRepository userCurriculumProgressRepository;
 
-    private record OptionSeed(String text, String note) {}
+        private static final String WEEK1_ANSWER_NOTE_TEMPLATE = "[오답 노트 템플릿 - 1차 40문항용]\n문제를 틀렸을 때 아래 항목을 표시하며 나의 취약 유형을 데이터화해보세요.\n\n문제 번호(1~40) | 틀린 이유(해당 항목 체크) | 취약 유형 코드\n예) 3번 | ② 의도 파악 실패 |\n\n[취약 유형 코드 분석 가이드]\n① 시간/장소 혼동: 대화나 글에 나온 시간, 장소, 숫자 정보를 정확히 기억하지 못함.\n② 의도 파악 실패: 화자나 글쓴이의 진짜 목적이나 주제를 놓침.\n③ 어휘 부족: 모르는 단어가 있어 내용 이해에 어려움을 겪음.\n④ 기타: 위에 해당하지 않는 오류(예: 부주의, 시간 부족).\n\n같은 코드가 반복해서 나온다면, 다음 학습 때 그 유형을 우선적으로 보완하세요.\n";
+        private record OptionSeed(String text, String note) {}
     private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
     private record PassageSeed(PassageCategory category, String subType, String passageText, List<ProblemSeed> problems) {}
     private record DaySeed(String task, List<PassageSeed> passages) {}
