@@ -45,6 +45,10 @@ public class CurriculumPassage {
     @Column(nullable = false, length = 2000)
     private String passageText;
 
+    /** 시각적 몰입형 등 시각 자료가 필요한 유형을 위한 인라인 SVG 마인드맵/도표. 없으면 null. */
+    @Column(name = "diagram_svg", columnDefinition = "TEXT")
+    private String diagramSvg;
+
     @OneToMany(mappedBy = "passage", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<CurriculumProblem> problems = new ArrayList<>();

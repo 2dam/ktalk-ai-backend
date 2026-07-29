@@ -75,7 +75,7 @@ function CurriculumPassageCard({ passage, index }) {
       </div>
 
       {passage.problems.map((problem) => (
-        <CurriculumProblemCard key={problem.id} problem={problem} />
+        <CurriculumProblemCard key={problem.id} problem={problem} diagramSvg={passage.diagramSvg} />
       ))}
     </div>
   )

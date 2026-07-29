@@ -11,6 +11,7 @@ public record PassageResponse(
         String subType,
         String passageText,
         boolean hasAudio,
+        String diagramSvg,
         List<ProblemResponse> problems
 ) {
     public static PassageResponse from(CurriculumPassage passage) {
@@ -20,6 +21,7 @@ public record PassageResponse(
                 passage.getSubType(),
                 passage.getPassageText(),
                 passage.getCategory() == PassageCategory.LISTENING,
+                passage.getDiagramSvg(),
                 passage.getProblems().stream().map(ProblemResponse::from).toList()
         );
     }

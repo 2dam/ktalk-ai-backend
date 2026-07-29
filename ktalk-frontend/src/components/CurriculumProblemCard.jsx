@@ -8,7 +8,7 @@ const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 /**
  * 문제 하나: 보기를 누르면 바로 채점하고, 보기별 오답 분석 + 함정 포인트를 펼쳐 보여준다.
  */
-function CurriculumProblemCard({ problem }) {
+function CurriculumProblemCard({ problem, diagramSvg }) {
   const [selected, setSelected] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -89,7 +89,17 @@ function CurriculumProblemCard({ problem }) {
             {result.correct ? '✅ 정답이에요!' : '❌ 아쉬워요, 다시 확인해보세요.'}
           </div>
           {result.trapNote && <div style={{ marginBottom: result.strategyTip ? '4px' : 0 }}>🧠 함정: {result.trapNote}</div>}
-          {result.strategyTip && <div>💡 전략 팁: {result.strategyTip}</div>}
+          {result.strategyTip && <div style={{ marginBottom: diagramSvg ? '8px' : 0 }}>💡 전략 팁: {result.strategyTip}</div>}
+          {diagramSvg && (
+            <div
+              style={{
+                marginTop: '4px', padding: '10px', borderRadius: '8px',
+                backgroundColor: '#fff', border: '1px solid #f0f0f0',
+              }}
+              // 프론트에서 편집 불가능한 백엔드 시드 콘텐츠(직접 작성한 SVG 마인드맵/도표)만 들어온다.
+              dangerouslySetInnerHTML={{ __html: diagramSvg }}
+            />
+          )}
         </div>
       )}
     </div>
