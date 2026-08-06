@@ -1,0 +1,584 @@
+package com.ktalk.config;
+
+import com.ktalk.domain.assessment.entity.LearnerType;
+import com.ktalk.domain.curriculum.entity.*;
+import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
+import com.ktalk.domain.topik.entity.TopikLevel;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 청각적 교감형(AUDITORY_EMPATHETIC) 유형의 1~2급 "TOPIK 쉐도잉 리듬 노트" 커리큘럼을 심는다.
+ * STRATEGIC_ANALYST/VISUAL_IMMERSIVE와 동일한 골격(레코드/헬퍼, 8주 + 모의고사 2회 + Final 1회,
+ * 총 2,450문항)을 쓰되, trapNote/strategyTip을 청각 신호(억양·어조·발음·반복) 언어로 완전히
+ * 새로 설계한다 — LearnerType.AUDITORY_EMPATHETIC의 studyTip("쉐도잉과 받아쓰기, 1:1 강의를
+ * 통한 즉각적인 청각 피드백")을 모든 문항에 반영한다. 색깔 코딩이나 마인드맵 대신, 소리 내어
+ * 따라 말하는 쉐도잉 훈련과 억양·강세 신호 포착을 오답 노트의 핵심 축으로 삼는다.
+ * 3~4급/5~6급 과정과는 완전히 분리된 별도의 8주 과정으로, 같은 learner_type이라도
+ * targetLevelFrom(LEVEL_1)으로 구분되는 별도 Curriculum 레코드를 갖는다.
+ */
+@Component
+@RequiredArgsConstructor
+@Order(16)
+public class AuditoryEmpatheticCurriculumDataLoader implements CommandLineRunner {
+
+    private final CurriculumRepository curriculumRepository;
+    private final CurriculumDayRepository curriculumDayRepository;
+    private final UserCurriculumProgressRepository userCurriculumProgressRepository;
+
+    private record OptionSeed(String text, String note) {}
+    private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
+    private record PassageSeed(PassageCategory category, String subType, String passageText, String diagramSvg, List<ProblemSeed> problems) {}
+    private record DaySeed(String task, List<PassageSeed> passages) {}
+    private record WeekSeed(String title, String goal, String template, List<DaySeed> days) {}
+
+    private static OptionSeed opt(String text, String note) {
+        return new OptionSeed(text, note);
+    }
+
+    private static ProblemSeed q(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {
+        return new ProblemSeed(question, options, correctIndex, trapNote, strategyTip);
+    }
+
+    private static PassageSeed onePassage(PassageCategory category, String subType, String passageText, ProblemSeed problem) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problem));
+    }
+
+    /** 문법/어휘 포인트 하나에 연습문제 여러 개가 딸린 "시중 교재" 스타일 유닛용. */
+    private static PassageSeed grammarUnit(String subType, String explanation, ProblemSeed... problems) {
+        return new PassageSeed(PassageCategory.READING, subType, explanation, null, List.of(problems));
+    }
+
+    /** 실전 모의고사에서 지문 하나에 문제 2개 이상이 딸린 실제 TOPIK 형식용. */
+    private static PassageSeed multiQ(PassageCategory category, String subType, String passageText, ProblemSeed... problems) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problems));
+    }
+
+    private static DaySeed day(String task, PassageSeed... passages) {
+        return new DaySeed(task, List.of(passages));
+    }
+
+    /** 한 "차"(40문항)를 이루는 여러 하위 목록을 하루 학습량 하나로 합칠 때 사용. */
+    @SafeVarargs
+    private static PassageSeed[] merge(List<PassageSeed>... lists) {
+        List<PassageSeed> all = new ArrayList<>();
+        for (List<PassageSeed> list : lists) {
+            all.addAll(list);
+        }
+        return all.toArray(new PassageSeed[0]);
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.AUDITORY_EMPATHETIC, TopikLevel.LEVEL_1)
+                .ifPresent(this::deleteExisting);
+
+        Curriculum curriculum = new Curriculum();
+        curriculum.setLearnerType(LearnerType.AUDITORY_EMPATHETIC);
+        curriculum.setTitle("TOPIK 쉐도잉 리듬 노트");
+        curriculum.setTargetLevelLabel("1~2급 전 과정");
+        curriculum.setTargetLevelFrom(TopikLevel.LEVEL_1);
+        curriculum.setTargetLevelTo(TopikLevel.LEVEL_2);
+        curriculum.setUsageNote(
+                "모든 문제에 청각 신호 태그(🎧 억양·강세 / 💬 어조·의도 / 👂 발음·어휘 / 🔁 반복·상투구)로 함정 포인트를 "
+                        + "구분합니다. 지문을 눈으로만 읽지 말고 소리 내어 따라 말하는 쉐도잉과 받아쓰기를 병행하세요. "
+                        + "읽기 지문도 대화하듯 소리 내어 낭독하면 청각 기억이 두 배로 강화됩니다.");
+
+        List<WeekSeed> weeks = List.of(week1());
+        saveCurriculumWithDays(curriculum, weeks);
+
+        System.out.println("🎧 TOPIK 커리큘럼(청각적 교감형, 1~2급) WEEK1 1차 시딩 완료!");
+    }
+
+    /** 재시딩 전 기존 커리큘럼을 지운다. day는 부모의 cascade 대상이 아니라 먼저 지워야 한다. */
+    private void deleteExisting(Curriculum existing) {
+        List<CurriculumDay> days = curriculumDayRepository.findByCurriculumId(existing.getId());
+        curriculumDayRepository.deleteAll(days);
+        userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
+        curriculumRepository.delete(existing);
+        curriculumRepository.flush();
+    }
+
+    // ===================== WEEK 1: 1~2급 쉐도잉 기초 다지기 =====================
+
+    private static final String WEEK1_ANSWER_NOTE_TEMPLATE = """
+            [🎧 오답 노트 템플릿 - 1차 40문항용]
+            문제를 틀렸을 때 청각 신호 태그로 표시하며 나의 취약 유형을 확인해보세요.
+
+            문제 번호(1~40) | 틀린 이유(해당 태그 동그라미) | 취약 유형 코드
+            예) 3번 | 🎧 (억양/강세 신호 놓침) |
+
+            [🎧 청각 신호별 취약 유형 코드 가이드]
+            🎧 억양·강세 신호 오독: 강조되어 발음된 단어(시간·장소·숫자)를 놓치거나 헷갈림.
+            💬 어조·의도 파악 실패: 화자의 말투에 담긴 진짜 목적이나 감정을 놓침.
+            👂 발음·어휘 혼동: 비슷하게 들리는 단어나 모르는 단어 때문에 이해에 어려움을 겪음.
+            🔁 반복·상투구 놓침: 반복되거나 관용적으로 쓰이는 표현의 신호를 놓침(예: 부주의, 시간 부족).
+
+            같은 태그가 반복해서 표시된다면, 그 유형의 문장을 소리 내어 쉐도잉하며 다음 학습 때 우선 보완하세요.
+            """;
+
+    private WeekSeed week1() {
+        List<PassageSeed> listening1to10 = List.of(
+                onePassage(PassageCategory.LISTENING, "상황 응답",
+                        "여자: 오늘 목소리가 좀 안 좋네요.\n남자: (        )",
+                        q("이어질 남자의 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 감기에 걸린 것 같아요.", "정답: 목소리가 안 좋다는 말에 자연스럽게 이유를 설명합니다."),
+                                opt("네, 저는 학생이에요.", "👂 질문과 무관한 신분 설명입니다."),
+                                opt("아니요, 여기가 아니에요.", "👂 장소 질문에 대한 답이라 문맥과 안 맞습니다."),
+                                opt("네, 안녕히 가세요.", "👂 작별 인사라 대화 흐름과 안 맞습니다.")
+                        ), 0, "💬 말투에 담긴 걱정의 어조를 놓치면 엉뚱한 인사말을 고르기 쉽습니다.",
+                                "[상황응답 소리단서] '목소리가 안 좋다'는 걱정의 어조(신호) → 이유 설명(대답). 소리 내어 따라 말하며 어조를 느껴보세요.")),
+                onePassage(PassageCategory.LISTENING, "행동/장소 파악",
+                        "남자: 여기 이어폰 파는 곳이 어디예요?\n여자: 전자상가에서 팔아요. 저기 모퉁이에 있어요.",
+                        q("두 사람이 대화하는 장소로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("길거리", "정답: 이어폰 파는 곳의 위치를 묻는 상황은 길에서의 대화입니다."),
+                                opt("전자상가 안", "🎧 전자상가는 '안내받는 목적지'일 뿐 현재 위치가 아닙니다."),
+                                opt("이어폰 가게", "🎧 대화 속 장소가 아니라 목적지로 언급된 곳입니다."),
+                                opt("모퉁이 카페", "🎧 '모퉁이'라는 단어만 듣고 만든 틀린 조합입니다.")
+                        ), 0, "🎧 장소 단어가 두 번 들리면 마지막에 들린 단어를 현재 위치로 착각하기 쉽습니다.",
+                                "[장소추론 소리단서] 질문(파는 곳이 어디) → 안내(전자상가). 안내받은 곳과 지금 서 있는 곳을 구분해서 들으세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 강의가 몇 시에 시작해요?\n남자: 원래 2시였는데 3시로 바뀌었어요.",
+                        q("강의가 시작하는 시간으로 알맞은 것을 고르십시오.", List.of(
+                                opt("3시", "정답: '바뀌었어요'라는 말 뒤의 최종 시간이 정답입니다."),
+                                opt("2시", "🎧 원래 시간(변경 전)에만 꽂혀 최종 정보를 놓치게 합니다."),
+                                opt("2시 반", "🎧 대화에 없는 시간을 임의로 만든 오답입니다."),
+                                opt("4시", "🎧 대화에 없는 시간입니다.")
+                        ), 0, "🎧 숫자가 두 번 강세를 받아 발음될 때 먼저 들린 숫자를 정답처럼 착각하게 합니다.",
+                                "[세부정보 소리단서] 원래 시간(약강세) → '바뀌었어요'(강세) → 최종 시간. 강조되는 마지막 숫자만 남기세요.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "여자: 이 신청서에 이름하고 연락처를 써 주세요.\n남자: 네, 여기 쓰면 되죠?",
+                        q("여자가 남자에게 요청하는 것으로 알맞은 것을 고르십시오.", List.of(
+                                opt("신청서 작성", "정답: 이름과 연락처를 쓰라는 요청은 신청서 작성 요청입니다."),
+                                opt("전화 통화", "💬 '연락처'라는 단어만 듣고 통화로 착각하게 합니다."),
+                                opt("이름 확인", "💬 부분 정보(이름)만으로 전체 목적을 좁혀 오해하게 합니다."),
+                                opt("서명 거부", "💬 대화의 흐름과 반대되는 내용입니다.")
+                        ), 0, "💬 세부 단어(연락처)에 집중하면 전체 요청 목적(신청서 작성)을 놓치기 쉽습니다.",
+                                "[목적파악 소리단서] 이름 + 연락처(세부 신호) → 신청서 작성(전체 목적). 두 단어를 합쳐 큰 그림을 들으세요.")),
+                onePassage(PassageCategory.LISTENING, "흐름 추론",
+                        "남자: 오늘 저녁에 뭐 할 거예요?\n여자: 집에서 좀 쉬려고요. 요즘 너무 피곤해서요.",
+                        q("여자의 다음 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("집에서 휴식을 취한다.", "정답: '집에서 좀 쉬려고요'가 다음 행동의 직접적 근거입니다."),
+                                opt("친구를 만나러 나간다.", "🔁 언급되지 않은 행동을 임의로 추가한 오답입니다."),
+                                opt("회사에서 야근을 한다.", "🔁 대화에 없는 상황입니다."),
+                                opt("운동을 하러 간다.", "🔁 '피곤해서'라는 이유와 반대되는 행동입니다.")
+                        ), 0, "🔁 '피곤하다'는 이유만 듣고 엉뚱한 해소 행동(운동)을 연결하기 쉽습니다.",
+                                "[흐름추론 소리단서] 이유(피곤함) → 행동(휴식). 이유를 말하는 어조가 힘없이 들리는지 확인하며 따라 말해보세요.")),
+                onePassage(PassageCategory.LISTENING, "상황 응답",
+                        "남자: 죄송한데 여기 자리 있어요?\n여자: (        )",
+                        q("이어질 여자의 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("아니요, 앉으세요.", "정답: 자리가 비어있다는 뜻으로 자연스럽게 이어집니다."),
+                                opt("네, 반가워요.", "👂 자리 유무 질문과 무관한 인사말입니다."),
+                                opt("아니요, 괜찮아요.", "👂 질문 의도와 어긋나는 답변입니다."),
+                                opt("네, 여기가 맞아요.", "👂 위치 확인 질문에 대한 답처럼 보이지만 문맥과 안 맞습니다.")
+                        ), 0, "👂 '네/아니요' 뒤에 붙는 말만 듣고 앞뒤 논리를 확인하지 않기 쉽습니다.",
+                                "[상황응답 소리단서] 질문(자리 있어요?) → 대답은 '있다/없다' 둘 중 하나로만 이어집니다. 억양을 살려 따라 말해보세요.")),
+                onePassage(PassageCategory.LISTENING, "행동/장소 파악",
+                        "여자: 다음 정류장에서 내려서 2번 출구로 나가세요.\n남자: 네, 알겠습니다. 감사합니다.",
+                        q("두 사람이 이야기하는 상황으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("길을 안내하고 있다.", "정답: 정류장, 출구 안내는 길 안내 상황입니다."),
+                                opt("표를 구매하고 있다.", "🎧 '정류장'이라는 단어만 듣고 연상한 오답입니다."),
+                                opt("음식을 주문하고 있다.", "🎧 대화 내용과 관련이 없습니다."),
+                                opt("전화를 걸고 있다.", "🎧 대화 내용과 관련이 없습니다.")
+                        ), 0, "🎧 장소 단어(정류장)만 듣고 다른 상황(매표소)을 떠올리기 쉽습니다.",
+                                "[장소추론 소리단서] '내려서·출구로'라는 핵심 동사구는 오직 [길 안내] 상황에만 연결됩니다.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이 헤드폰 얼마예요?\n여자: 원래 4만 원인데 지금 세일해서 3만 원이에요.",
+                        q("이 헤드폰의 현재 가격으로 알맞은 것을 고르십시오.", List.of(
+                                opt("3만 원", "정답: 세일 후 가격이 현재 최종 가격입니다."),
+                                opt("4만 원", "🎧 세일 전 가격(원래 가격)에 꽂힌 오답입니다."),
+                                opt("7만 원", "🎧 두 숫자를 더해 만든 오답입니다."),
+                                opt("1만 원", "🎧 두 숫자를 뺀 값처럼 보이지만 실제 답이 아닙니다.")
+                        ), 0, "🎧 두 가격이 연이어 강조되어 발음되면 앞 숫자를 답으로 착각하기 쉽습니다.",
+                                "[세부정보 소리단서] 원래 가격(약한 강세) → '세일해서'(전환 신호) → 최종 가격(강한 강세). 마지막 숫자에 집중하세요.")),
+                onePassage(PassageCategory.LISTENING, "목적/주제 파악",
+                        "여자: 이 소포 좀 보내려고 하는데요.\n남자: 네, 무게부터 재 드릴게요.",
+                        q("두 사람이 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("우체국", "정답: 소포를 보내고 무게를 재는 상황은 우체국에서 이루어집니다."),
+                                opt("편의점", "👂 소포 발송 업무와는 다른 장소입니다."),
+                                opt("세탁소", "👂 세탁 업무와 무관한 대화입니다."),
+                                opt("은행", "👂 금융 업무와 무관한 대화입니다.")
+                        ), 0, "👂 '소포'와 발음이 비슷한 다른 단어와 혼동하면 엉뚱한 장소를 고르기 쉽습니다.",
+                                "[장소추론 소리단서] 소포+무게(핵심 단어) → 우체국(장소). 발음을 정확히 구분해서 들어보세요.")),
+                onePassage(PassageCategory.LISTENING, "흐름 추론",
+                        "남자: 내일 시험인데 하나도 준비를 못 했어요.\n여자: 그럼 오늘 밤에 같이 정리해 볼까요?",
+                        q("두 사람이 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("함께 시험 공부를 한다.", "정답: '같이 정리해 볼까요'라는 제안에 이어질 행동입니다."),
+                                opt("시험을 포기한다.", "🔁 언급되지 않은 부정적 결말입니다."),
+                                opt("영화를 보러 간다.", "🔁 대화 상황과 무관한 행동입니다."),
+                                opt("잠을 자러 간다.", "🔁 '시험 준비'라는 목적과 반대되는 행동입니다.")
+                        ), 0, "🔁 걱정하는 말투만 듣고 포기하는 결말로 착각하기 쉽습니다.",
+                                "[흐름추론 소리단서] 걱정(문제 제기) → 제안(같이 정리). 여자의 제안 어조가 밝은지 확인하며 따라 말해보세요."))
+        );
+
+        List<PassageSeed> listening11to20 = List.of(
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이번 주말에 등산 갈 사람 손 들어 보세요.\n남자: 저요! 저도 갈게요.\n여자: 좋아요, 그럼 토요일 아침 8시에 만나요.",
+                        q("등산을 가기로 한 시간으로 알맞은 것을 고르십시오.", List.of(
+                                opt("토요일 아침 8시", "정답: 마지막에 확정된 약속 시간이 정답입니다."),
+                                opt("일요일 아침 8시", "🎧 요일을 잘못 들은 오답입니다."),
+                                opt("토요일 저녁 8시", "🎧 시간대를 잘못 들은 오답입니다."),
+                                opt("이번 주 아무 때나", "🎧 구체적으로 확정된 시간을 무시한 오답입니다.")
+                        ), 0, "🎧 요일과 시간이 한 문장에 같이 나오면 하나를 놓치기 쉽습니다.",
+                                "[세부정보 소리단서] 토요일(요일) + 아침 8시(시간) — 두 정보를 한 호흡으로 따라 말하며 붙여서 기억하세요.")),
+                onePassage(PassageCategory.LISTENING, "화제 고르기",
+                        "여자: 요즘 팟캐스트를 들으면서 출근하는데 시간이 금방 가요.\n남자: 저도요. 이어폰 끼고 뉴스를 들으면 지루하지 않더라고요.",
+                        q("두 사람이 무엇에 대해 이야기하고 있는지 고르십시오.", List.of(
+                                opt("출퇴근 시간에 듣는 콘텐츠", "정답: 팟캐스트와 뉴스를 들으며 출근한다는 표현에서 알 수 있습니다."),
+                                opt("이어폰 구매 방법", "👂 이어폰은 도구로 언급되었을 뿐 주제가 아닙니다."),
+                                opt("뉴스 기자의 직업", "👂 언급되지 않은 주제입니다."),
+                                opt("출근길 교통 체증", "👂 언급되지 않은 주제입니다.")
+                        ), 0, "👂 '이어폰'이라는 도구 단어만 듣고 다른 주제로 착각하기 쉽습니다.",
+                                "[화제파악 소리단서] 팟캐스트+뉴스+듣다(핵심 단어) → 출퇴근 콘텐츠(화제). 핵심 단어를 소리 내어 모아보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 이 노래 제목이 뭔지 아세요? 계속 흥얼거리게 되네요.\n여자: 저도 궁금했는데, 음악 인식 앱으로 찾아볼까요?\n남자: 좋은 생각이에요.",
+                        q("두 사람이 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("앱으로 노래 제목을 찾는다.", "정답: 여자의 제안에 남자가 동의했으므로 이어질 행동입니다."),
+                                opt("노래를 그만 듣는다.", "🔁 대화 흐름과 반대되는 행동입니다."),
+                                opt("악기를 배우러 간다.", "🔁 언급되지 않은 행동입니다."),
+                                opt("가사를 직접 외운다.", "🔁 언급되지 않은 행동입니다.")
+                        ), 0, "🔁 궁금해하는 어조만 듣고 다른 해결 행동을 떠올리기 쉽습니다.",
+                                "[행동추론 소리단서] 궁금함(문제) → 제안(앱으로 찾기) → 동의. 마지막 동의 어조를 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "일치하는 내용 고르기",
+                        "여자: 이번에 나온 라디오 방송 재밌대요.\n남자: 저도 들어 봤는데 진행자 목소리가 정말 편안하더라고요.\n여자: 맞아요, 그래서 자기 전에 자주 들어요.",
+                        q("들은 내용과 같은 것을 고르십시오.", List.of(
+                                opt("여자는 자기 전에 그 라디오를 자주 듣는다.", "정답: 여자는 '자기 전에 자주 들어요'라고 말했습니다."),
+                                opt("남자는 그 라디오를 들어 본 적이 없다.", "👂 남자는 '들어 봤다'고 말했습니다."),
+                                opt("진행자 목소리가 시끄럽다는 평가다.", "👂 편안하다고 말했습니다."),
+                                opt("여자는 그 방송을 싫어한다.", "👂 재밌다고 말했습니다.")
+                        ), 0, "👂 '편안하다'와 '시끄럽다'처럼 반대되는 어감의 단어를 혼동하기 쉽습니다.",
+                                "[일치판단 소리단서] 목소리의 느낌을 나타내는 단어(편안하다)를 정확히 듣고 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "중심 생각 고르기",
+                        "남자: 저는 외국어를 배울 때 무조건 많이 듣는 게 제일 중요한 것 같아요.\n여자: 문법 공부도 필요하지 않을까요?\n남자: 그것도 맞지만, 결국 귀가 트여야 말도 트인다고 생각해요.",
+                        q("남자의 중심 생각으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("듣기 훈련이 외국어 학습에서 가장 중요하다.", "정답: '귀가 트여야 말도 트인다'는 말에서 남자의 생각이 드러납니다."),
+                                opt("문법 공부가 가장 중요하다.", "남자의 생각과 다릅니다."),
+                                opt("외국어 학습은 필요 없다.", "언급되지 않은 내용입니다."),
+                                opt("듣기와 문법은 관계가 없다.", "남자의 생각과 다릅니다.")
+                        ), 0, "💬 여자의 반박(문법도 필요)을 남자의 생각으로 착각하기 쉽습니다.",
+                                "[중심생각 소리단서] 남자의 마지막 말(귀가 트여야 말도 트인다)에서 중심 생각을 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이번 콘서트 티켓 예매하셨어요?\n남자: 네, 어제 겨우 성공했어요. 3시 타임으로 예매했어요.\n여자: 저는 6시 타임으로 했는데.",
+                        q("남자가 예매한 콘서트 시간으로 알맞은 것을 고르십시오.", List.of(
+                                opt("3시", "정답: 남자는 '3시 타임으로 예매했다'고 말했습니다."),
+                                opt("6시", "🎧 여자가 예매한 시간과 혼동한 오답입니다."),
+                                opt("9시", "🎧 대화에 없는 시간입니다."),
+                                opt("어제", "🎧 예매한 날짜를 시간으로 착각한 오답입니다.")
+                        ), 0, "🎧 두 사람이 각자 다른 시간을 말하면 누구의 시간인지 헷갈리기 쉽습니다.",
+                                "[세부정보 소리단서] 남자(3시) ↔ 여자(6시) — 화자별로 구분해서 소리 내어 따라 말해보세요.")),
+                onePassage(PassageCategory.LISTENING, "화제 고르기",
+                        "남자: 요즘 자막 없이 한국 드라마를 보려고 노력해요.\n여자: 대단하네요. 저는 아직 자막 없이는 어려워요.",
+                        q("두 사람이 무엇에 대해 이야기하고 있는지 고르십시오.", List.of(
+                                opt("자막 없이 드라마 보기 연습", "정답: 자막 없이 드라마를 보려는 노력에 대해 이야기하고 있습니다."),
+                                opt("드라마 배우 소개", "👂 언급되지 않은 주제입니다."),
+                                opt("드라마 촬영 장소", "👂 언급되지 않은 주제입니다."),
+                                opt("드라마 방영 시간표", "👂 언급되지 않은 주제입니다.")
+                        ), 0, "👂 '드라마'라는 단어만 듣고 다른 관련 주제로 착각하기 쉽습니다.",
+                                "[화제파악 소리단서] 자막 없이+보다(핵심 표현) → 듣기 연습(화제). 핵심 표현을 모아 주제를 파악하세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "여자: 이 발음 계속 틀리는데 어떻게 고칠까요?\n남자: 원어민 목소리를 따라 하면서 녹음해 보는 게 어때요?\n여자: 좋은 방법이네요. 지금 바로 해 볼게요.",
+                        q("여자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("원어민 목소리를 따라 하며 녹음한다.", "정답: 여자는 '지금 바로 해 볼게요'라고 말하며 남자의 제안에 동의했습니다."),
+                                opt("발음 공부를 그만둔다.", "🔁 대화 흐름과 반대되는 행동입니다."),
+                                opt("책을 눈으로만 읽는다.", "🔁 언급된 방법(따라 하기)과 다릅니다."),
+                                opt("다른 사람에게 물어본다.", "🔁 언급되지 않은 행동입니다.")
+                        ), 0, "🔁 제안을 듣고도 실제로 동의했는지 확인하지 않으면 결말을 놓치기 쉽습니다.",
+                                "[행동추론 소리단서] 제안(따라 하며 녹음) → 동의(지금 바로 해 볼게요). 밝은 어조의 동의 표현을 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "일치하는 내용 고르기",
+                        "남자: 이번 오디오북 서비스 써 보셨어요?\n여자: 네, 통근할 때 듣기 딱 좋더라고요. 근데 목소리 배우를 선택할 수 있는 줄은 몰랐어요.\n남자: 맞아요, 저도 최근에 알았어요.",
+                        q("들은 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 오디오북 서비스는 목소리 배우를 선택할 수 있다.", "정답: 여자는 '목소리 배우를 선택할 수 있다'고 말했습니다."),
+                                opt("여자는 오디오북 서비스를 써 본 적이 없다.", "이미 써 봤다고 말했습니다."),
+                                opt("남자는 이 기능을 오래전부터 알고 있었다.", "최근에 알았다고 말했습니다."),
+                                opt("이 서비스는 통근할 때 듣기 불편하다.", "듣기 딱 좋다고 말했습니다.")
+                        ), 0, "👂 '몰랐다'와 '최근에 알았다'처럼 비슷한 시점 표현을 혼동하기 쉽습니다.",
+                                "[일치판단 소리단서] 여자의 경험과 남자의 경험을 각각 구분해서 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "중심 생각 고르기",
+                        "여자: 저는 라디오 사연을 들을 때마다 마음이 따뜻해져요.\n남자: 저는 그냥 음악만 들어요.\n여자: 사람 목소리로 직접 이야기를 듣는 게 훨씬 공감이 가는 것 같아요.",
+                        q("여자의 중심 생각으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("목소리로 듣는 이야기가 더 공감이 된다.", "정답: '사람 목소리로 듣는 게 훨씬 공감이 간다'는 말에서 여자의 생각이 드러납니다."),
+                                opt("음악만 듣는 것이 가장 좋다.", "남자의 습관이지 여자의 생각이 아닙니다."),
+                                opt("라디오는 들을 필요가 없다.", "여자의 생각과 반대됩니다."),
+                                opt("사연은 재미가 없다.", "여자의 생각과 반대됩니다.")
+                        ), 0, "💬 남자의 습관(음악만 듣기)을 여자의 생각으로 착각하기 쉽습니다.",
+                                "[중심생각 소리단서] 여자의 마지막 말(공감이 가는 것 같아요)에서 중심 생각을 확인하세요."))
+        );
+
+        List<PassageSeed> reading1to10 = List.of(
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 매일 아침 라디오 뉴스를 들으면서 하루를 준비합니다. 목소리로 듣는 뉴스는 눈으로 읽는 것보다 더 오래 기억에 남습니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("목소리로 듣는 뉴스가 기억에 더 오래 남는다.", "정답: 마지막 문장에서 글쓴이의 생각이 드러납니다."),
+                                opt("아침에는 뉴스를 듣지 않는 것이 좋다.", "글쓴이의 생각과 반대됩니다."),
+                                opt("신문 읽기가 라디오보다 좋다.", "언급되지 않은 내용입니다."),
+                                opt("라디오는 저녁에만 들어야 한다.", "언급되지 않은 내용입니다.")
+                        ), 0, "💬 '아침 뉴스'라는 습관만 보고 결론(기억에 오래 남음)을 놓치기 쉽습니다.",
+                                "[핵심정보 소리단서] 이 문장을 소리 내어 읽으며 마지막 결론에 힘을 실어 말해보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 외국어 단어를 외울 때 눈으로만 보지 않고 소리 내어 여러 번 따라 말합니다. 그러면 다음 날에도 더 잘 기억납니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("소리 내어 따라 말하면 단어가 더 잘 기억난다.", "정답: 마지막 문장에서 글쓴이의 경험이 드러납니다."),
+                                opt("단어는 눈으로만 외워야 한다.", "글쓴이의 방법과 반대됩니다."),
+                                opt("단어 암기는 소용이 없다.", "언급되지 않은 내용입니다."),
+                                opt("하루에 한 번만 말해도 충분하다.", "여러 번 따라 말한다고 언급되었습니다.")
+                        ), 0, "💬 '눈으로만 보지 않고'라는 표현을 놓치면 반대로 이해하기 쉽습니다.",
+                                "[핵심정보 소리단서] 이 문장도 실제로 소리 내어 따라 읽으며 글쓴이의 방법을 체험해 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내문]\n이번 주 토요일 오후 2시, 도서관 3층 시청각실에서 '소리로 배우는 한국어' 특강이 열립니다. 참가를 원하시면 1층 안내데스크에서 신청해 주세요.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("특강은 도서관 3층에서 열린다.", "정답: '3층 시청각실'이라고 명시되어 있습니다."),
+                                opt("특강은 일요일에 열린다.", "토요일이라고 언급되었습니다."),
+                                opt("신청은 3층에서 받는다.", "1층 안내데스크에서 받는다고 언급되었습니다."),
+                                opt("특강 시간은 오전이다.", "오후 2시라고 언급되었습니다.")
+                        ), 0, "🎧 장소(3층)와 신청 장소(1층)를 혼동하기 쉽습니다.",
+                                "[실용문독해 소리단서] 특강 장소와 신청 장소를 각각 소리 내어 따라 읽으며 구분하세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "[문자 메시지]\n선생님, 오늘 발음 수업 녹음 파일을 아직 못 받았습니다. 언제쯤 보내 주실 수 있는지 여쭤봐도 될까요?",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("녹음 파일을 언제 받을 수 있는지 물어보려고", "정답: 녹음 파일을 못 받았다며 언제 받을 수 있는지 묻고 있습니다."),
+                                opt("수업을 취소하려고", "언급되지 않은 내용입니다."),
+                                opt("발음 수업을 신청하려고", "이미 수업을 듣고 있는 상황입니다."),
+                                opt("선생님께 감사 인사를 전하려고", "질문이 핵심 목적입니다.")
+                        ), 0, "👂 '녹음 파일'이라는 단어만 보고 다른 목적으로 착각하기 쉽습니다.",
+                                "[목적추론 소리단서] 문자를 소리 내어 읽으며 질문하는 어조(언제쯤~)에 집중하세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그래서 요즘은 자기 전에 오디오북을 듣습니다.\n(나) 저는 예전에 책을 눈으로만 읽었습니다.\n(다) 그런데 눈이 쉽게 피로해진다는 것을 알게 되었습니다.\n(라) 오디오북을 들으니 눈도 편하고 잠도 잘 옵니다.",
+                        q("순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("(나)-(다)-(가)-(라)", "정답: 예전 습관(나) → 문제 인식(다) → 변화(가) → 결과(라) 순서가 자연스럽습니다."),
+                                opt("(가)-(나)-(다)-(라)", "오디오북 사용(가)이 이유 설명보다 먼저 나오면 어색합니다."),
+                                opt("(다)-(가)-(나)-(라)", "문제 인식(다)이 예전 습관(나)보다 먼저 나오면 흐름이 끊깁니다."),
+                                opt("(라)-(나)-(다)-(가)", "결과(라)가 맨 앞에 나오면 이야기 흐름과 맞지 않습니다.")
+                        ), 0, "🔁 접속어(그래서, 그런데)의 위치를 놓치면 순서를 잘못 배열하기 쉽습니다.",
+                                "[순서배열 소리단서] 네 문장을 각각 소리 내어 읽으며 접속어의 리듬으로 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "라디오 진행자의 목소리, 좋아하는 가수의 노래, 친구와의 통화 목소리 — 이 모든 것이 저에게는 위로가 됩니다.",
+                        q("이 글의 공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("소리를 통한 위로", "정답: 라디오, 노래, 통화 모두 '소리'라는 공통점과 위로가 된다는 결론이 있습니다."),
+                                opt("음악 감상법", "일부 내용일 뿐 전체 주제가 아닙니다."),
+                                opt("전화 통화 예절", "언급되지 않은 내용입니다."),
+                                opt("라디오 방송 역사", "언급되지 않은 내용입니다.")
+                        ), 0, "👂 나열된 예시 중 하나(음악)에만 집중하면 전체 주제를 놓치기 쉽습니다.",
+                                "[공통주제 소리단서] 세 가지 예시를 소리 내어 나열하며 공통점(소리+위로)을 찾아보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내문]\n한국어 듣기 연습 앱 '귀트임'을 이용하시면 원어민 발음을 0.5배속부터 들을 수 있습니다. 다운로드는 무료이며, 매일 새로운 대화문이 업데이트됩니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 앱은 무료로 다운로드할 수 있다.", "정답: '다운로드는 무료'라고 명시되어 있습니다."),
+                                opt("배속 조절은 불가능하다.", "0.5배속부터 들을 수 있다고 언급되었습니다."),
+                                opt("대화문은 일주일에 한 번 업데이트된다.", "매일 업데이트된다고 언급되었습니다."),
+                                opt("유료 결제가 필요하다.", "무료라고 언급되었습니다.")
+                        ), 0, "🎧 '무료'와 '유료'처럼 반대되는 정보를 혼동하기 쉽습니다.",
+                                "[실용문독해 소리단서] 요금 관련 문장을 소리 내어 강조하며 읽어 정확히 확인하세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "[이메일]\n안녕하세요, 다음 주 발음 특강에 참석하고 싶은데 자리가 남아 있는지 궁금해서 문의드립니다. 답변 부탁드립니다.",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("특강 참석 가능 여부를 문의하려고", "정답: 자리가 남아 있는지 궁금해서 문의한다고 명시되어 있습니다."),
+                                opt("특강을 취소하려고", "언급되지 않은 내용입니다."),
+                                opt("특강 강사를 소개하려고", "언급되지 않은 내용입니다."),
+                                opt("특강 후기를 남기려고", "아직 참석 전이므로 후기가 아닙니다.")
+                        ), 0, "💬 '참석하고 싶다'는 말만 보고 신청 완료로 착각하기 쉽습니다.",
+                                "[목적추론 소리단서] 이메일을 소리 내어 읽으며 문의하는 어조(궁금해서)에 집중하세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그중에서도 특히 팟캐스트를 자주 듣습니다.\n(나) 저는 이동하는 시간에 항상 무언가를 듣습니다.\n(다) 다양한 주제를 배울 수 있어서 좋습니다.\n(라) 팟캐스트는 짧아서 부담 없이 듣기 좋습니다.",
+                        q("순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("(나)-(가)-(라)-(다)", "정답: 전체 습관 소개(나) → 팟캐스트 특정(가) → 팟캐스트의 특성(라) → 구체적 이유(다) 순서가 자연스럽습니다."),
+                                opt("(가)-(나)-(다)-(라)", "팟캐스트 특정(가)이 전체 소개(나)보다 먼저 나오면 어색합니다."),
+                                opt("(다)-(나)-(가)-(라)", "이유(다)가 너무 먼저 나오면 흐름이 끊깁니다."),
+                                opt("(라)-(가)-(나)-(다)", "특성(라)이 맨 앞에 나오면 무엇에 대한 이야기인지 알 수 없습니다.")
+                        ), 0, "🔁 전체 소개와 구체적 예시의 순서를 헷갈리기 쉽습니다.",
+                                "[순서배열 소리단서] 전체 소개 → 구체적 예시 → 특성 → 이유 순서로 소리 내어 읽으며 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "원어민과의 전화 통화, 언어 교환 모임에서의 대화, 혼자 하는 쉐도잉 연습 — 이 모든 활동은 말하기 자신감을 키워 줍니다.",
+                        q("이 글의 공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("말하기를 통한 자신감 향상", "정답: 세 가지 활동 모두 말하기와 관련되며 자신감을 키운다는 결론이 있습니다."),
+                                opt("전화 예절 교육", "일부 내용일 뿐 전체 주제가 아닙니다."),
+                                opt("언어 교환 모임 광고", "언급되지 않은 내용입니다."),
+                                opt("혼자 공부하는 방법", "쉐도잉은 예시 중 하나일 뿐입니다.")
+                        ), 0, "🔁 나열된 예시 중 하나(전화 통화)에만 집중하면 전체 주제를 놓치기 쉽습니다.",
+                                "[공통주제 소리단서] 세 가지 활동을 소리 내어 나열하며 공통점(말하기+자신감)을 찾아보세요."))
+        );
+
+        List<PassageSeed> reading11to20 = List.of(
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 새로운 단어를 배울 때마다 짧은 문장으로 만들어 소리 내어 읽어 봅니다. 그러면 그 단어가 오래도록 기억에 남습니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("단어를 문장으로 만들어 소리 내어 읽으면 기억에 오래 남는다.", "정답: 마지막 문장에서 글쓴이의 결론이 드러납니다."),
+                                opt("단어는 따로따로 외우는 것이 좋다.", "글쓴이의 방법과 반대됩니다."),
+                                opt("문장 만들기는 시간 낭비이다.", "글쓴이의 생각과 반대됩니다."),
+                                opt("소리 내어 읽으면 오히려 잊어버린다.", "글쓴이의 생각과 반대됩니다.")
+                        ), 0, "💬 '문장으로 만든다'는 방법만 보고 결론을 놓치기 쉽습니다.",
+                                "[핵심정보 소리단서] 이 문장을 실제로 소리 내어 읽으며 글쓴이의 방법을 따라 해 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내문]\n한국어 말하기 스터디 모임을 매주 화요일 저녁 7시에 진행합니다. 녹음 파일을 서로 공유하며 발음을 교정해 드립니다. 참가비는 없습니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 모임은 참가비가 없다.", "정답: '참가비는 없다'고 명시되어 있습니다."),
+                                opt("모임은 매주 목요일에 열린다.", "화요일이라고 언급되었습니다."),
+                                opt("발음 교정은 하지 않는다.", "발음을 교정해 준다고 언급되었습니다."),
+                                opt("모임은 아침에 진행된다.", "저녁 7시라고 언급되었습니다.")
+                        ), 0, "🎧 요일(화요일)과 시간(저녁 7시)을 혼동하기 쉽습니다.",
+                                "[실용문독해 소리단서] 요일과 시간을 각각 소리 내어 읽으며 정확히 구분하세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "[문자 메시지]\n지난번에 추천해 주신 듣기 연습 앱 정말 좋더라고요. 감사 인사 전하고 싶어서 연락드려요!",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("추천해 준 것에 대해 감사 인사를 전하려고", "정답: '감사 인사 전하고 싶다'고 명시되어 있습니다."),
+                                opt("새로운 앱을 추천해 달라고 부탁하려고", "언급되지 않은 내용입니다."),
+                                opt("앱 사용법을 물어보려고", "언급되지 않은 내용입니다."),
+                                opt("앱에 대한 불만을 제기하려고", "정말 좋았다고 긍정적으로 평가했습니다.")
+                        ), 0, "💬 '연락드려요'라는 표현만 보고 다른 목적으로 착각하기 쉽습니다.",
+                                "[목적추론 소리단서] 문자를 소리 내어 읽으며 밝은 감사의 어조를 느껴 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그래서 요즘은 매일 15분씩 쉐도잉 연습을 합니다.\n(나) 저는 예전에 발음에 자신이 없었습니다.\n(다) 그런데 우연히 쉐도잉이라는 방법을 알게 되었습니다.\n(라) 꾸준히 하다 보니 발음이 눈에 띄게 좋아졌습니다.",
+                        q("순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("(나)-(다)-(가)-(라)", "정답: 예전 상태(나) → 방법 발견(다) → 실천(가) → 결과(라) 순서가 자연스럽습니다."),
+                                opt("(가)-(나)-(다)-(라)", "쉐도잉 연습(가)이 이유 설명보다 먼저 나오면 어색합니다."),
+                                opt("(다)-(가)-(나)-(라)", "방법 발견(다)이 예전 상태(나)보다 먼저 나오면 흐름이 끊깁니다."),
+                                opt("(라)-(나)-(다)-(가)", "결과(라)가 맨 앞에 나오면 이야기 흐름과 맞지 않습니다.")
+                        ), 0, "🔁 접속어(그래서, 그런데)의 위치를 놓치면 순서를 잘못 배열하기 쉽습니다.",
+                                "[순서배열 소리단서] 네 문장을 소리 내어 읽으며 접속어의 리듬으로 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "라디오 드라마의 성우 목소리, 오디오북 낭독자의 목소리, 다큐멘터리 내레이션 — 모두 이야기에 감정을 실어 전달하는 힘이 있습니다.",
+                        q("이 글의 공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("목소리로 감정을 전달하는 힘", "정답: 세 가지 예시 모두 목소리로 감정을 전달한다는 공통점이 있습니다."),
+                                opt("성우가 되는 방법", "일부 내용일 뿐 전체 주제가 아닙니다."),
+                                opt("다큐멘터리 제작 과정", "언급되지 않은 내용입니다."),
+                                opt("오디오북 판매량", "언급되지 않은 내용입니다.")
+                        ), 0, "👂 나열된 예시 중 하나(성우)에만 집중하면 전체 주제를 놓치기 쉽습니다.",
+                                "[공통주제 소리단서] 세 가지 예시를 소리 내어 나열하며 공통점(목소리+감정)을 찾아보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 모르는 단어가 나오면 바로 사전을 찾지 않고, 먼저 문장을 소리 내어 읽으며 앞뒤 문맥으로 뜻을 추측해 봅니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("소리 내어 읽으며 문맥으로 뜻을 추측한다.", "정답: 마지막 문장에서 글쓴이의 방법이 드러납니다."),
+                                opt("모르는 단어는 무조건 사전부터 찾는다.", "글쓴이의 방법과 반대됩니다."),
+                                opt("문맥 추측은 소용이 없다.", "글쓴이의 생각과 반대됩니다."),
+                                opt("모르는 단어는 그냥 넘어간다.", "언급되지 않은 내용입니다.")
+                        ), 0, "💬 '사전을 찾지 않는다'는 말만 보고 아예 뜻을 모른다고 착각하기 쉽습니다.",
+                                "[핵심정보 소리단서] 이 문장을 소리 내어 읽으며 글쓴이의 추측 과정을 따라가 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내문]\n청취력 향상 캠프는 3박 4일간 진행되며, 매일 저녁 원어민과의 자유 대화 시간이 포함되어 있습니다. 신청 마감은 이번 달 말일입니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("매일 저녁 원어민과 대화하는 시간이 있다.", "정답: '매일 저녁 원어민과의 자유 대화 시간이 포함'되어 있다고 명시되어 있습니다."),
+                                opt("캠프는 하루만 진행된다.", "3박 4일간 진행된다고 언급되었습니다."),
+                                opt("신청은 이번 달 초까지이다.", "이번 달 말일까지라고 언급되었습니다."),
+                                opt("원어민과의 대화는 없다.", "자유 대화 시간이 포함되어 있다고 언급되었습니다.")
+                        ), 0, "🎧 신청 마감일(말일)과 다른 날짜를 혼동하기 쉽습니다.",
+                                "[실용문독해 소리단서] 캠프 기간과 신청 마감일을 각각 소리 내어 읽으며 구분하세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "[이메일]\n안녕하세요, 지난주 청취력 특강에서 사용하신 음원 자료를 다시 받아 볼 수 있을까요? 복습하고 싶어서 문의드립니다.",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("특강에서 쓴 음원 자료를 다시 요청하려고", "정답: 복습을 위해 음원 자료를 다시 받아 볼 수 있는지 묻고 있습니다."),
+                                opt("특강을 취소하려고", "언급되지 않은 내용입니다."),
+                                opt("새로운 특강을 신청하려고", "이미 들은 특강의 자료를 요청하는 상황입니다."),
+                                opt("특강 강사에게 항의하려고", "복습 목적의 정중한 요청입니다.")
+                        ), 0, "💬 '복습하고 싶다'는 말을 놓치면 다른 목적으로 착각하기 쉽습니다.",
+                                "[목적추론 소리단서] 이메일을 소리 내어 읽으며 요청하는 어조(받아 볼 수 있을까요)에 집중하세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그중에서도 특히 뉴스 듣기를 매일 챙겨 듣습니다.\n(나) 저는 아침마다 다양한 오디오 콘텐츠를 듣습니다.\n(다) 최신 표현과 시사 어휘를 자연스럽게 배울 수 있어서 좋습니다.\n(라) 뉴스는 속도가 빨라 처음에는 어려웠습니다.",
+                        q("순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("(나)-(가)-(라)-(다)", "정답: 전체 습관 소개(나) → 뉴스 특정(가) → 어려움(라) → 장점(다) 순서가 자연스럽습니다."),
+                                opt("(가)-(나)-(다)-(라)", "뉴스 특정(가)이 전체 소개(나)보다 먼저 나오면 어색합니다."),
+                                opt("(다)-(나)-(가)-(라)", "장점(다)이 너무 먼저 나오면 흐름이 끊깁니다."),
+                                opt("(라)-(가)-(나)-(다)", "어려움(라)이 맨 앞에 나오면 무엇에 대한 이야기인지 알 수 없습니다.")
+                        ), 0, "🔁 전체 소개와 구체적 예시의 순서를 헷갈리기 쉽습니다.",
+                                "[순서배열 소리단서] 전체 소개 → 구체적 예시 → 어려움 → 장점 순서로 소리 내어 읽으며 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "친구의 위로하는 목소리, 부모님의 안부 전화, 좋아하는 가수의 라이브 목소리 — 이 모든 소리는 저에게 힘이 되어 줍니다.",
+                        q("이 글의 공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("소리를 통해 얻는 위로와 힘", "정답: 세 가지 예시 모두 소리를 통해 힘을 얻는다는 공통점이 있습니다."),
+                                opt("가수가 되는 방법", "일부 내용일 뿐 전체 주제가 아닙니다."),
+                                opt("전화 통화 요금", "언급되지 않은 내용입니다."),
+                                opt("라이브 공연 예매 방법", "언급되지 않은 내용입니다.")
+                        ), 0, "👂 나열된 예시 중 하나(가수)에만 집중하면 전체 주제를 놓치기 쉽습니다.",
+                                "[공통주제 소리단서] 세 가지 예시를 소리 내어 나열하며 공통점(소리+힘)을 찾아보세요."))
+        );
+
+        return new WeekSeed("WEEK 1: 1~2급 쉐도잉 기초 다지기",
+                "청각 신호(🎧억양·강세 / 💬어조·의도 / 👂발음·어휘 / 🔁반복·상투구) 태그로 함정 유형을 구분하며 "
+                        + "기초 듣기·읽기 감각을 익힌다. 모든 문장을 소리 내어 따라 말하는 쉐도잉 습관을 들이는 것이 목표다.",
+                WEEK1_ANSWER_NOTE_TEMPLATE,
+                List.of(
+                        day("1차(40문항) - 듣기 20(상황 응답, 행동/장소 파악, 세부 정보, 목적/주제, 흐름 추론, 화제 고르기, 이어질 행동, 일치판단, 중심생각) + 읽기 20(핵심 정보, 실용문, 목적 추론, 문장 순서, 공통 주제). 청각 신호 태그로 오답을 표시하고 오답 노트 템플릿에 취약 유형을 기록하세요.",
+                                merge(listening1to10, listening11to20, reading1to10, reading11to20))
+                ));
+    }
+
+    // ===================== 저장 =====================
+
+    private void saveCurriculumWithDays(Curriculum curriculum, List<WeekSeed> weekSeeds) {
+        List<CurriculumWeek> weeks = new ArrayList<>();
+        List<CurriculumDay> allDays = new ArrayList<>();
+        int dayNumber = 0;
+
+        for (int w = 0; w < weekSeeds.size(); w++) {
+            WeekSeed weekSeed = weekSeeds.get(w);
+            CurriculumWeek week = new CurriculumWeek();
+            week.setCurriculum(curriculum);
+            week.setWeekNumber(w + 1);
+            week.setTitle(weekSeed.title());
+            week.setGoal(weekSeed.goal());
+            week.setTemplate(weekSeed.template());
+            week.setActivities(List.of());
+            weeks.add(week);
+
+            List<DaySeed> daySeeds = weekSeed.days();
+            for (int d = 0; d < daySeeds.size(); d++) {
+                DaySeed daySeed = daySeeds.get(d);
+                dayNumber++;
+                CurriculumDay dayEntity = new CurriculumDay();
+                dayEntity.setCurriculum(curriculum);
+                dayEntity.setWeek(week);
+                dayEntity.setDayInWeek(d + 1);
+                dayEntity.setDayNumber(dayNumber);
+                dayEntity.setTask(daySeed.task());
+                dayEntity.setPassages(buildPassages(dayEntity, daySeed.passages()));
+                allDays.add(dayEntity);
+            }
+        }
+
+        curriculum.setWeeks(weeks);
+        curriculumRepository.save(curriculum);
+        curriculumDayRepository.saveAll(allDays);
+    }
+
+    private List<CurriculumPassage> buildPassages(CurriculumDay dayEntity, List<PassageSeed> passageSeeds) {
+        List<CurriculumPassage> passages = new ArrayList<>();
+        for (int p = 0; p < passageSeeds.size(); p++) {
+            PassageSeed passageSeed = passageSeeds.get(p);
+            CurriculumPassage passage = new CurriculumPassage();
+            passage.setDay(dayEntity);
+            passage.setCategory(passageSeed.category());
+            passage.setOrderIndex(p + 1);
+            passage.setSubType(passageSeed.subType());
+            passage.setPassageText(passageSeed.passageText());
+            passage.setDiagramSvg(passageSeed.diagramSvg());
+            passage.setProblems(buildProblems(passage, passageSeed.problems()));
+            passages.add(passage);
+        }
+        return passages;
+    }
+
+    private List<CurriculumProblem> buildProblems(CurriculumPassage passage, List<ProblemSeed> problemSeeds) {
+        List<CurriculumProblem> problems = new ArrayList<>();
+        for (int i = 0; i < problemSeeds.size(); i++) {
+            ProblemSeed problemSeed = problemSeeds.get(i);
+            CurriculumProblem problem = new CurriculumProblem();
+            problem.setPassage(passage);
+            problem.setOrderIndex(i + 1);
+            problem.setQuestionText(problemSeed.question());
+            problem.setOptions(problemSeed.options().stream().map(OptionSeed::text).toList());
+            problem.setCorrectAnswerIndex(problemSeed.correctIndex());
+            problem.setOptionExplanations(problemSeed.options().stream().map(OptionSeed::note).toList());
+            problem.setTrapNote(problemSeed.trapNote());
+            problem.setStrategyTip(problemSeed.strategyTip());
+            problems.add(problem);
+        }
+        return problems;
+    }
+}
