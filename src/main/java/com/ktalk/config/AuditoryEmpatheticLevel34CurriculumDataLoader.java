@@ -1,0 +1,543 @@
+package com.ktalk.config;
+
+import com.ktalk.domain.assessment.entity.LearnerType;
+import com.ktalk.domain.curriculum.entity.*;
+import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
+import com.ktalk.domain.topik.entity.TopikLevel;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 청각적 교감형(AUDITORY_EMPATHETIC) 유형의 3~4급 "TOPIK 쉐도잉 리듬 노트" 커리큘럼을 심는다.
+ * AuditoryEmpatheticCurriculumDataLoader(1~2급)와 동일한 골격(레코드/헬퍼, 8주 + 모의고사 2회 + Final 1회,
+ * 총 2,450문항)을 쓰되, trapNote/strategyTip을 청각 신호(억양·어조·발음·반복) 언어로 완전히
+ * 새로 설계한다 — LearnerType.AUDITORY_EMPATHETIC의 studyTip("쉐도잉과 받아쓰기, 1:1 강의를
+ * 통한 즉각적인 청각 피드백")을 모든 문항에 반영한다. 1~2급/5~6급 과정과는 완전히 분리된 별도의
+ * 8주 과정으로, 같은 learner_type이라도 targetLevelFrom(LEVEL_3)으로 구분되는 별도 Curriculum
+ * 레코드를 갖는다.
+ */
+@Component
+@RequiredArgsConstructor
+@Order(17)
+public class AuditoryEmpatheticLevel34CurriculumDataLoader implements CommandLineRunner {
+
+    private final CurriculumRepository curriculumRepository;
+    private final CurriculumDayRepository curriculumDayRepository;
+    private final UserCurriculumProgressRepository userCurriculumProgressRepository;
+
+    private record OptionSeed(String text, String note) {}
+    private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
+    private record PassageSeed(PassageCategory category, String subType, String passageText, String diagramSvg, List<ProblemSeed> problems) {}
+    private record DaySeed(String task, List<PassageSeed> passages) {}
+    private record WeekSeed(String title, String goal, String template, List<DaySeed> days) {}
+
+    private static OptionSeed opt(String text, String note) {
+        return new OptionSeed(text, note);
+    }
+
+    private static ProblemSeed q(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {
+        return new ProblemSeed(question, options, correctIndex, trapNote, strategyTip);
+    }
+
+    private static PassageSeed onePassage(PassageCategory category, String subType, String passageText, ProblemSeed problem) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problem));
+    }
+
+    /** 문법/어휘 포인트 하나에 연습문제 여러 개가 딸린 "시중 교재" 스타일 유닛용. */
+    private static PassageSeed grammarUnit(String subType, String explanation, ProblemSeed... problems) {
+        return new PassageSeed(PassageCategory.READING, subType, explanation, null, List.of(problems));
+    }
+
+    /** 실전 모의고사에서 지문 하나에 문제 2개 이상이 딸린 실제 TOPIK 형식용. */
+    private static PassageSeed multiQ(PassageCategory category, String subType, String passageText, ProblemSeed... problems) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problems));
+    }
+
+    private static DaySeed day(String task, PassageSeed... passages) {
+        return new DaySeed(task, List.of(passages));
+    }
+
+    /** 한 "차"(40문항)를 이루는 여러 하위 목록을 하루 학습량 하나로 합칠 때 사용. */
+    @SafeVarargs
+    private static PassageSeed[] merge(List<PassageSeed>... lists) {
+        List<PassageSeed> all = new ArrayList<>();
+        for (List<PassageSeed> list : lists) {
+            all.addAll(list);
+        }
+        return all.toArray(new PassageSeed[0]);
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.AUDITORY_EMPATHETIC, TopikLevel.LEVEL_3)
+                .ifPresent(this::deleteExisting);
+
+        Curriculum curriculum = new Curriculum();
+        curriculum.setLearnerType(LearnerType.AUDITORY_EMPATHETIC);
+        curriculum.setTitle("TOPIK 쉐도잉 리듬 노트");
+        curriculum.setTargetLevelLabel("3~4급 전 과정");
+        curriculum.setTargetLevelFrom(TopikLevel.LEVEL_3);
+        curriculum.setTargetLevelTo(TopikLevel.LEVEL_4);
+        curriculum.setUsageNote(
+                "모든 문제에 청각 신호 태그(🎧 억양·강세 / 💬 어조·의도 / 👂 발음·어휘 / 🔁 반복·상투구)로 함정 포인트를 "
+                        + "구분합니다. 지문을 눈으로만 읽지 말고 소리 내어 따라 말하는 쉐도잉과 받아쓰기를 병행하세요. "
+                        + "3~4급부터는 문장이 길어지므로 끊어 읽기 지점을 소리 내어 표시하며 리듬을 익히세요.");
+
+        List<WeekSeed> weeks = List.of(week1());
+        saveCurriculumWithDays(curriculum, weeks);
+
+        System.out.println("🎧 TOPIK 커리큘럼(청각적 교감형, 3~4급) WEEK1 1차 시딩 완료!");
+    }
+
+    /** 재시딩 전 기존 커리큘럼을 지운다. day는 부모의 cascade 대상이 아니라 먼저 지워야 한다. */
+    private void deleteExisting(Curriculum existing) {
+        List<CurriculumDay> days = curriculumDayRepository.findByCurriculumId(existing.getId());
+        curriculumDayRepository.deleteAll(days);
+        userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
+        curriculumRepository.delete(existing);
+        curriculumRepository.flush();
+    }
+
+    // ===================== WEEK 1: 3~4급 쉐도잉 기초 다지기 =====================
+
+    private static final String WEEK1_ANSWER_NOTE_TEMPLATE = """
+            [🎧 오답 노트 템플릿 - WEEK1용]
+            문제를 틀렸을 때 청각 신호 태그로 표시하며 나의 취약 유형을 확인해보세요.
+
+            문제 번호(1~40) | 틀린 이유(해당 태그 동그라미) | 취약 유형 코드
+            예) 3번 | 🎧 (강조 신호 오독) |
+
+            [🎧 청각 신호별 취약 유형 코드 가이드]
+            🎧 억양·강세 신호 오독: 대화에서 강조되는 핵심 정보(시간·장소·숫자)를 놓쳐 세부 내용을 잘못 판단함.
+            💬 어조·의도 파악 실패: 화자의 진짜 목적이나 태도, 감정을 놓쳐 주제를 잘못 파악함.
+            👂 발음·어휘 혼동: 모르는 단어나 비슷하게 들리는 표현 때문에 내용 이해에 어려움을 겪음.
+            🔁 반복·상투구 놓침: 대화나 글에서 반복되는 핵심 표현이나 상투적 패턴을 놓침.
+
+            같은 태그가 반복해서 표시된다면, 관련 지문을 소리 내어 세 번씩 따라 읽으며 다음 학습 때 우선 보완하세요.
+            """;
+
+    private WeekSeed week1() {
+        List<PassageSeed> listening1to10 = List.of(
+                onePassage(PassageCategory.LISTENING, "의견 제시",
+                        "여자: 요즘 재택근무가 늘고 있는데 어떻게 생각하세요?\n남자: 저는 찬성이에요. 출퇴근 시간도 아끼고 집중도 더 잘되는 것 같아요.",
+                        q("남자의 의견으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("재택근무에 찬성한다.", "정답: '찬성이에요'라는 말과 뒤이은 이유가 근거입니다."),
+                                opt("재택근무에 반대한다.", "💬 남자의 말과 반대되는 내용입니다."),
+                                opt("재택근무는 상관없다고 생각한다.", "💬 명확히 찬성 의사를 밝혔으므로 무관심이 아닙니다."),
+                                opt("출퇴근이 더 좋다고 생각한다.", "💬 출퇴근 시간을 아낀다고 했으므로 반대되는 내용입니다.")
+                        ), 0, "💬 이유를 설명하는 어조에 집중하다가 정작 찬반 입장 자체를 놓치기 쉽습니다.", "[의견파악 소리단서] 찬성이에요(입장) → 시간 아낌+집중 잘됨(이유). 소리 내어 따라 말하며 입장부터 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이번 워크숍은 며칠 동안 진행돼요?\n여자: 원래 이틀이었는데 참가 신청이 많아서 사흘로 늘었어요.",
+                        q("워크숍이 진행되는 기간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("사흘", "정답: '늘었어요'라는 말 뒤의 최종 기간이 정답입니다."),
+                                opt("이틀", "🎧 원래 기간(변경 전)에만 꽂혀 최종 정보를 놓치게 합니다."),
+                                opt("나흘", "🎧 대화에 없는 기간을 임의로 만든 오답입니다."),
+                                opt("하루", "🎧 대화에 없는 기간입니다.")
+                        ), 0, "🎧 기간이 두 번 언급될 때 먼저 들린 정보를 정답처럼 착각하게 합니다.", "[세부정보 소리단서] 원래 이틀(변경 전) → 신청 많음(이유) → 사흘(최종). 강조되는 마지막 정보만 남기세요.")),
+                onePassage(PassageCategory.LISTENING, "화자의 태도 파악",
+                        "여자: 이번 프로젝트 결과가 예상보다 훨씬 좋네요. 다들 정말 애쓰셨어요.\n남자: 감사합니다. 팀원들이 끝까지 포기하지 않아서 가능했던 것 같아요.",
+                        q("여자의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("결과에 만족하며 팀을 격려하고 있다.", "정답: '예상보다 훨씬 좋다', '애쓰셨다'는 만족과 격려의 표현입니다."),
+                                opt("결과에 실망하고 있다.", "💬 '훨씬 좋다'는 긍정적 평가와 반대됩니다."),
+                                opt("팀원들을 비판하고 있다.", "💬 애썼다고 칭찬하는 것이지 비판이 아닙니다."),
+                                opt("결과에 무관심하다.", "💬 적극적으로 평가하고 있으므로 무관심이 아닙니다.")
+                        ), 0, "💬 칭찬의 어조를 단순한 인사치레로 흘려듣고 태도 자체를 놓치기 쉽습니다.", "[태도파악 소리단서] 예상보다 좋음(평가) → 애쓰셨어요(격려). 소리 내어 따라 말하며 만족스러운 어조를 느껴보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 이 계약서 검토가 다 끝나면 바로 서명하면 될까요?\n여자: 네, 검토 끝나는 대로 서명 부탁드립니다. 제가 도장 준비해 둘게요.",
+                        q("남자의 다음 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("계약서 검토를 마친 뒤 서명한다.", "정답: 검토가 끝나면 서명하기로 확인한 대화입니다."),
+                                opt("계약을 취소한다.", "🔁 대화 흐름과 반대되는 행동입니다."),
+                                opt("도장을 준비한다.", "🔁 도장 준비는 여자가 하기로 했습니다."),
+                                opt("검토를 하지 않는다.", "🔁 대화 내용과 반대되는 행동입니다.")
+                        ), 0, "🔁 '검토 끝나는 대로'라는 조건 뒤에 이어지는 행동을 놓치고 역할(도장 준비)을 뒤바꿔 듣기 쉽습니다.", "[행동추론 소리단서] 검토 끝남(조건) → 서명(남자의 행동) / 도장 준비(여자의 역할). 소리 내어 역할을 구분하며 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "중심 생각 고르기",
+                        "여자: 요즘 회의가 너무 길어서 다들 지치는 것 같아요.\n남자: 그러게요. 안건을 미리 정리해서 회의 시간을 좀 줄이는 게 좋을 것 같아요.",
+                        q("남자의 중심 생각으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("안건을 미리 정리해서 회의 시간을 줄여야 한다.", "정답: 남자의 제안이 중심 생각입니다."),
+                                opt("회의는 길수록 좋다.", "💬 남자의 말과 반대되는 내용입니다."),
+                                opt("회의를 아예 없애야 한다.", "💬 언급되지 않은 과장된 내용입니다."),
+                                opt("지치는 것은 당연하다.", "💬 문제 해결책을 제시하는 것이지 당연시하는 것이 아닙니다.")
+                        ), 0, "💬 공감의 어조('그러게요')만 듣고 남자의 진짜 해결책 제안을 놓치기 쉽습니다.", "[중심생각 소리단서] 그러게요(공감) → 안건 정리로 시간 줄이기(해결책). 소리 내어 따라 말하며 뒤에 오는 제안에 집중하세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 추론",
+                        "남자: 이 서류를 접수하려면 어느 창구로 가야 하나요?\n여자: 3번 창구에서 접수하시고, 처리 결과는 문자로 안내해 드립니다.",
+                        q("두 사람이 대화하는 장소로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("행정 기관 민원실", "정답: '접수', '창구', '문자 안내'는 민원 처리 기관에서 흔한 표현입니다."),
+                                opt("병원 진료실", "👂 접수와 창구라는 표현이 병원과도 어울릴 수 있지만 '처리 결과 문자 안내'는 행정 처리 특유의 표현입니다."),
+                                opt("영화관 매표소", "👂 접수라는 표현이 어울리지 않는 장소입니다."),
+                                opt("헬스장 카운터", "👂 문맥과 무관한 장소입니다.")
+                        ), 0, "👂 '접수', '창구' 같은 단어를 여러 장소에 두루 쓰이는 것으로 오해하면 정확한 장소를 놓치기 쉽습니다.", "[장소추론 소리단서] 서류 접수+창구+문자 안내(핵심 단어) → 민원실(장소). 소리 내어 따라 말하며 핵심 단어를 모으세요.")),
+                onePassage(PassageCategory.LISTENING, "이유 추론",
+                        "여자: 오늘 왜 이렇게 얼굴이 안 좋아 보여요?\n남자: 어젯밤에 자료 준비하느라 거의 못 잤어요.",
+                        q("남자의 얼굴이 안 좋은 이유로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("밤새 자료를 준비하느라 잠을 못 자서", "정답: '자료 준비하느라 거의 못 잤다'는 말이 직접적인 이유입니다."),
+                                opt("몸이 아파서", "💬 언급되지 않은 이유입니다."),
+                                opt("스트레스를 많이 받아서", "💬 구체적으로 언급되지 않은 추측성 이유입니다."),
+                                opt("술을 많이 마셔서", "💬 언급되지 않은 이유입니다.")
+                        ), 0, "🎧 '못 잤다'는 결과만 듣고 그 원인(자료 준비)을 놓치기 쉽습니다.", "[이유추론 소리단서] 자료 준비(원인) → 거의 못 잠(결과) → 얼굴 안 좋음(증상). 소리 내어 순서대로 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "화자의 의도 고르기",
+                        "남자: 이 보고서, 데이터는 좋은데 결론 부분이 좀 약한 것 같아요. 다시 한번 봐 주실 수 있어요?",
+                        q("남자가 이 말을 하는 의도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("결론 부분의 수정을 요청하려고", "정답: '결론이 약하다'는 지적과 '다시 봐 달라'는 요청이 핵심 의도입니다."),
+                                opt("보고서 전체를 칭찬하려고", "💬 데이터는 좋다고 했지만 결론에 대한 지적이 핵심입니다."),
+                                opt("보고서를 폐기하자고 하려고", "💬 언급되지 않은 과장된 내용입니다."),
+                                opt("데이터를 다시 수집하자고 하려고", "💬 데이터는 좋다고 했으므로 데이터 재수집이 아닙니다.")
+                        ), 0, "💬 앞부분의 칭찬('데이터는 좋다')에만 집중하면 뒤에 오는 진짜 요청(결론 수정)을 놓치기 쉽습니다.", "[의도파악 소리단서] 데이터는 좋음(칭찬) → 결론 약함(지적) → 다시 봐 주세요(요청). 소리 내어 따라 말하며 전환 뒤 요청에 집중하세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이 제품 보증 기간이 어떻게 되나요?\n남자: 기본 1년인데 등록하시면 6개월 더 연장돼서 총 1년 6개월입니다.",
+                        q("제품의 최종 보증 기간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("1년 6개월", "정답: 기본 기간에 연장분을 더한 최종 기간이 정답입니다."),
+                                opt("1년", "🎧 기본 기간(등록 전)만 듣고 착각하기 쉽습니다."),
+                                opt("6개월", "🎧 연장 기간만 듣고 착각한 오답입니다."),
+                                opt("2년", "🎧 대화에 없는 기간입니다.")
+                        ), 0, "🎧 두 숫자(1년, 6개월)를 더해야 하는데 하나만 기억하고 답하기 쉽습니다.", "[세부정보 소리단서] 기본 1년(기본) + 등록 시 6개월 연장 = 1년 6개월(최종). 소리 내어 계산하며 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "화자의 태도 파악",
+                        "남자: 이번에도 마감을 못 지키신 거예요? 벌써 세 번째인데요.\n여자: 죄송합니다. 다음부터는 미리 일정을 조율해서 꼭 지키겠습니다.",
+                        q("남자의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("반복된 실수에 대해 불만을 표하고 있다.", "정답: '벌써 세 번째'라는 말에서 누적된 불만이 드러납니다."),
+                                opt("여자를 격려하고 있다.", "💬 지적하는 어조이지 격려가 아닙니다."),
+                                opt("마감 연장을 제안하고 있다.", "💬 언급되지 않은 내용입니다."),
+                                opt("전혀 신경 쓰지 않고 있다.", "💬 지적한다는 것 자체가 신경 쓰고 있다는 뜻입니다.")
+                        ), 0, "🔁 '세 번째'라는 반복 강조 표현을 놓치면 단순한 질문으로 착각하기 쉽습니다.", "[태도파악 소리단서] 벌써 세 번째(반복 강조) → 불만의 어조. 소리 내어 따라 말하며 누적된 불만을 느껴보세요."))
+        );
+
+        List<PassageSeed> listening11to20 = List.of(
+                onePassage(PassageCategory.LISTENING, "일치하는 내용 고르기",
+                        "여자: 이번 신제품 발표회는 다음 달 15일로 예정돼 있는데, 참가 인원이 예상보다 많아서 장소를 더 큰 곳으로 옮겼어요.\n남자: 그럼 초대장도 다시 보내야겠네요.",
+                        q("들은 내용과 같은 것을 고르십시오.", List.of(
+                                opt("발표회 장소가 변경됐다.", "정답: '장소를 더 큰 곳으로 옮겼다'는 말과 일치합니다."),
+                                opt("발표회가 취소됐다.", "🎧 언급되지 않은 내용입니다."),
+                                opt("참가 인원이 예상보다 적었다.", "🎧 예상보다 많았다고 했으므로 반대됩니다."),
+                                opt("초대장은 이미 다시 발송됐다.", "🎧 '보내야겠다'는 앞으로의 계획이지 완료된 일이 아닙니다.")
+                        ), 0, "🎧 '보내야겠네요'라는 미래 계획을 이미 완료한 일로 착각하기 쉽습니다.", "[일치파악 소리단서] 인원 많음(이유) → 장소 변경(조치) → 초대장 재발송(계획). 소리 내어 순서대로 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "중심 생각 고르기",
+                        "남자: 요즘 신입사원들이 회사 생활에 적응하기 힘들어하는 것 같아요.\n여자: 그래서 선배가 신입을 일대일로 도와주는 멘토링 제도를 만드는 게 어떨까 해요.",
+                        q("여자의 중심 생각으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("멘토링 제도를 도입해야 한다.", "정답: 여자의 제안이 핵심 생각입니다."),
+                                opt("신입사원은 스스로 적응해야 한다.", "💬 여자의 제안과 반대되는 내용입니다."),
+                                opt("신입사원을 더 뽑지 말아야 한다.", "💬 언급되지 않은 내용입니다."),
+                                opt("선배들이 너무 바쁘다.", "💬 언급되지 않은 내용입니다.")
+                        ), 0, "💬 문제 제기(적응 어려움)와 해결책 제안(멘토링)을 뒤바꿔 기억하기 쉽습니다.", "[중심생각 소리단서] 적응 힘듦(문제) → 멘토링 제도(해결책 제안). 소리 내어 따라 말하며 제안 부분에 집중하세요.")),
+                onePassage(PassageCategory.LISTENING, "화자의 의도 고르기",
+                        "여자: 이번 예산안, 지난달에 이미 검토가 끝난 걸로 아는데 왜 또 논의가 필요한가요?",
+                        q("여자가 이 말을 하는 의도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("재논의의 필요성에 의문을 제기하려고", "정답: '왜 또 논의가 필요한가요'는 재논의에 대한 의문을 나타냅니다."),
+                                opt("예산안을 새로 만들자고 제안하려고", "💬 언급되지 않은 내용입니다."),
+                                opt("검토 결과에 동의를 표하려고", "💬 의문을 제기하는 것이지 동의가 아닙니다."),
+                                opt("회의를 취소하자고 하려고", "💬 언급되지 않은 내용입니다.")
+                        ), 0, "💬 의문문 형태를 단순한 정보 확인 질문으로만 듣고 이의 제기의 속뜻을 놓치기 쉽습니다.", "[의도파악 소리단서] 이미 검토 끝남(전제) → 왜 또(의문 제기). 소리 내어 따라 말하며 의아해하는 어조를 느껴보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이 강좌 수강료가 얼마죠?\n여자: 원래 20만 원인데 조기 등록하시면 15% 할인돼요.",
+                        q("조기 등록 시 수강료로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("17만 원", "정답: 20만 원의 15% 할인은 3만 원이므로 17만 원입니다."),
+                                opt("20만 원", "🎧 할인 전 가격만 듣고 착각하기 쉽습니다."),
+                                opt("15만 원", "🎧 할인율 숫자를 금액으로 착각한 오답입니다."),
+                                opt("18만 원", "🎧 잘못 계산된 오답입니다.")
+                        ), 0, "🎧 할인율(15%)을 금액으로 착각하거나 계산을 생략하고 원가만 답하기 쉽습니다.", "[세부정보 소리단서] 20만 원(원가) - 15% 할인(3만 원) = 17만 원(최종). 소리 내어 계산하며 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "화자의 태도 파악",
+                        "여자: 이 정책이 시행되면 소상공인들 부담이 커질 텐데, 충분한 의견 수렴 없이 너무 성급하게 추진되는 것 같아요.",
+                        q("여자의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("정책 추진 방식에 우려를 나타내고 있다.", "정답: '성급하게 추진된다'는 표현에서 우려가 드러납니다."),
+                                opt("정책을 적극 지지하고 있다.", "💬 우려를 나타내는 것이지 지지가 아닙니다."),
+                                opt("정책에 무관심하다.", "💬 적극적으로 의견을 밝히고 있으므로 무관심이 아닙니다."),
+                                opt("소상공인을 비판하고 있다.", "💬 소상공인의 부담을 걱정하는 것이지 비판이 아닙니다.")
+                        ), 0, "💬 '부담이 커진다'는 세부 내용에만 집중하면 전체적인 우려의 태도를 놓치기 쉽습니다.", "[태도파악 소리단서] 부담 커짐(우려 근거) → 성급한 추진(비판적 평가). 소리 내어 따라 말하며 걱정스러운 어조를 느껴보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 이 자료, 인쇄해서 회의 참석자들에게 나눠 드려야겠죠?\n여자: 네, 그런데 그전에 오탈자부터 한번 확인해 주시겠어요?",
+                        q("남자의 다음 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("오탈자를 확인한다.", "정답: 인쇄 전에 오탈자 확인을 요청받았으므로 그것이 다음 행동입니다."),
+                                opt("바로 인쇄한다.", "🔁 오탈자 확인이 먼저라는 조건을 놓친 오답입니다."),
+                                opt("회의를 취소한다.", "🔁 대화 흐름과 무관한 행동입니다."),
+                                opt("자료를 폐기한다.", "🔁 대화 흐름과 반대되는 행동입니다.")
+                        ), 0, "🔁 '그런데 그전에'라는 순서 전환 표현을 놓치면 원래 계획(인쇄)을 먼저 할 것이라 착각하기 쉽습니다.", "[행동추론 소리단서] 인쇄 계획(원래 순서) → 그전에 오탈자 확인(수정된 순서). 소리 내어 따라 말하며 순서를 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "이유 추론",
+                        "여자: 이번 분기 매출이 왜 이렇게 떨어졌어요?\n남자: 주요 거래처 하나가 계약을 해지해서 그 영향이 컸던 것 같아요.",
+                        q("매출이 떨어진 이유로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("주요 거래처와의 계약이 해지돼서", "정답: '거래처가 계약을 해지해서'라는 말이 직접적인 이유입니다."),
+                                opt("직원 수가 줄어서", "💬 언급되지 않은 이유입니다."),
+                                opt("경기가 좋아서", "💬 매출 하락과 반대되는 상황입니다."),
+                                opt("제품 가격을 올려서", "💬 언급되지 않은 이유입니다.")
+                        ), 0, "🎧 결과(매출 하락)만 듣고 그 원인(계약 해지)을 놓치기 쉽습니다.", "[이유추론 소리단서] 계약 해지(원인) → 매출 하락(결과). 소리 내어 순서대로 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 추론",
+                        "남자: 이 소포를 국제 우편으로 보내려고 하는데, 무게를 먼저 재 주시겠어요?\n여자: 네, 저울에 올려 주세요. 배송 기간도 함께 안내해 드릴게요.",
+                        q("남자가 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("우체국", "정답: '국제 우편', '소포', '배송 기간'은 우체국에서 이루어지는 대화입니다."),
+                                opt("공항", "👂 국제라는 단어 때문에 공항으로 오해하기 쉽지만 '소포'와 '우편'은 우체국 업무입니다."),
+                                opt("은행", "👂 언급된 업무와 무관한 장소입니다."),
+                                opt("여행사", "👂 언급된 업무와 무관한 장소입니다.")
+                        ), 0, "👂 '국제'라는 단어만 듣고 공항으로 성급하게 판단하기 쉽습니다.", "[장소추론 소리단서] 소포+국제 우편+저울(핵심 단어) → 우체국(장소). 소리 내어 따라 말하며 핵심 단어를 모으세요.")),
+                onePassage(PassageCategory.LISTENING, "의견 제시",
+                        "여자: 회사에서 점심시간을 한 시간에서 30분으로 줄이자는 이야기가 나오고 있는데 어떻게 생각하세요?\n남자: 저는 반대예요. 짧은 시간에 밥을 먹으면 소화도 안 되고 오히려 업무 효율이 떨어질 것 같아요.",
+                        q("남자의 의견으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("점심시간 단축에 반대한다.", "정답: '반대예요'라는 말과 뒤이은 이유가 근거입니다."),
+                                opt("점심시간 단축에 찬성한다.", "💬 남자의 말과 반대되는 내용입니다."),
+                                opt("점심시간은 상관없다고 생각한다.", "💬 명확히 반대 의사를 밝혔으므로 무관심이 아닙니다."),
+                                opt("업무 효율이 좋아질 것이라고 생각한다.", "💬 오히려 떨어질 것이라고 했으므로 반대되는 내용입니다.")
+                        ), 0, "💬 이유를 설명하는 어조에 집중하다가 정작 찬반 입장 자체를 놓치기 쉽습니다.", "[의견파악 소리단서] 반대예요(입장) → 소화 안 됨+효율 저하(이유). 소리 내어 따라 말하며 입장부터 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이 학회 등록 마감이 언제까지예요?\n여자: 원래 이번 주 금요일이었는데 하루 연장돼서 다음 주 월요일까지예요.",
+                        q("학회 등록 마감일로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("다음 주 월요일", "정답: '연장돼서'라는 말 뒤의 최종 날짜가 정답입니다."),
+                                opt("이번 주 금요일", "🎧 원래 마감일(변경 전)만 듣고 착각하기 쉽습니다."),
+                                opt("이번 주 토요일", "🎧 대화에 없는 날짜를 임의로 만든 오답입니다."),
+                                opt("다음 주 화요일", "🎧 대화에 없는 날짜입니다.")
+                        ), 0, "🎧 처음 들린 날짜(금요일)에 꽂혀 뒤에 정정된 날짜(월요일)를 놓치기 쉽습니다.", "[세부정보 소리단서] 원래 금요일(변경 전) → 하루 연장(변경) → 다음 주 월요일(최종). 강조되는 마지막 날짜에 집중하세요."))
+        );
+
+        List<PassageSeed> reading21to30 = List.of(
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이번 프로젝트는 여러 부서가 (        ) 협력해야 성공할 수 있다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("유기적으로", "정답: 여러 부서가 긴밀하게 협력해야 한다는 문맥에 자연스러운 표현입니다."),
+                                opt("일방적으로", "👂 협력이라는 상호적 행위와 어울리지 않습니다."),
+                                opt("소극적으로", "👂 성공을 위한 협력과 반대되는 태도입니다."),
+                                opt("독립적으로", "👂 협력한다는 내용과 반대되는 표현입니다.")
+                        ), 0, "👂 협력을 나타내는 부사와 반대되는 뜻의 부사를 혼동하기 쉽습니다.", "[빈칸추론 소리단서] 여러 부서(주체) → 유기적으로 협력(방식) → 성공(결과). 소리 내어 읽으며 문맥을 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "정부는 이번 정책이 시민들의 생활에 긍정적인 영향을 (        ) 것으로 기대하고 있다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("미칠", "정답: '영향을 미치다'는 자연스러운 관용 표현입니다."),
+                                opt("만들", "👂 '영향을 만들다'는 어색한 표현입니다."),
+                                opt("가질", "👂 '영향을 가지다'는 어색한 표현입니다."),
+                                opt("두들", "👂 문맥에 맞지 않는 표현입니다.")
+                        ), 0, "🔁 '영향을 미치다'라는 관용 표현의 고정된 결합을 놓치면 비슷한 다른 동사를 고르기 쉽습니다.", "[빈칸추론 소리단서] 영향을 미치다(관용 표현). 소리 내어 읽으며 고정된 표현을 확인하세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "최근 여러 기업들이 재택근무를 정식 제도로 도입하고 있다. 처음에는 업무 효율이 떨어질 것이라는 우려가 많았지만, 실제로는 통근 시간이 줄어들면서 오히려 생산성이 높아졌다는 조사 결과가 나오고 있다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("재택근무가 우려와 달리 생산성 향상에 도움이 되고 있다.", "정답: 마지막 문장이 글의 핵심 결론입니다."),
+                                opt("재택근무는 업무 효율을 떨어뜨린다.", "💬 조사 결과와 반대되는 내용입니다."),
+                                opt("모든 기업이 재택근무를 도입해야 한다.", "💬 언급되지 않은 과장된 주장입니다."),
+                                opt("통근 시간은 생산성과 관계없다.", "💬 통근 시간 감소가 생산성 향상의 원인으로 제시되어 있습니다.")
+                        ), 0, "💬 초반의 우려(효율 저하)만 기억하고 후반의 실제 결과(생산성 향상)를 놓치기 쉽습니다.", "[중심내용 소리단서] 우려(도입 전) → 하지만 실제로는(전환) → 생산성 향상(결과). 소리 내어 읽으며 전환 뒤 내용에 집중하세요.")),
+                onePassage(PassageCategory.READING, "필자의 태도 파악",
+                        "일회용품 사용을 무조건 금지하는 정책만으로는 근본적인 문제를 해결하기 어렵다. 대체재 개발과 시민 의식 개선이 함께 이루어져야 진정한 변화가 가능할 것이다.",
+                        q("글쓴이의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("단편적인 규제만으로는 부족하다고 본다.", "정답: '무조건 금지만으로는 어렵다'는 표현에서 알 수 있습니다."),
+                                opt("일회용품 사용을 계속 허용해야 한다고 본다.", "💬 언급되지 않은 내용입니다."),
+                                opt("현재 정책에 전적으로 만족한다.", "💬 부족하다고 지적하고 있으므로 반대됩니다."),
+                                opt("시민 의식은 중요하지 않다고 본다.", "💬 시민 의식 개선이 필요하다고 했으므로 반대됩니다.")
+                        ), 0, "💬 규제에 대한 비판만 보고 글쓴이가 규제 자체에 반대한다고 오해하기 쉽습니다.", "[태도파악 소리단서] 금지만으로는 부족함(비판) → 대체재+의식 개선 필요(대안 제시). 소리 내어 읽으며 균형 잡힌 어조를 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "회사는 직원들의 창의성을 (        ) 자유로운 근무 환경을 조성하기로 했다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("이끌어 내기 위해", "정답: 근무 환경 조성의 목적으로 창의성을 끌어낸다는 문맥이 자연스럽습니다."),
+                                opt("억제하기 위해", "👂 자유로운 환경 조성과 반대되는 목적입니다."),
+                                opt("무시하기 위해", "👂 문맥과 반대되는 표현입니다."),
+                                opt("감추기 위해", "👂 문맥과 어울리지 않는 표현입니다.")
+                        ), 0, "👂 목적을 나타내는 동사와 반대되는 뜻의 동사를 혼동하기 쉽습니다.", "[빈칸추론 소리단서] 창의성 이끌어 냄(목적) → 자유로운 환경 조성(수단). 소리 내어 읽으며 목적을 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이 연구는 표본 수가 적어서 결과를 일반화하기에는 (        )가 있다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("한계", "정답: 표본이 적다는 문제로 인한 결과의 한계를 나타내는 표현이 자연스럽습니다."),
+                                opt("확신", "👂 한계를 지적하는 문맥과 반대되는 표현입니다."),
+                                opt("장점", "👂 표본 수가 적은 것은 단점이지 장점이 아닙니다."),
+                                opt("특권", "👂 문맥과 전혀 무관한 표현입니다.")
+                        ), 0, "🔁 '표본 수가 적다'는 문제 제기 뒤에는 부정적 평가(한계)가 온다는 패턴을 놓치기 쉽습니다.", "[빈칸추론 소리단서] 표본 수 적음(문제) → 일반화 한계(결과). 소리 내어 읽으며 논리적 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그 결과 매출이 눈에 띄게 늘었다.\n(나) 회사는 신제품 출시와 함께 대대적인 광고를 시작했다.\n(다) 소비자들의 관심이 빠르게 커지기 시작했다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (다) - (가)", "정답: 광고 시작(나) → 관심 증가(다) → 매출 증가(가) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔁 결과(매출 증가)가 원인(광고)보다 먼저 나오면 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔁 관심이 광고보다 먼저 생기는 것은 순서가 어색합니다."),
+                                opt("(나) - (가) - (다)", "🔁 매출 증가가 관심 증가보다 먼저 나오면 논리적으로 어색합니다.")
+                        ), 0, "🔁 '그 결과'라는 표현이 여러 단계의 마지막에 온다는 패턴을 놓치기 쉽습니다.", "[순서배열 소리단서] 광고 시작(원인) → 관심 증가(과정) → 그 결과 매출 증가(최종 결과). 소리 내어 순서대로 읽으며 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "많은 전문가들은 인공지능이 일자리를 대체할 것이라는 우려에 대해, 오히려 새로운 형태의 직업이 생겨날 것이라고 전망한다. 역사적으로 기술 발전은 기존 직업을 없애는 동시에 예상치 못한 새로운 직업군을 만들어 왔다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("기술 발전은 일자리를 없애기도 하지만 새로운 직업도 만들어 낸다.", "정답: 마지막 문장이 글의 핵심 결론입니다."),
+                                opt("인공지능은 모든 일자리를 없앨 것이다.", "💬 우려로 언급된 것이지 전문가들의 전망과 반대됩니다."),
+                                opt("기술 발전을 막아야 한다.", "💬 언급되지 않은 과장된 주장입니다."),
+                                opt("새로운 직업은 생기지 않을 것이다.", "💬 전문가들의 전망과 반대되는 내용입니다.")
+                        ), 0, "💬 초반의 우려(일자리 대체)만 기억하고 후반의 전망(새 직업 창출)을 놓치기 쉽습니다.", "[중심내용 소리단서] 우려(일자리 대체) → 오히려 새 직업 생김(전망) → 역사적 근거. 소리 내어 읽으며 전체 논지를 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이번 협상은 양측이 (        ) 입장 차이를 좁히지 못해 결국 결렬되었다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("끝까지", "정답: 협상 결렬이라는 결과와 어울리는 '끝까지 좁히지 못함'이 자연스럽습니다."),
+                                opt("잠깐", "👂 결렬이라는 최종 결과와 어울리지 않는 짧은 시간 표현입니다."),
+                                opt("이미", "👂 문맥과 어색하게 결합되는 표현입니다."),
+                                opt("쉽게", "👂 결렬됐다는 결과와 반대되는 뉘앙스입니다.")
+                        ), 0, "🔁 '결국 결렬되었다'는 결과와 어울리는 정도 부사(끝까지)를 찾아야 하는데 다른 뉘앙스의 부사를 고르기 쉽습니다.", "[빈칸추론 소리단서] 끝까지 못 좁힘(과정) → 결렬(결과). 소리 내어 읽으며 정도를 확인하세요.")),
+                onePassage(PassageCategory.READING, "필자의 태도 파악",
+                        "청소년들의 스마트폰 과의존 문제를 단순히 개인의 의지 부족으로만 치부하는 것은 문제의 본질을 놓치는 것이다. 사회 전체가 함께 대안을 모색해야 할 시점이다.",
+                        q("글쓴이의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("사회적 차원의 접근이 필요하다고 본다.", "정답: '사회 전체가 함께 대안을 모색해야 한다'는 표현에서 알 수 있습니다."),
+                                opt("전적으로 개인의 문제라고 본다.", "💬 개인 의지 부족으로만 보는 것을 비판하고 있으므로 반대됩니다."),
+                                opt("스마트폰 사용을 전면 금지해야 한다고 본다.", "💬 언급되지 않은 과장된 주장입니다."),
+                                opt("문제가 심각하지 않다고 본다.", "💬 문제 해결을 촉구하고 있으므로 반대됩니다.")
+                        ), 0, "💬 '개인의 의지 부족'이라는 표현만 보고 글쓴이가 그렇게 생각한다고 오해하기 쉽습니다.", "[태도파악 소리단서] 개인 문제로만 봄(비판 대상) → 사회 전체가 함께(글쓴이 주장). 소리 내어 읽으며 진짜 주장을 확인하세요."))
+        );
+
+        List<PassageSeed> reading31to40 = List.of(
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그러나 실제로 사용해 보니 예상과 다른 점이 많았다.\n(나) 나는 이 제품이 광고에서 본 것처럼 완벽할 것이라고 기대했다.\n(다) 결국 며칠 만에 환불을 요청하게 되었다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 기대(나) → 반전(가) → 결과(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔁 기대 없이 반전이 먼저 나오면 흐름이 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔁 결과가 먼저 나오고 기대가 뒤에 오면 논리적으로 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔁 환불 요청이 반전(예상과 다름)보다 먼저 나오면 어색합니다.")
+                        ), 0, "🔁 '그러나'라는 전환 접속사가 기대 설명 뒤에 온다는 패턴을 놓치기 쉽습니다.", "[순서배열 소리단서] 기대함(도입) → 그러나 다름(전환) → 환불 요청(결과). 소리 내어 순서대로 읽으며 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이번 조사 결과는 예상했던 수치와 (        ) 다르게 나와서 담당자들이 당황했다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("현저히", "정답: '당황했다'는 결과로 볼 때 차이가 크게 났다는 뜻의 부사가 자연스럽습니다."),
+                                opt("약간", "🔁 '당황했다'는 강한 반응인데 '약간'은 작은 차이를 나타내 어울리지 않습니다."),
+                                opt("전혀", "👂 '다르게'와 결합하면 의미가 성립하지 않는 표현입니다."),
+                                opt("거의", "👂 '거의 다르다'는 부자연스러운 결합입니다.")
+                        ), 0, "🔁 강한 반응(당황함)과 어울리는 정도 부사를 찾아야 하는데 약한 정도의 부사를 고르기 쉽습니다.", "[빈칸추론 소리단서] 현저히 다름(큰 차이) → 담당자 당황(강한 반응). 소리 내어 읽으며 정도를 확인하세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[사내 공지]\n다음 주 화요일 오전 10시부터 정전으로 인한 시스템 점검이 예정되어 있습니다. 해당 시간에는 사내 전산망 이용이 불가하니 미리 업무 자료를 백업해 두시기 바랍니다.",
+                        q("이 공지의 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("시스템 점검 일정을 알리고 자료 백업을 당부하려고", "정답: 점검 시간을 안내하고 백업을 당부하는 글입니다."),
+                                opt("시스템 오류를 사과하려고", "💬 예정된 점검이지 오류가 아닙니다."),
+                                opt("전산망을 영구히 폐쇄하려고", "💬 언급되지 않은 내용입니다."),
+                                opt("새로운 시스템을 홍보하려고", "💬 언급되지 않은 내용입니다.")
+                        ), 0, "💬 세부 시간 정보에만 집중하면 '백업하라'는 당부의 목적을 놓치기 쉽습니다.", "[목적파악 소리단서] 화요일 점검 예정(정보) → 전산망 이용 불가(영향) → 백업 당부(목적). 소리 내어 읽으며 당부의 목적을 확인하세요.")),
+                onePassage(PassageCategory.READING, "필자의 태도 파악",
+                        "온라인 강의가 확산되면서 학습의 편의성은 높아졌지만, 직접적인 교류가 줄어들면서 학습자 간의 협력과 소통 능력이 저하될 수 있다는 우려도 커지고 있다.",
+                        q("글쓴이의 태도로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("온라인 강의의 장점과 우려되는 점을 균형 있게 제시하고 있다.", "정답: 편의성(장점)과 소통 능력 저하 우려(단점)를 함께 다루고 있습니다."),
+                                opt("온라인 강의를 전면 폐지해야 한다고 주장한다.", "💬 언급되지 않은 과장된 주장입니다."),
+                                opt("온라인 강의에 문제가 전혀 없다고 본다.", "💬 우려를 제기하고 있으므로 반대됩니다."),
+                                opt("오프라인 강의만 유효하다고 주장한다.", "💬 언급되지 않은 내용입니다.")
+                        ), 0, "💬 앞부분의 긍정적 평가(편의성)만 보고 뒤에 이어지는 우려를 놓치기 쉽습니다.", "[태도파악 소리단서] 편의성 높아짐(긍정) → 하지만 소통 능력 저하 우려(균형). 소리 내어 읽으며 양쪽 측면을 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이번 실험 결과는 기존 이론으로는 (        ) 새로운 접근이 필요해 보인다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("설명하기 어려워", "정답: 기존 이론의 한계로 새로운 접근이 필요하다는 문맥에 자연스럽습니다."),
+                                opt("완벽하게 설명되어", "👂 완벽하게 설명된다면 새로운 접근이 필요하지 않으므로 모순됩니다."),
+                                opt("전혀 상관없어", "👂 기존 이론과의 관계를 언급하는 문맥과 어색하게 결합됩니다."),
+                                opt("충분히 검증되어", "👂 새로운 접근이 필요하다는 결론과 반대되는 뉘앙스입니다.")
+                        ), 0, "🔁 '새로운 접근이 필요하다'는 결론 앞에는 기존 방식의 한계가 온다는 패턴을 놓치기 쉽습니다.", "[빈칸추론 소리단서] 기존 이론으로 설명 어려움(한계) → 새로운 접근 필요(결론). 소리 내어 읽으며 논리적 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "고령화 사회로 접어들면서 노인 복지 정책의 (        )이 더욱 중요해지고 있다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("실효성", "정답: 정책이 실제로 효과가 있는지가 중요해진다는 문맥에 자연스러운 표현입니다."),
+                                opt("무용성", "👂 '중요해진다'는 긍정적 강조와 반대되는 뜻입니다."),
+                                opt("불필요성", "👂 문맥과 반대되는 표현입니다."),
+                                opt("무관심", "👂 문맥과 어울리지 않는 표현입니다.")
+                        ), 0, "👂 강조하는 문맥과 반대되는 뜻의 명사를 혼동하기 쉽습니다.", "[빈칸추론 소리단서] 고령화 사회(배경) → 정책의 실효성 중요(강조). 소리 내어 읽으며 문맥을 확인하세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그럼에도 불구하고 팀원들은 끝까지 포기하지 않았다.\n(나) 프로젝트 초반부터 예상치 못한 문제들이 계속 발생했다.\n(다) 결국 마감 기한 내에 성공적으로 프로젝트를 마칠 수 있었다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 문제 발생(나) → 그럼에도 포기 안 함(가) → 성공(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔁 '그럼에도 불구하고'는 앞에 어려움이 언급된 뒤에 와야 하는데 먼저 나오면 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔁 성공이 먼저 나오고 문제 발생이 뒤에 오면 논리적으로 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔁 성공이 포기하지 않았다는 내용보다 먼저 나오면 어색합니다.")
+                        ), 0, "🔁 '그럼에도 불구하고'라는 역접 표현이 문제 상황 뒤에 온다는 패턴을 놓치기 쉽습니다.", "[순서배열 소리단서] 문제 발생(어려움) → 그럼에도 포기 안 함(의지) → 성공(결과). 소리 내어 순서대로 읽으며 흐름을 확인하세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "많은 사람들이 성공적인 협상을 위해서는 강한 주장이 필요하다고 생각하지만, 실제 협상 전문가들은 상대방의 입장을 충분히 이해하는 경청이 더 중요하다고 말한다. 상대의 진짜 필요를 파악해야 서로 만족하는 결과를 이끌어 낼 수 있기 때문이다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("협상에서는 강한 주장보다 경청이 더 중요하다.", "정답: 전문가들의 견해로 제시된 핵심 내용입니다."),
+                                opt("협상에서는 무조건 강하게 주장해야 한다.", "💬 일반적인 통념일 뿐 글의 결론과 반대됩니다."),
+                                opt("협상은 하지 않는 것이 좋다.", "💬 언급되지 않은 내용입니다."),
+                                opt("상대방의 입장은 중요하지 않다.", "💬 글의 결론과 정반대되는 내용입니다.")
+                        ), 0, "💬 앞부분의 일반적인 통념(강한 주장)을 글의 실제 결론으로 착각하기 쉽습니다.", "[중심내용 소리단서] 강한 주장 필요(통념) → 실제로는 경청이 중요(전문가 견해). 소리 내어 읽으며 전환 뒤 내용에 집중하세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이 지역은 교통이 불편해서 관광객 유치에 (        )로 작용하고 있다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("걸림돌", "정답: 교통 불편이라는 부정적 요인이 관광객 유치를 방해한다는 문맥에 자연스러운 표현입니다."),
+                                opt("발판", "👂 긍정적 도약을 나타내는 표현으로 '교통이 불편해서'라는 부정적 원인과 반대됩니다."),
+                                opt("디딤돌", "👂 긍정적 도움을 나타내는 표현으로 문맥과 반대됩니다."),
+                                opt("촉매제", "👂 긍정적 촉진을 나타내는 표현으로 문맥과 반대됩니다.")
+                        ), 0, "🔁 부정적 원인(교통 불편) 뒤에는 부정적 결과(걸림돌)가 온다는 패턴을 놓치면 긍정적 의미의 단어를 고르기 쉽습니다.", "[빈칸추론 소리단서] 교통 불편(부정적 원인) → 걸림돌로 작용(부정적 결과). 소리 내어 읽으며 문맥의 방향을 확인하세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[입주민 안내]\n다음 달부터 분리배출 시간이 오전 6시부터 오전 9시까지로 제한됩니다. 지정 시간 외 배출 시 과태료가 부과될 수 있으니 유의하시기 바랍니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("정해진 시간 외에 쓰레기를 버리면 불이익을 받을 수 있다.", "정답: '과태료가 부과될 수 있다'는 말과 일치합니다."),
+                                opt("분리배출은 아무 때나 해도 된다.", "👂 시간이 제한된다고 했으므로 틀린 정보입니다."),
+                                opt("분리배출 시간이 없어졌다.", "👂 오전 6시~9시로 정해졌다고 했으므로 틀린 정보입니다."),
+                                opt("과태료는 절대 부과되지 않는다.", "👂 지정 시간 외 배출 시 부과될 수 있다고 했으므로 틀린 정보입니다.")
+                        ), 0, "👂 '제한된다'는 규정과 '과태료 부과 가능'이라는 불이익을 연결하지 못하기 쉽습니다.", "[안내문일치 소리단서] 오전 6~9시(시간 제한) → 시간 외 배출(위반) → 과태료(불이익). 소리 내어 읽으며 규정을 확인하세요."))
+        );
+
+        return new WeekSeed("WEEK 1: 3~4급 쉐도잉 기초 다지기",
+                "3~4급 수준의 조금 더 길고 복잡한 대화·지문을 소리 내어 따라 말하며 청각 신호(🎧억양·강세 / 💬어조·의도 / "
+                        + "👂발음·어휘 / 🔁반복·상투구) 포착 감각을 1~2급보다 한 단계 끌어올린다.",
+                WEEK1_ANSWER_NOTE_TEMPLATE,
+                List.of(
+                        day("1차(40문항) - 의견 제시/세부 정보 파악/화자의 태도 파악/이어질 행동 고르기/중심 생각 고르기/장소 추론/이유 추론/화자의 의도 고르기/일치하는 내용 고르기/빈칸 추론/문장 순서 배열/실용문 독해/필자의 태도 파악 등 3~4급 기본 유형. 각 지문을 소리 내어 세 번씩 따라 말한 후 오답 노트 템플릿에 취약 유형을 기록하세요.",
+                                merge(listening1to10, listening11to20, reading21to30, reading31to40))
+                ));
+    }
+
+    // ===================== 저장 =====================
+
+    private void saveCurriculumWithDays(Curriculum curriculum, List<WeekSeed> weekSeeds) {
+        List<CurriculumWeek> weeks = new ArrayList<>();
+        List<CurriculumDay> allDays = new ArrayList<>();
+        int dayNumber = 0;
+
+        for (int w = 0; w < weekSeeds.size(); w++) {
+            WeekSeed weekSeed = weekSeeds.get(w);
+            CurriculumWeek week = new CurriculumWeek();
+            week.setCurriculum(curriculum);
+            week.setWeekNumber(w + 1);
+            week.setTitle(weekSeed.title());
+            week.setGoal(weekSeed.goal());
+            week.setTemplate(weekSeed.template());
+            week.setActivities(List.of());
+            weeks.add(week);
+
+            List<DaySeed> daySeeds = weekSeed.days();
+            for (int d = 0; d < daySeeds.size(); d++) {
+                DaySeed daySeed = daySeeds.get(d);
+                dayNumber++;
+                CurriculumDay dayEntity = new CurriculumDay();
+                dayEntity.setCurriculum(curriculum);
+                dayEntity.setWeek(week);
+                dayEntity.setDayInWeek(d + 1);
+                dayEntity.setDayNumber(dayNumber);
+                dayEntity.setTask(daySeed.task());
+                dayEntity.setPassages(buildPassages(dayEntity, daySeed.passages()));
+                allDays.add(dayEntity);
+            }
+        }
+
+        curriculum.setWeeks(weeks);
+        curriculumRepository.save(curriculum);
+        curriculumDayRepository.saveAll(allDays);
+    }
+
+    private List<CurriculumPassage> buildPassages(CurriculumDay dayEntity, List<PassageSeed> passageSeeds) {
+        List<CurriculumPassage> passages = new ArrayList<>();
+        for (int p = 0; p < passageSeeds.size(); p++) {
+            PassageSeed passageSeed = passageSeeds.get(p);
+            CurriculumPassage passage = new CurriculumPassage();
+            passage.setDay(dayEntity);
+            passage.setCategory(passageSeed.category());
+            passage.setOrderIndex(p + 1);
+            passage.setSubType(passageSeed.subType());
+            passage.setPassageText(passageSeed.passageText());
+            passage.setDiagramSvg(passageSeed.diagramSvg());
+            passage.setProblems(buildProblems(passage, passageSeed.problems()));
+            passages.add(passage);
+        }
+        return passages;
+    }
+
+    private List<CurriculumProblem> buildProblems(CurriculumPassage passage, List<ProblemSeed> problemSeeds) {
+        List<CurriculumProblem> problems = new ArrayList<>();
+        for (int i = 0; i < problemSeeds.size(); i++) {
+            ProblemSeed problemSeed = problemSeeds.get(i);
+            CurriculumProblem problem = new CurriculumProblem();
+            problem.setPassage(passage);
+            problem.setOrderIndex(i + 1);
+            problem.setQuestionText(problemSeed.question());
+            problem.setOptions(problemSeed.options().stream().map(OptionSeed::text).toList());
+            problem.setCorrectAnswerIndex(problemSeed.correctIndex());
+            problem.setOptionExplanations(problemSeed.options().stream().map(OptionSeed::note).toList());
+            problem.setTrapNote(problemSeed.trapNote());
+            problem.setStrategyTip(problemSeed.strategyTip());
+            problems.add(problem);
+        }
+        return problems;
+    }
+}
