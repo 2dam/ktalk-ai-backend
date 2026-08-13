@@ -1,0 +1,596 @@
+package com.ktalk.config;
+
+import com.ktalk.domain.assessment.entity.LearnerType;
+import com.ktalk.domain.curriculum.entity.*;
+import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
+import com.ktalk.domain.topik.entity.TopikLevel;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 체험적 실행형(EXPERIENTIAL_ACTOR) 유형의 1~2급 "TOPIK 직접 실행 워크북" 커리큘럼을 심는다.
+ * STRATEGIC_ANALYST/VISUAL_IMMERSIVE/AUDITORY_EMPATHETIC과 동일한 골격(레코드/헬퍼, 8주 + 모의고사 2회
+ * + Final 1회, 총 2,450문항)을 쓰되, trapNote/strategyTip을 완전히 새로운 "직접 해보기" 언어로 설계한다 —
+ * LearnerType.EXPERIENTIAL_ACTOR의 studyTip("뽀모도로 기법(25분 집중·5분 휴식)과 즉시 채점·즉시 피드백을
+ * 반복하세요")을 모든 문항에 반영한다. 색깔 코딩, 마인드맵, 청각 신호 대신 "지금 손으로 써 보고, 소리 내어
+ * 말해 보고, 역할을 나눠 연기해 보고, 타이머를 맞춰 즉시 다시 풀어 보는" 4가지 체험 활동 태그를 오답 노트의
+ * 핵심 축으로 삼는다. 정답 해설(trapNote/strategyTip)은 단순 분석이 아니라 항상 구체적인 신체 활동 지시로
+ * 끝맺어, 학생이 문제를 풀고 나서 곧바로 무언가를 "직접 해보게" 만든다.
+ * 3~4급/5~6급 과정과는 완전히 분리된 별도의 8주 과정으로, 같은 learner_type이라도
+ * targetLevelFrom(LEVEL_1)으로 구분되는 별도 Curriculum 레코드를 갖는다.
+ *
+ * [체험 활동 태그 설계 - EXPERIENTIAL_ACTOR 고유 4종]
+ * ✍️ 직접 써보기 함정: 손으로 옮겨 쓰거나 밑줄을 그어야 잡히는 세부 정보(숫자·시간·이름)를 놓침.
+ * 🗣️ 소리 내어 말하기 함정: 대화를 실제로 소리 내어 읽거나 역할을 나눠 연기해야 잡히는 어조·의도를 놓침.
+ * 👆 손으로 짚어보기 함정: 지문의 순서나 구조를 손가락으로 짚어가며 확인해야 잡히는 흐름·순서를 놓침.
+ * ⏱️ 즉시 재도전 함정: 타이머를 맞추고 즉시 다시 풀어야 잡히는 부주의·성급함으로 인한 실수.
+ * strategyTip은 항상 "[체험미션: ○○] ..." 형식으로 시작해 구체적인 신체 활동 지시로 끝난다.
+ */
+@Component
+@RequiredArgsConstructor
+@Order(19)
+public class ExperientialActorCurriculumDataLoader implements CommandLineRunner {
+
+    private final CurriculumRepository curriculumRepository;
+    private final CurriculumDayRepository curriculumDayRepository;
+    private final UserCurriculumProgressRepository userCurriculumProgressRepository;
+
+    private record OptionSeed(String text, String note) {}
+    private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
+    private record PassageSeed(PassageCategory category, String subType, String passageText, String diagramSvg, List<ProblemSeed> problems) {}
+    private record DaySeed(String task, List<PassageSeed> passages) {}
+    private record WeekSeed(String title, String goal, String template, List<DaySeed> days) {}
+
+    private static OptionSeed opt(String text, String note) {
+        return new OptionSeed(text, note);
+    }
+
+    private static ProblemSeed q(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {
+        return new ProblemSeed(question, options, correctIndex, trapNote, strategyTip);
+    }
+
+    private static PassageSeed onePassage(PassageCategory category, String subType, String passageText, ProblemSeed problem) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problem));
+    }
+
+    /** 문법/어휘 포인트 하나에 연습문제 여러 개가 딸린 "시중 교재" 스타일 유닛용. */
+    private static PassageSeed grammarUnit(String subType, String explanation, ProblemSeed... problems) {
+        return new PassageSeed(PassageCategory.READING, subType, explanation, null, List.of(problems));
+    }
+
+    /** 실전 모의고사에서 지문 하나에 문제 2개 이상이 딸린 실제 TOPIK 형식용. */
+    private static PassageSeed multiQ(PassageCategory category, String subType, String passageText, ProblemSeed... problems) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problems));
+    }
+
+    private static DaySeed day(String task, PassageSeed... passages) {
+        return new DaySeed(task, List.of(passages));
+    }
+
+    /** 한 "차"(40문항)를 이루는 여러 하위 목록을 하루 학습량 하나로 합칠 때 사용. */
+    @SafeVarargs
+    private static PassageSeed[] merge(List<PassageSeed>... lists) {
+        List<PassageSeed> all = new ArrayList<>();
+        for (List<PassageSeed> list : lists) {
+            all.addAll(list);
+        }
+        return all.toArray(new PassageSeed[0]);
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.EXPERIENTIAL_ACTOR, TopikLevel.LEVEL_1)
+                .ifPresent(this::deleteExisting);
+
+        Curriculum curriculum = new Curriculum();
+        curriculum.setLearnerType(LearnerType.EXPERIENTIAL_ACTOR);
+        curriculum.setTitle("TOPIK 직접 실행 워크북");
+        curriculum.setTargetLevelLabel("1~2급 전 과정");
+        curriculum.setTargetLevelFrom(TopikLevel.LEVEL_1);
+        curriculum.setTargetLevelTo(TopikLevel.LEVEL_2);
+        curriculum.setUsageNote(
+                "모든 문제에 체험 활동 태그(✍️ 직접 써보기 / 🗣️ 소리 내어 말하기 / 👆 손으로 짚어보기 / ⏱️ 즉시 재도전)로 "
+                        + "함정 포인트를 구분합니다. 문제를 풀고 정답을 확인한 뒤에는 반드시 strategyTip의 체험미션을 "
+                        + "그 자리에서 직접 실행하세요 — 눈으로만 읽고 넘어가지 말고, 노트에 옮겨 쓰거나 소리 내어 "
+                        + "말하거나 손가락으로 짚어보거나 타이머로 재도전하며 몸으로 기억하세요. 25분 집중·5분 휴식의 "
+                        + "뽀모도로 리듬을 지키고, 채점은 그 즉시 하세요.");
+
+        List<WeekSeed> weeks = List.of(week1());
+        saveCurriculumWithDays(curriculum, weeks);
+
+        System.out.println("✍️ TOPIK 커리큘럼(체험적 실행형, 1~2급) WEEK1 1차 시딩 완료!");
+    }
+
+    /** 재시딩 전 기존 커리큘럼을 지운다. day는 부모의 cascade 대상이 아니라 먼저 지워야 한다. */
+    private void deleteExisting(Curriculum existing) {
+        List<CurriculumDay> days = curriculumDayRepository.findByCurriculumId(existing.getId());
+        curriculumDayRepository.deleteAll(days);
+        userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
+        curriculumRepository.delete(existing);
+        curriculumRepository.flush();
+    }
+
+    // ===================== WEEK 1: 1~2급 체험 기초 다지기 =====================
+
+    private static final String WEEK1_ANSWER_NOTE_TEMPLATE = """
+            [✍️ 체험 기록장 - 1차 40문항용]
+            문제를 틀렸을 때 체험 활동 태그로 표시하며 나의 취약 유형을 확인해보세요.
+            그리고 반드시 strategyTip의 체험미션을 그 자리에서 손으로, 입으로, 몸으로 직접 실행하세요.
+
+            문제 번호(1~40) | 틀린 이유(해당 태그 동그라미) | 체험미션 실행 여부(V표시)
+            예) 3번 | ✍️ (숫자·시간 놓침) | V
+
+            [✍️ 체험 활동 태그별 취약 유형 가이드]
+            ✍️ 직접 써보기 함정: 숫자·시간·이름 등 세부 정보를 손으로 옮겨 쓰지 않아 놓침.
+            🗣️ 소리 내어 말하기 함정: 대화를 소리 내어 읽거나 역할을 나눠 연기하지 않아 어조·의도를 놓침.
+            👆 손으로 짚어보기 함정: 지문의 순서나 구조를 손가락으로 짚어보지 않아 흐름을 놓침.
+            ⏱️ 즉시 재도전 함정: 타이머로 즉시 다시 풀어보지 않아 부주의한 실수를 반복함.
+
+            같은 태그가 반복해서 표시된다면, 그 유형의 체험미션을 다음 학습 때 우선적으로 실행하세요.
+            채점은 문제를 푼 직후 즉시 하고, 25분 학습·5분 휴식의 뽀모도로 리듬을 지키세요.
+            """;
+
+    private WeekSeed week1() {
+        List<PassageSeed> listening1to10 = List.of(
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 안녕하세요? 오늘 뭐 해요?\n남자: 저는 오늘 도서관에 가요.\n여자: 아, 그래요? 몇 시에 가요?",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 시에 가요.", "정답: '몇 시에 가요?'라는 질문에 시간으로 답하는 것이 자연스럽습니다."),
+                                opt("네, 도서관이 좋아요.", "시간을 묻는 질문에 대한 답이 아닙니다."),
+                                opt("친구하고 같이 가요.", "누구와 가는지는 묻지 않았습니다."),
+                                opt("아니요, 안 가요.", "이미 간다고 말했으므로 모순됩니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '몇 시'라는 질문 단어를 손으로 표시하지 않으면 다른 정보로 착각하기 쉽습니다.",
+                                "[체험미션: 밑줄긋기] 질문 문장에서 '몇 시'에 직접 동그라미를 그리고, 보기 중 시간이 들어간 답을 손가락으로 짚어 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 이 사과가 얼마예요?\n여자: 한 개에 천 원이에요.\n남자: 그럼 다섯 개 주세요.",
+                        q("여자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 오천 원입니다.", "정답: 다섯 개를 요청했으므로 개당 가격을 곱한 총액으로 답하는 것이 자연스럽습니다."),
+                                opt("네, 천 원입니다.", "다섯 개가 아니라 한 개의 가격만 말했습니다."),
+                                opt("사과는 없어요.", "이미 판매 중이라는 대화 맥락과 모순됩니다."),
+                                opt("두 개만 주세요.", "손님이 아니라 여자(점원)의 대답이어야 하므로 어색합니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '한 개 천 원'과 '다섯 개'를 손으로 곱셈해 보지 않으면 계산 실수를 하기 쉽습니다.",
+                                "[체험미션: 계산해보기] 노트에 '1,000원 × 5개 = ?'를 직접 손으로 써서 계산한 뒤 정답과 맞는지 확인하세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 저기요, 지하철역이 어디예요?\n남자: 이 길로 쭉 가시면 오른쪽에 있어요.\n여자: 여기서 멀어요?",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("아니요, 5분쯤 걸려요.", "정답: '멀어요?'라는 질문에 구체적인 소요 시간으로 답하는 것이 자연스럽습니다."),
+                                opt("네, 오른쪽으로 가세요.", "이미 앞에서 말한 방향을 반복할 뿐 거리 질문에 답하지 않았습니다."),
+                                opt("지하철역이 아니에요.", "질문과 무관한 대답입니다."),
+                                opt("저는 잘 몰라요.", "이미 길을 알려 주었으므로 모순됩니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: '멀어요?'라는 질문의 상승 어조를 소리 내어 읽어 보지 않으면 단순 방향 반복으로 착각하기 쉽습니다.",
+                                "[체험미션: 소리내어읽기] 이 대화를 두 사람 역할로 나눠 소리 내어 읽어 보고, '멀어요?'를 물음표 억양으로 강조해 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "행동 고르기",
+                        "여자: 오늘 저녁에 시간 있어요? 같이 영화 볼까요?\n남자: 좋아요! 몇 시에 만날까요?\n여자: 일곱 시에 극장 앞에서 만나요.",
+                        q("두 사람이 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("일곱 시에 극장 앞에서 만난다.", "정답: 여자가 마지막에 제안한 약속 내용이 다음 행동입니다."),
+                                opt("저녁을 먹으러 간다.", "언급되지 않은 내용입니다."),
+                                opt("영화를 안 본다.", "이미 보기로 약속했으므로 반대됩니다."),
+                                opt("집에서 쉰다.", "약속을 잡은 상황과 맞지 않습니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: 대화 마지막 문장을 손가락으로 짚어보지 않으면 앞의 제안과 뒤의 확정을 혼동하기 쉽습니다.",
+                                "[체험미션: 손가락으로짚기] 대화를 처음부터 끝까지 손가락으로 짚어가며 읽고, 마지막 문장에 별표를 표시해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "남자: 여기에서 책을 좀 볼 수 있을까요?\n여자: 네, 저쪽 책상에 앉으세요. 조용히 봐 주세요.",
+                        q("두 사람이 있는 장소로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("도서관", "정답: 책을 보고 조용히 해야 한다는 내용으로 보아 도서관입니다."),
+                                opt("식당", "책과 관련 없는 장소입니다."),
+                                opt("병원", "책과 관련 없는 장소입니다."),
+                                opt("공원", "책상과 조용히 봐 달라는 요청과 맞지 않습니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 장소를 유추하는 핵심 단어(책, 조용히)를 따로 적어 두지 않으면 다른 장소로 착각하기 쉽습니다.",
+                                "[체험미션: 단서적기] '책', '조용히'라는 단서 단어를 노트 여백에 직접 옮겨 쓰고, 어떤 장소인지 스스로 답해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 오늘 날씨가 정말 춥네요.\n남자: 네, 맞아요. 눈도 올 것 같아요.\n여자: 그럼 우산을 가지고 가야 할까요?",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 하나 가지고 가는 게 좋겠어요.", "정답: 눈이 올 것 같다는 정보를 근거로 우산 지참을 권하는 것이 자연스럽습니다."),
+                                opt("아니요, 오늘은 더워요.", "춥다는 앞의 대화와 모순됩니다."),
+                                opt("우산이 어디 있어요?", "질문에 대한 답이 아닙니다."),
+                                opt("눈이 안 와요.", "앞에서 눈이 올 것 같다고 말한 것과 모순됩니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: '춥다-눈 온다-우산' 순서로 이어지는 대화 흐름을 소리 내어 읽지 않으면 앞뒤 모순을 놓치기 쉽습니다.",
+                                "[체험미션: 이어말하기] '춥다 → 눈이 올 것 같다 → 그래서 우산이 필요하다'를 소리 내어 순서대로 이어 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 이 옷 좀 입어 봐도 돼요?\n여자: 네, 탈의실이 저쪽에 있어요.\n남자: 감사합니다. 큰 사이즈도 있어요?",
+                        q("여자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 확인해 볼게요.", "정답: 사이즈 문의에 대해 확인하겠다는 응답이 자연스럽습니다."),
+                                opt("탈의실은 저쪽이에요.", "이미 앞에서 말한 정보를 반복할 뿐 질문에 답하지 않았습니다."),
+                                opt("이 옷은 안 팔아요.", "이미 입어 봐도 된다고 했으므로 모순됩니다."),
+                                opt("네, 입어 보세요.", "이미 허락한 내용을 반복할 뿐 사이즈 질문에 답하지 않았습니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 대화에 등장하는 두 개의 질문(입어봐도 되는지/큰 사이즈 있는지)을 구분해 적지 않으면 헷갈리기 쉽습니다.",
+                                "[체험미션: 번호매기기] 대화 속 질문에 ①②로 번호를 매겨 적고, 마지막 질문(사이즈)에 대한 답만 골라 보세요.")),
+                onePassage(PassageCategory.LISTENING, "행동 고르기",
+                        "여자: 감기에 걸린 것 같아요. 목이 아파요.\n남자: 병원에 가 보는 게 어때요?\n여자: 네, 지금 바로 가 볼게요.",
+                        q("여자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("병원에 간다.", "정답: 여자가 직접 '지금 바로 가 볼게요'라고 말했으므로 이어질 행동입니다."),
+                                opt("약을 먹는다.", "언급되지 않은 행동입니다."),
+                                opt("잠을 잔다.", "언급되지 않은 행동입니다."),
+                                opt("운동을 한다.", "감기에 걸렸다는 상황과 맞지 않습니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: 대화의 마지막 문장을 손가락으로 짚지 않으면 남자의 제안과 여자의 결심을 혼동하기 쉽습니다.",
+                                "[체험미션: 마지막문장짚기] 대화의 마지막 문장 '지금 바로 가 볼게요'에 손가락을 짚고 큰 소리로 따라 읽어 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 주말에 보통 뭐 해요?\n여자: 저는 보통 등산을 해요. 산에 가는 걸 좋아해요.\n남자: 저도 등산 좋아해요! 이번 주말에 같이 갈래요?",
+                        q("여자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 좋아요! 몇 시에 만날까요?", "정답: 함께 가자는 제안을 수락하고 구체적인 약속을 정하는 것이 자연스럽습니다."),
+                                opt("저는 등산을 안 좋아해요.", "이미 등산을 좋아한다고 말한 것과 모순됩니다."),
+                                opt("주말에는 항상 바빠요.", "제안에 대한 명확한 답이 아닙니다."),
+                                opt("산은 위험해요.", "대화의 긍정적 흐름과 맞지 않습니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: '같이 갈래요?'라는 제안형 어미를 소리 내어 읽지 않으면 단순 질문으로 착각하기 쉽습니다.",
+                                "[체험미션: 제안연습] '같이 갈래요?'를 친구에게 실제로 제안하듯 소리 내어 세 번 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이 버스가 시청에 가요?\n남자: 아니요, 이 버스는 공항에 가요. 시청은 3번 버스를 타야 해요.",
+                        q("시청에 가려면 타야 하는 버스로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("3번 버스", "정답: 시청에 가려면 3번 버스를 타야 한다고 안내했습니다."),
+                                opt("지금 이 버스", "이 버스는 공항으로 간다고 했으므로 틀립니다."),
+                                opt("공항버스", "공항버스는 시청이 아니라 공항으로 가는 버스입니다."),
+                                opt("2번 버스", "대화에 없는 번호입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 버스 번호를 손으로 옮겨 적지 않으면 '이 버스'와 '3번 버스'를 혼동하기 쉽습니다.",
+                                "[체험미션: 번호적기] '이 버스=공항', '3번 버스=시청'을 화살표로 연결해서 노트에 직접 그려 보세요."))
+        );
+
+        List<PassageSeed> listening11to20 = List.of(
+                onePassage(PassageCategory.LISTENING, "화제 고르기",
+                        "이것은 아침, 점심, 저녁에 한 번씩 드시면 됩니다. 식사 후 30분 뒤에 물과 함께 드세요.",
+                        q("무엇에 대한 설명인지 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("약 먹는 방법", "정답: 하루 세 번 식후에 복용하라는 내용은 약 복용법입니다."),
+                                opt("요리 방법", "요리와 관련된 내용이 아닙니다."),
+                                opt("운동 방법", "운동과 관련된 내용이 아닙니다."),
+                                opt("청소 방법", "청소와 관련된 내용이 아닙니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '드시면', '물과 함께'라는 단서 표현을 짚어보지 않으면 다른 화제로 오해하기 쉽습니다.",
+                                "[체험미션: 핵심단어찾기] '아침, 점심, 저녁', '드세요'라는 단어에 직접 동그라미를 그려 무엇에 대한 설명인지 손으로 표시해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "여자: 이 서류에 이름을 써 주세요.\n남자: 네, 여기 이름 쓰면 되나요?\n여자: 네, 맞아요. 그리고 옆에 사인도 해 주세요.",
+                        q("남자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("이름을 쓰고 사인을 한다.", "정답: 여자가 요청한 두 가지(이름, 사인)를 모두 하는 것이 자연스럽습니다."),
+                                opt("서류를 버린다.", "언급되지 않은 행동입니다."),
+                                opt("이름만 쓴다.", "사인도 해 달라는 추가 요청을 놓친 오답입니다."),
+                                opt("사무실을 나간다.", "대화의 흐름과 맞지 않습니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '이름'과 '사인' 두 가지 요청을 하나만 적으면 나머지 요청을 놓치기 쉽습니다.",
+                                "[체험미션: 두가지적기] 요청 사항 '① 이름 쓰기 ② 사인하기'를 순서대로 노트에 직접 적어 보세요.")),
+                onePassage(PassageCategory.LISTENING, "일치하는 내용 고르기",
+                        "여자: 이 식당은 월요일에 쉬어요. 화요일부터 일요일까지 문을 열어요.",
+                        q("들은 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 식당은 월요일에 문을 닫는다.", "정답: 월요일에 쉰다고 했으므로 문을 닫습니다."),
+                                opt("이 식당은 매일 문을 연다.", "월요일에는 쉬므로 매일 열지 않습니다."),
+                                opt("이 식당은 화요일에 쉰다.", "화요일부터는 연다고 했으므로 틀립니다."),
+                                opt("이 식당은 일요일에 쉰다.", "일요일까지 문을 연다고 했으므로 틀립니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: 요일을 손가락으로 하나씩 짚어보지 않으면 여는 날과 쉬는 날을 혼동하기 쉽습니다.",
+                                "[체험미션: 달력짚기] 월~일 요일을 손으로 하나씩 짚으며 '월요일=쉼', 나머지는 '열림'이라고 소리 내어 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "중심 생각 고르기",
+                        "남자: 저는 매일 아침에 운동을 해요. 운동을 하면 기분이 좋아지고 하루를 활기차게 시작할 수 있어요.",
+                        q("남자의 중심 생각으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("아침 운동은 하루를 기분 좋게 시작하는 데 도움이 된다.", "정답: 운동 후 기분이 좋아지고 활기차진다는 것이 핵심 내용입니다."),
+                                opt("운동은 저녁에 하는 것이 좋다.", "언급되지 않은 내용입니다."),
+                                opt("운동은 힘들어서 하기 싫다.", "남자의 긍정적인 태도와 반대됩니다."),
+                                opt("아침에는 운동을 하면 안 된다.", "남자의 생각과 반대됩니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: 남자의 긍정적인 어조를 소리 내어 따라 하지 않으면 반대 의미로 착각하기 쉽습니다.",
+                                "[체험미션: 어조따라하기] '기분이 좋아지고 활기차게 시작할 수 있어요'를 밝은 목소리로 소리 내어 따라 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 이 영화가 몇 시에 시작해요?\n남자: 두 시 삼십 분에 시작해요. 지금 두 시니까 삼십 분 남았어요.",
+                        q("영화가 시작하는 시간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("두 시 삼십 분", "정답: 두 시 삼십 분에 시작한다고 말했습니다."),
+                                opt("두 시", "지금 시간이지 영화 시작 시간이 아닙니다."),
+                                opt("세 시", "대화에 없는 시간입니다."),
+                                opt("한 시 삼십 분", "대화에 없는 시간입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '지금 시간'과 '영화 시작 시간'을 따로 적지 않으면 두 시간을 혼동하기 쉽습니다.",
+                                "[체험미션: 시계그리기] 노트에 시계 두 개를 그려서 하나는 '지금(2시)', 다른 하나는 '영화 시작(2시 30분)'이라고 적어 보세요.")),
+                onePassage(PassageCategory.LISTENING, "목적 파악",
+                        "안내 말씀드립니다. 오늘 오후 세 시부터 놀이터 청소가 있습니다. 그 시간에는 놀이터를 이용하지 말아 주세요.",
+                        q("이 안내의 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("청소 시간을 알리고 이용을 자제해 달라고 안내하려고", "정답: 청소 시간과 이용 자제를 함께 안내하고 있습니다."),
+                                opt("놀이터를 새로 만들려고", "언급되지 않은 내용입니다."),
+                                opt("놀이터 요금을 알리려고", "요금과 관련된 내용이 아닙니다."),
+                                opt("놀이터를 영원히 닫으려고", "일시적인 청소 시간만 언급했습니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '오후 세 시부터'라는 시간 표현을 짚어보지 않으면 전체 안내로 착각하기 쉽습니다.",
+                                "[체험미션: 시간표시] '오후 세 시부터'에 형광펜처럼 손으로 밑줄을 긋고, 그 시간에만 해당하는 안내임을 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 우유가 다 떨어졌어요.\n여자: 그럼 제가 마트에 가서 사 올게요.",
+                        q("여자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("마트에 가서 우유를 산다.", "정답: 여자가 직접 '사 올게요'라고 말했으므로 이어질 행동입니다."),
+                                opt("우유를 만든다.", "언급되지 않은 행동입니다."),
+                                opt("다른 음료를 마신다.", "언급되지 않은 행동입니다."),
+                                opt("집에서 기다린다.", "직접 사 오겠다고 말한 것과 반대입니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: '사 올게요'라는 의지 표현을 소리 내어 강조해 읽지 않으면 놓치기 쉽습니다.",
+                                "[체험미션: 의지표현연습] '제가 ~할게요' 형태의 문장을 나의 상황으로 바꿔서 소리 내어 한 번 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "일치하는 내용 고르기",
+                        "여자: 이 공원은 아침 여섯 시에 문을 열고 밤 열 시에 문을 닫아요.",
+                        q("들은 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 공원은 아침 여섯 시부터 이용할 수 있다.", "정답: 아침 여섯 시에 문을 연다고 했습니다."),
+                                opt("이 공원은 24시간 이용할 수 있다.", "밤 열 시에 문을 닫으므로 틀립니다."),
+                                opt("이 공원은 밤 여섯 시에 문을 닫는다.", "밤 열 시에 닫는다고 했으므로 틀립니다."),
+                                opt("이 공원은 아침에 문을 닫는다.", "아침에는 문을 연다고 했으므로 반대입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 여는 시간과 닫는 시간을 각각 적지 않으면 서로 바꿔 기억하기 쉽습니다.",
+                                "[체험미션: 표그리기] '여는 시간: 아침 6시 / 닫는 시간: 밤 10시'라고 표를 그려서 노트에 직접 적어 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 오늘 처음 만났는데, 이름이 어떻게 되세요?\n여자: 저는 김민지예요. 만나서 반가워요.",
+                        q("남자의 대답으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 저도 만나서 반가워요.", "정답: 첫 만남 인사에 대한 자연스러운 답례 인사입니다."),
+                                opt("이름이 뭐예요?", "이미 이름을 물었고 답을 들었으므로 어색합니다."),
+                                opt("아니요, 처음이 아니에요.", "대화 맥락과 무관합니다."),
+                                opt("김민지 씨는 어디에 살아요?", "인사에 대한 답이 아니라 새로운 질문입니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: '만나서 반가워요'라는 인사 표현을 소리 내어 따라 하지 않으면 응답 타이밍을 놓치기 쉽습니다.",
+                                "[체험미션: 인사연습] '만나서 반가워요'를 실제로 손을 내밀며 소리 내어 세 번 연습해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "여자: 여기에서 기차표를 살 수 있어요?\n남자: 네, 저쪽 창구에서 사시면 돼요. 몇 시 기차 타세요?",
+                        q("두 사람이 있는 장소로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("기차역", "정답: 기차표를 사고 기차 시간을 묻는 대화로 보아 기차역입니다."),
+                                opt("공항", "기차와 관련된 대화이므로 공항이 아닙니다."),
+                                opt("버스터미널", "기차표를 언급했으므로 버스터미널이 아닙니다."),
+                                opt("영화관", "기차와 무관한 장소입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '기차표'라는 핵심 단어를 적어 두지 않으면 다른 교통수단 장소로 착각하기 쉽습니다.",
+                                "[체험미션: 핵심단어적기] '기차표'라는 단어를 노트에 크게 적고, 그 단어가 나오는 장소가 어디인지 스스로 답해 보세요."))
+        );
+
+        List<PassageSeed> reading1to10 = List.of(
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 매주 토요일에 수영을 배웁니다. 처음에는 어려웠지만 지금은 재미있습니다.",
+                        q("이 사람이 배우는 것으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("수영", "정답: '수영을 배웁니다'라고 명시되어 있습니다."),
+                                opt("요리", "언급되지 않은 내용입니다."),
+                                opt("그림", "언급되지 않은 내용입니다."),
+                                opt("피아노", "언급되지 않은 내용입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 핵심 단어 '수영'에 표시하지 않으면 다른 활동으로 착각하기 쉽습니다.",
+                                "[체험미션: 형광펜긋기] 지문에서 '수영'이라는 단어를 손으로 직접 밑줄 긋고 소리 내어 읽어 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내]\n이번 주 금요일은 회의실 공사로 인해 3층 회의실을 사용할 수 없습니다. 회의가 있으신 분은 4층 회의실을 이용해 주세요.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("금요일에는 4층 회의실을 이용해야 한다.", "정답: 3층을 사용할 수 없으니 4층을 이용하라고 안내했습니다."),
+                                opt("금요일에는 회의를 할 수 없다.", "4층에서는 회의를 할 수 있으므로 틀립니다."),
+                                opt("3층 회의실은 계속 사용할 수 있다.", "공사로 사용할 수 없다고 했으므로 반대입니다."),
+                                opt("4층 회의실도 공사 중이다.", "언급되지 않은 내용입니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '3층'과 '4층'을 각각 손가락으로 짚어보지 않으면 두 층을 혼동하기 쉽습니다.",
+                                "[체험미션: 손가락으로대조] '3층=사용불가', '4층=이용가능'을 손가락으로 각각 짚으며 소리 내어 말해 보세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "다음 주 월요일부터 도서관 이용 시간이 오전 9시부터 오후 6시까지로 변경됩니다. 참고해 주시기 바랍니다.",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("도서관 이용 시간 변경을 안내하려고", "정답: 이용 시간이 변경된다는 사실을 안내하고 있습니다."),
+                                opt("도서관을 새로 열려고", "언급되지 않은 내용입니다."),
+                                opt("도서관 회원 가입을 안내하려고", "언급되지 않은 내용입니다."),
+                                opt("도서 대출 방법을 안내하려고", "언급되지 않은 내용입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '변경됩니다'라는 핵심 단어를 적어 두지 않으면 새로운 개설로 착각하기 쉽습니다.",
+                                "[체험미션: 핵심단어쓰기] '변경됩니다'라는 단어를 노트에 옮겨 쓰고, 무엇이 변경되는지 한 문장으로 직접 적어 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그래서 저는 우산을 가지고 나갔습니다.\n(나) 아침에 하늘이 흐렸습니다.\n(다) 오후에 정말 비가 왔습니다.\n(라) 비가 올 것 같았습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("나-라-가-다", "정답: 하늘이 흐림(나) → 비가 올 것 같음(라) → 우산 챙김(가) → 실제로 비 옴(다) 순서가 자연스럽습니다."),
+                                opt("나-가-라-다", "우산을 챙긴 이유(라)가 먼저 나와야 자연스럽습니다."),
+                                opt("다-나-라-가", "비가 온 결과(다)가 원인보다 먼저 나오면 어색합니다."),
+                                opt("라-나-가-다", "하늘이 흐리다는 관찰(나)이 먼저 나와야 합니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: 각 문장을 손가락으로 짚어가며 순서를 확인하지 않으면 원인과 결과를 뒤바꾸기 쉽습니다.",
+                                "[체험미션: 순서대로짚기] (가)~(라) 문장을 손가락으로 하나씩 짚으며 이야기 순서대로 소리 내어 읽어 보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 매일 아침 일곱 시에 일어납니다. 일어나서 먼저 물을 한 잔 마십니다.",
+                        q("이 사람이 일어난 후 가장 먼저 하는 일로 알맞은 것을 고르십시오.", List.of(
+                                opt("물을 마신다.", "정답: '일어나서 먼저 물을 한 잔 마십니다'라고 명시되어 있습니다."),
+                                opt("운동을 한다.", "언급되지 않은 내용입니다."),
+                                opt("밥을 먹는다.", "언급되지 않은 내용입니다."),
+                                opt("세수를 한다.", "언급되지 않은 내용입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '먼저'라는 순서 표현을 적어 두지 않으면 다른 행동과 순서를 혼동하기 쉽습니다.",
+                                "[체험미션: 순서번호매기기] '① 일어나기 → ② 물 마시기'로 번호를 매겨 노트에 직접 적어 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[모집 안내]\n한국어 말하기 대회에 참가할 학생을 모집합니다. 신청은 이번 달 20일까지이며, 신청서는 사무실에 제출하면 됩니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("신청서는 사무실에 내야 한다.", "정답: 신청서를 사무실에 제출하라고 안내했습니다."),
+                                opt("신청 기간에 제한이 없다.", "20일까지라는 기한이 있으므로 틀립니다."),
+                                opt("이 대회는 글쓰기 대회이다.", "말하기 대회라고 했으므로 틀립니다."),
+                                opt("신청서는 온라인으로만 제출한다.", "사무실 제출이라고 했으므로 틀립니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '사무실에 제출'이라는 부분을 짚어보지 않으면 다른 제출 방법으로 착각하기 쉽습니다.",
+                                "[체험미션: 조건표시하기] '20일까지', '사무실 제출'에 각각 손으로 표시하고 두 조건을 소리 내어 말해 보세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "이 놀이기구는 키 120cm 이상만 탈 수 있습니다. 안전을 위해 꼭 확인해 주세요.",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("놀이기구 이용 조건을 안내하려고", "정답: 키 제한 조건을 안내하고 있습니다."),
+                                opt("놀이기구 가격을 안내하려고", "가격과 관련된 내용이 아닙니다."),
+                                opt("놀이기구 위치를 안내하려고", "위치와 관련된 내용이 아닙니다."),
+                                opt("놀이기구를 새로 만들려고", "언급되지 않은 내용입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '120cm'라는 숫자를 옮겨 적지 않으면 다른 조건으로 착각하기 쉽습니다.",
+                                "[체험미션: 숫자옮겨쓰기] '120cm'를 노트에 크게 옮겨 쓰고, 자신의 키와 비교해 탈 수 있는지 직접 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그다음에 야채와 고기를 넣었습니다.\n(나) 저는 오늘 저녁에 볶음밥을 만들었습니다.\n(다) 마지막으로 소금으로 간을 맞췄습니다.\n(라) 먼저 밥을 팬에 볶았습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("나-라-가-다", "정답: 볶음밥 계획(나) → 밥 볶기(라) → 야채·고기 추가(가) → 간 맞추기(다) 순서가 요리 순서와 맞습니다."),
+                                opt("나-가-라-다", "밥을 먼저 볶아야(라) 그다음(가) 순서가 자연스럽습니다."),
+                                opt("다-나-라-가", "간을 맞추는 것(다)은 마지막에 나와야 합니다."),
+                                opt("라-나-가-다", "요리를 만들겠다는 계획(나)이 먼저 나와야 합니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '먼저', '그다음에', '마지막으로'라는 순서 표현을 짚지 않으면 순서를 뒤섞기 쉽습니다.",
+                                "[체험미션: 순서어짚기] '먼저', '그다음에', '마지막으로'에 각각 다른 색으로 표시하며 요리 순서를 소리 내어 말해 보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 강아지를 한 마리 키웁니다. 이름은 초코이고 색깔은 갈색입니다.",
+                        q("이 사람이 키우는 강아지의 이름으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("초코", "정답: '이름은 초코'라고 명시되어 있습니다."),
+                                opt("갈색", "이것은 강아지의 색깔이지 이름이 아닙니다."),
+                                opt("하양이", "언급되지 않은 이름입니다."),
+                                opt("검둥이", "언급되지 않은 이름입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '이름'과 '색깔'이라는 두 정보를 구분해 적지 않으면 서로 바꿔 기억하기 쉽습니다.",
+                                "[체험미션: 정보구분쓰기] '이름: 초코', '색깔: 갈색'을 각각 다른 줄에 노트에 옮겨 적어 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[공지]\n다음 주부터 엘리베이터 점검이 있습니다. 점검 시간(오전 10시~12시)에는 계단을 이용해 주세요.",
+                        q("이 공지문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("점검 시간에는 계단을 이용해야 한다.", "정답: 점검 시간에 계단을 이용해 달라고 안내했습니다."),
+                                opt("엘리베이터는 앞으로 사용할 수 없다.", "점검 시간에만 제한되므로 틀립니다."),
+                                opt("점검은 오늘 진행된다.", "다음 주부터라고 했으므로 틀립니다."),
+                                opt("점검은 하루 종일 진행된다.", "오전 10시부터 12시까지로 제한되어 있습니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '오전 10시~12시'라는 시간 범위를 짚어보지 않으면 하루 종일로 착각하기 쉽습니다.",
+                                "[체험미션: 시간범위표시] '오전 10시~12시'에 양쪽 끝을 손가락으로 짚으며 그 시간에만 해당함을 확인해 보세요."))
+        );
+
+        List<PassageSeed> reading11to20 = List.of(
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "사과, 배, 포도, 딸기",
+                        q("공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("과일", "정답: 사과, 배, 포도, 딸기는 모두 과일입니다."),
+                                opt("채소", "제시된 단어는 채소가 아니라 과일입니다."),
+                                opt("고기", "제시된 단어와 관련이 없습니다."),
+                                opt("음료수", "제시된 단어와 관련이 없습니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 단어들을 하나씩 옮겨 적어 공통점을 찾지 않으면 놓치기 쉽습니다.",
+                                "[체험미션: 분류하기] 네 단어를 노트에 옮겨 적고, 공통점이 무엇인지 직접 한 단어로 써 보세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "지하철, 버스, 택시, 자전거",
+                        q("공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("교통수단", "정답: 모두 이동할 때 이용하는 교통수단입니다."),
+                                opt("음식", "제시된 단어와 관련이 없습니다."),
+                                opt("직업", "제시된 단어와 관련이 없습니다."),
+                                opt("동물", "제시된 단어와 관련이 없습니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 각 단어를 그림으로 떠올려 적지 않으면 공통 범주를 찾기 어렵습니다.",
+                                "[체험미션: 그림그리기] 네 단어 옆에 간단한 그림을 그려 보고, 공통점을 소리 내어 말해 보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 이번 방학에 부산으로 여행을 갔습니다. 바다를 보고 회를 먹었습니다. 정말 즐거웠습니다.",
+                        q("이 사람이 여행 간 곳으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("부산", "정답: '부산으로 여행을 갔습니다'라고 명시되어 있습니다."),
+                                opt("제주도", "언급되지 않은 지역입니다."),
+                                opt("서울", "언급되지 않은 지역입니다."),
+                                opt("경주", "언급되지 않은 지역입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 지역 이름을 옮겨 적지 않으면 다른 여행지와 혼동하기 쉽습니다.",
+                                "[체험미션: 지역이름쓰기] '부산'이라는 단어를 노트에 크게 옮겨 쓰고 소리 내어 읽어 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그래서 저는 병원에 갔습니다.\n(나) 어제 배가 많이 아팠습니다.\n(다) 지금은 많이 나았습니다.\n(라) 의사 선생님이 약을 주셨습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("나-가-라-다", "정답: 배가 아픔(나) → 병원 감(가) → 약을 받음(라) → 나아짐(다) 순서가 자연스럽습니다."),
+                                opt("나-라-가-다", "병원에 가야(가) 약을 받을(라) 수 있으므로 순서가 바뀌었습니다."),
+                                opt("다-나-가-라", "나아짐(다)은 결과이므로 가장 마지막에 나와야 합니다."),
+                                opt("가-나-라-다", "배가 아프다는 원인(나)이 병원에 간 것(가)보다 먼저 나와야 합니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '어제', '그래서', '지금은'이라는 시간 표현을 짚지 않으면 순서를 헷갈리기 쉽습니다.",
+                                "[체험미션: 시간표현짚기] '어제', '그래서', '지금은'에 각각 표시하고 시간 순서대로 손가락으로 짚으며 읽어 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[알림]\n오늘 오후에 비가 많이 올 예정입니다. 외출하실 때 우산을 꼭 챙기세요.",
+                        q("이 알림의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("오늘 오후에 우산이 필요하다.", "정답: 비가 올 예정이니 우산을 챙기라고 안내했습니다."),
+                                opt("오늘은 날씨가 맑다.", "비가 올 예정이라고 했으므로 반대입니다."),
+                                opt("내일 비가 온다.", "오늘 오후라고 했으므로 틀립니다."),
+                                opt("우산은 필요 없다.", "우산을 꼭 챙기라고 했으므로 반대입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '오늘 오후'라는 시점을 적어 두지 않으면 다른 날로 착각하기 쉽습니다.",
+                                "[체험미션: 시점적기] '오늘 오후'를 노트에 옮겨 적고, 우산이 왜 필요한지 한 문장으로 직접 써 보세요.")),
+                onePassage(PassageCategory.READING, "공통 주제 찾기",
+                        "의사, 선생님, 요리사, 경찰관",
+                        q("공통 주제로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("직업", "정답: 의사, 선생님, 요리사, 경찰관은 모두 직업입니다."),
+                                opt("과일", "제시된 단어와 관련이 없습니다."),
+                                opt("장소", "제시된 단어와 관련이 없습니다."),
+                                opt("색깔", "제시된 단어와 관련이 없습니다.")
+                        ), 0, "🗣️ 소리 내어 말하기 함정: 각 단어를 소리 내어 말하며 무슨 일을 하는지 떠올리지 않으면 공통점을 놓치기 쉽습니다.",
+                                "[체험미션: 역할말하기] 네 직업 중 하나를 골라 '저는 ○○입니다'라고 소리 내어 역할극처럼 말해 보세요.")),
+                onePassage(PassageCategory.READING, "핵심 정보 파악",
+                        "저는 매주 화요일과 목요일에 태권도를 배웁니다. 태권도장은 우리 집 근처에 있습니다.",
+                        q("이 사람이 태권도를 배우는 요일로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("화요일, 목요일", "정답: '화요일과 목요일에 태권도를 배웁니다'라고 명시되어 있습니다."),
+                                opt("월요일, 수요일", "언급되지 않은 요일입니다."),
+                                opt("토요일, 일요일", "언급되지 않은 요일입니다."),
+                                opt("매일", "특정 요일만 언급했으므로 틀립니다.")
+                        ), 0, "✍️ 직접 써보기 함정: 요일을 손으로 옮겨 적지 않으면 다른 요일로 착각하기 쉽습니다.",
+                                "[체험미션: 달력에표시하기] 일주일 달력을 그리고 '화, 목'에 직접 동그라미를 그려 보세요.")),
+                onePassage(PassageCategory.READING, "실용문 독해",
+                        "[안내]\n주차장은 오전 6시부터 밤 12시까지 이용할 수 있습니다. 그 이후 시간에는 문이 잠깁니다.",
+                        q("이 안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("밤 12시가 지나면 주차장 문이 잠긴다.", "정답: 12시 이후에는 문이 잠긴다고 안내했습니다."),
+                                opt("주차장은 24시간 이용할 수 있다.", "밤 12시까지만 이용 가능하므로 틀립니다."),
+                                opt("주차장은 오전에만 이용할 수 있다.", "밤까지 이용 가능하므로 틀립니다."),
+                                opt("주차장 문은 항상 열려 있다.", "정해진 시간 후 잠긴다고 했으므로 틀립니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '오전 6시', '밤 12시'라는 두 시각을 짚지 않으면 이용 가능 시간을 혼동하기 쉽습니다.",
+                                "[체험미션: 시간대그리기] 시간 막대를 그려서 '오전 6시~밤 12시'까지 색칠해 이용 가능 시간을 표시해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "(가) 그리고 편지 봉투에 우표를 붙였습니다.\n(나) 저는 할머니께 편지를 썼습니다.\n(다) 마지막으로 우체국에 가서 편지를 보냈습니다.\n(라) 먼저 편지지에 글을 썼습니다.",
+                        q("다음을 순서대로 맞게 배열한 것을 고르십시오.", List.of(
+                                opt("나-라-가-다", "정답: 편지 쓰기 계획(나) → 글쓰기(라) → 우표 붙이기(가) → 우체국에서 보내기(다) 순서가 자연스럽습니다."),
+                                opt("나-가-라-다", "글을 먼저 쓴(라) 다음 우표를 붙여야(가) 자연스럽습니다."),
+                                opt("다-나-라-가", "편지를 보내는 것(다)은 가장 마지막에 나와야 합니다."),
+                                opt("라-나-가-다", "편지를 쓰겠다는 계획(나)이 먼저 나와야 합니다.")
+                        ), 0, "👆 손으로 짚어보기 함정: '먼저', '그리고', '마지막으로'라는 순서 표현을 짚지 않으면 순서를 뒤섞기 쉽습니다.",
+                                "[체험미션: 순서카드만들기] (가)~(라)를 종이에 각각 적어 순서대로 손으로 나열해 보세요.")),
+                onePassage(PassageCategory.READING, "목적 추론",
+                        "이번 주말에 아파트 단지 안에서 벼룩시장이 열립니다. 안 쓰는 물건이 있으면 가지고 나와서 팔거나 나눠 주세요.",
+                        q("이 글을 쓴 목적으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("벼룩시장 행사를 안내하려고", "정답: 벼룩시장이 열린다는 사실과 참여 방법을 안내하고 있습니다."),
+                                opt("아파트 규칙을 안내하려고", "언급되지 않은 내용입니다."),
+                                opt("이사 날짜를 안내하려고", "언급되지 않은 내용입니다."),
+                                opt("주차 안내를 하려고", "언급되지 않은 내용입니다.")
+                        ), 0, "✍️ 직접 써보기 함정: '벼룩시장'이라는 핵심 단어를 적지 않으면 다른 행사로 착각하기 쉽습니다.",
+                                "[체험미션: 행사이름쓰기] '벼룩시장'이라는 단어를 노트에 옮겨 쓰고, 무슨 행사인지 한 문장으로 직접 설명해 보세요."))
+        );
+
+        return new WeekSeed("WEEK 1: 1~2급 체험 기초 다지기",
+                "매일 40문항씩 직접 풀고, 쓰고, 소리 내어 말하며 TOPIK 1~2급 기초 유형을 몸으로 익힙니다.",
+                WEEK1_ANSWER_NOTE_TEMPLATE,
+                List.of(
+                        day("1차(40문항) - 듣기 20(이어질 대답, 행동/장소 파악, 화제 고르기, 일치판단, 중심생각, 세부정보, 목적파악) + 읽기 20(핵심 정보, 실용문 독해, 목적 추론, 문장 순서, 공통 주제). 체험 활동 태그로 오답을 표시하고 체험미션을 직접 실행하세요.",
+                                merge(listening1to10, listening11to20, reading1to10, reading11to20))
+                ));
+    }
+
+    // ===================== 저장 =====================
+
+    private void saveCurriculumWithDays(Curriculum curriculum, List<WeekSeed> weekSeeds) {
+        List<CurriculumWeek> weeks = new ArrayList<>();
+        List<CurriculumDay> allDays = new ArrayList<>();
+        int dayNumber = 0;
+
+        for (int w = 0; w < weekSeeds.size(); w++) {
+            WeekSeed weekSeed = weekSeeds.get(w);
+            CurriculumWeek week = new CurriculumWeek();
+            week.setCurriculum(curriculum);
+            week.setWeekNumber(w + 1);
+            week.setTitle(weekSeed.title());
+            week.setGoal(weekSeed.goal());
+            week.setTemplate(weekSeed.template());
+            week.setActivities(List.of());
+            weeks.add(week);
+
+            List<DaySeed> daySeeds = weekSeed.days();
+            for (int d = 0; d < daySeeds.size(); d++) {
+                DaySeed daySeed = daySeeds.get(d);
+                dayNumber++;
+                CurriculumDay dayEntity = new CurriculumDay();
+                dayEntity.setCurriculum(curriculum);
+                dayEntity.setWeek(week);
+                dayEntity.setDayInWeek(d + 1);
+                dayEntity.setDayNumber(dayNumber);
+                dayEntity.setTask(daySeed.task());
+                dayEntity.setPassages(buildPassages(dayEntity, daySeed.passages()));
+                allDays.add(dayEntity);
+            }
+        }
+
+        curriculum.setWeeks(weeks);
+        curriculumRepository.save(curriculum);
+        curriculumDayRepository.saveAll(allDays);
+    }
+
+    private List<CurriculumPassage> buildPassages(CurriculumDay dayEntity, List<PassageSeed> passageSeeds) {
+        List<CurriculumPassage> passages = new ArrayList<>();
+        for (int p = 0; p < passageSeeds.size(); p++) {
+            PassageSeed passageSeed = passageSeeds.get(p);
+            CurriculumPassage passage = new CurriculumPassage();
+            passage.setDay(dayEntity);
+            passage.setCategory(passageSeed.category());
+            passage.setOrderIndex(p + 1);
+            passage.setSubType(passageSeed.subType());
+            passage.setPassageText(passageSeed.passageText());
+            passage.setDiagramSvg(passageSeed.diagramSvg());
+            passage.setProblems(buildProblems(passage, passageSeed.problems()));
+            passages.add(passage);
+        }
+        return passages;
+    }
+
+    private List<CurriculumProblem> buildProblems(CurriculumPassage passage, List<ProblemSeed> problemSeeds) {
+        List<CurriculumProblem> problems = new ArrayList<>();
+        for (int i = 0; i < problemSeeds.size(); i++) {
+            ProblemSeed problemSeed = problemSeeds.get(i);
+            CurriculumProblem problem = new CurriculumProblem();
+            problem.setPassage(passage);
+            problem.setOrderIndex(i + 1);
+            problem.setQuestionText(problemSeed.question());
+            problem.setOptions(problemSeed.options().stream().map(OptionSeed::text).toList());
+            problem.setCorrectAnswerIndex(problemSeed.correctIndex());
+            problem.setOptionExplanations(problemSeed.options().stream().map(OptionSeed::note).toList());
+            problem.setTrapNote(problemSeed.trapNote());
+            problem.setStrategyTip(problemSeed.strategyTip());
+            problems.add(problem);
+        }
+        return problems;
+    }
+}
