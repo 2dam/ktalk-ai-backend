@@ -1,0 +1,603 @@
+package com.ktalk.config;
+
+import com.ktalk.domain.assessment.entity.LearnerType;
+import com.ktalk.domain.curriculum.entity.*;
+import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
+import com.ktalk.domain.topik.entity.TopikLevel;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * SNS 의존형(SNS_DEPENDENT) 유형의 1~2급 "TOPIK 숏폼 집중 워크북" 커리큘럼을 심는다.
+ * 다른 유형들과 동일한 골격(레코드/헬퍼, 8주 + 모의고사 2회 + Final 1회, 총 2,450문항)을 쓰되,
+ * trapNote/strategyTip을 완전히 새로운 "SNS 행동 은유" 언어로 설계한다 —
+ * LearnerType.SNS_DEPENDENT의 studyTip("공부 시간대 스마트폰 알림을 차단하고, 스터디 그룹
+ * 의무 모의고사와 일일 인증제를 활용하세요")을 모든 문항에 반영한다.
+ * SNS 의존형은 짧은 호흡의 콘텐츠와 즉각적 피드백에 익숙해 집중이 오래 유지되기 어렵다.
+ * 이를 반영해 두 가지 원칙을 지킨다.
+ * ① 짧은 호흡: 지문·대화는 다른 유형보다 더 짧고 간결하게 구성해 스크롤하듯 빠르게 소화할 수 있게 한다.
+ * ② 형식 다양성: 일반 4지선다 문제 사이에 OX·스와이프형 간단 퀴즈를 섞어(문법 1포인트=5문항 기준 1개,
+ *    20%) 학습 리듬을 SNS 피드처럼 완급 조절한다. 단, 실전 감각을 지켜야 하는 모의고사 2회·Final
+ *    1회는 OX/스와이프 없이 실제 TOPIK I 형식 그대로 유지한다.
+ * 1~2급 초급 수준이므로 짧고 단순한 대화와 쉬운 어휘로 구성한다.
+ *
+ * [SNS 행동 은유 태그 설계 - SNS_DEPENDENT 고유 4종]
+ * 📜 스크롤모드 함정: 빠르게 넘기다가 앞부분에 나온 핵심 정보를 놓침.
+ * 👍 즉시반응모드 함정: 끝까지 읽지 않고 첫인상만으로 성급하게 답을 선택함.
+ * 🔔 알림모드 함정: 중간에 집중이 끊겨 뒤에 나온 반전·전환 지점을 놓침.
+ * 💬 자막모드 함정: 소리 내어 확인하지 않아 어조·의도 없이 텍스트만 표면적으로 읽음.
+ * strategyTip은 항상 "[집중챌린지: ○○모드] ..." 형식으로 시작해 그 모드에 맞는 구체적 확인 행동으로 끝난다.
+ *
+ * [OX·스와이프 헬퍼]
+ * ox()는 참/거짓 2지선다, swipe()는 "왼쪽=아니다/오른쪽=맞다" 라벨의 2지선다 문항을 만든다.
+ * 실제 스와이프 제스처가 아니라 텍스트 라벨로 스와이프 감각만 표현한다(프론트엔드 제스처 지원과 무관).
+ * 두 헬퍼 모두 옵션이 2개뿐이라 이 파일은 opt=q×4 공식이 적용되지 않는다 — 검증 시 라운드별로
+ * (4지선다 문항 수)×4 + (OX/스와이프 문항 수)×2 로 직접 계산해야 한다.
+ */
+@Component
+@RequiredArgsConstructor
+@Order(24)
+public class SnsDependentCurriculumDataLoader implements CommandLineRunner {
+
+    private final CurriculumRepository curriculumRepository;
+    private final CurriculumDayRepository curriculumDayRepository;
+    private final UserCurriculumProgressRepository userCurriculumProgressRepository;
+
+    private record OptionSeed(String text, String note) {}
+    private record ProblemSeed(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {}
+    private record PassageSeed(PassageCategory category, String subType, String passageText, String diagramSvg, List<ProblemSeed> problems) {}
+    private record DaySeed(String task, List<PassageSeed> passages) {}
+    private record WeekSeed(String title, String goal, String template, List<DaySeed> days) {}
+
+    private static OptionSeed opt(String text, String note) {
+        return new OptionSeed(text, note);
+    }
+
+    private static ProblemSeed q(String question, List<OptionSeed> options, int correctIndex, String trapNote, String strategyTip) {
+        return new ProblemSeed(question, options, correctIndex, trapNote, strategyTip);
+    }
+
+    /** OX(참/거짓) 형식의 간단 퀴즈 문항 - SNS 스크롤 습관을 겨냥해 빠르게 판단하는 형태. */
+    private static ProblemSeed ox(String question, boolean answerIsO, String oNote, String xNote, String trapNote, String strategyTip) {
+        return q(question, List.of(
+                opt("O", oNote),
+                opt("X", xNote)
+        ), answerIsO ? 0 : 1, trapNote, strategyTip);
+    }
+
+    /** 스와이프 프레이밍의 2지선다 문항 - 실제 제스처가 아니라 라벨로 스와이프 감각을 표현. */
+    private static ProblemSeed swipe(String question, boolean answerIsRight, String leftLabel, String rightLabel, String leftNote, String rightNote, String trapNote, String strategyTip) {
+        return q(question, List.of(
+                opt("← 왼쪽: " + leftLabel, leftNote),
+                opt("→ 오른쪽: " + rightLabel, rightNote)
+        ), answerIsRight ? 1 : 0, trapNote, strategyTip);
+    }
+
+    private static PassageSeed onePassage(PassageCategory category, String subType, String passageText, ProblemSeed problem) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problem));
+    }
+
+    /** 문법/어휘 포인트 하나에 연습문제 여러 개가 딸린 "시중 교재" 스타일 유닛용. */
+    private static PassageSeed grammarUnit(String subType, String explanation, ProblemSeed... problems) {
+        return new PassageSeed(PassageCategory.READING, subType, explanation, null, List.of(problems));
+    }
+
+    /** 실전 모의고사에서 지문 하나에 문제 2개 이상이 딸린 실제 TOPIK 형식용. */
+    private static PassageSeed multiQ(PassageCategory category, String subType, String passageText, ProblemSeed... problems) {
+        return new PassageSeed(category, subType, passageText, null, List.of(problems));
+    }
+
+    private static DaySeed day(String task, PassageSeed... passages) {
+        return new DaySeed(task, List.of(passages));
+    }
+
+    /** 한 "차"(40문항)를 이루는 여러 하위 목록을 하루 학습량 하나로 합칠 때 사용. */
+    @SafeVarargs
+    private static PassageSeed[] merge(List<PassageSeed>... lists) {
+        List<PassageSeed> all = new ArrayList<>();
+        for (List<PassageSeed> list : lists) {
+            all.addAll(list);
+        }
+        return all.toArray(new PassageSeed[0]);
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.SNS_DEPENDENT, TopikLevel.LEVEL_1)
+                .ifPresent(this::deleteExisting);
+
+        Curriculum curriculum = new Curriculum();
+        curriculum.setLearnerType(LearnerType.SNS_DEPENDENT);
+        curriculum.setTitle("TOPIK 숏폼 집중 워크북");
+        curriculum.setTargetLevelLabel("1~2급 전 과정");
+        curriculum.setTargetLevelFrom(TopikLevel.LEVEL_1);
+        curriculum.setTargetLevelTo(TopikLevel.LEVEL_2);
+        curriculum.setUsageNote(
+                "모든 문제에 SNS 행동 태그(📜 스크롤모드 / 👍 즉시반응모드 / 🔔 알림모드 / 💬 자막모드)로 "
+                        + "함정 포인트를 구분합니다. 문제를 풀고 정답을 확인한 뒤에는 반드시 strategyTip의 "
+                        + "집중챌린지를 그 자리에서 직접 실행하세요. 문항 사이사이 OX·스와이프형 간단 퀴즈가 "
+                        + "섞여 있어 SNS 피드를 넘기듯 리듬감 있게 풀 수 있습니다. 공부 시간대에는 스마트폰 "
+                        + "알림을 차단하고, 스터디 그룹과 함께 매일 학습 인증을 남기며 주 1회 의무 모의고사로 "
+                        + "실전 감각을 점검하세요.");
+
+        List<WeekSeed> weeks = List.of(week1());
+        saveCurriculumWithDays(curriculum, weeks);
+
+        System.out.println("📜 TOPIK 커리큘럼(SNS 의존형, 1~2급) WEEK1 1차 시딩 완료!");
+    }
+
+    /** 재시딩 전 기존 커리큘럼을 지운다. day는 부모의 cascade 대상이 아니라 먼저 지워야 한다. */
+    private void deleteExisting(Curriculum existing) {
+        List<CurriculumDay> days = curriculumDayRepository.findByCurriculumId(existing.getId());
+        curriculumDayRepository.deleteAll(days);
+        userCurriculumProgressRepository.deleteByCurriculumId(existing.getId());
+        curriculumRepository.delete(existing);
+        curriculumRepository.flush();
+    }
+
+    // ===================== WEEK 1: 1~2급 집중 기초 다지기 =====================
+
+    private static final String WEEK1_ANSWER_NOTE_TEMPLATE = """
+            [📜 집중 기록장 - 1차 40문항용]
+            문제를 틀렸을 때 SNS 행동 태그로 표시하며 나의 취약 유형을 확인해보세요.
+            그리고 반드시 strategyTip의 집중챌린지를 그 자리에서 직접 실행하세요.
+
+            문제 번호(1~40) | 틀린 이유(해당 태그 동그라미) | 집중챌린지 실행 여부(V표시)
+            예) 3번 | 📜 (스크롤하듯 넘겨 놓침) | V
+
+            [📜 SNS 행동 태그별 취약 유형 가이드]
+            📜 스크롤모드 함정: 빠르게 넘기다가 앞부분의 핵심 정보를 놓침.
+            👍 즉시반응모드 함정: 끝까지 읽지 않고 첫인상만으로 성급하게 답을 선택함.
+            🔔 알림모드 함정: 중간에 집중이 끊겨 뒤에 나온 반전·전환 지점을 놓침.
+            💬 자막모드 함정: 소리 내어 확인하지 않아 어조·의도 없이 텍스트만 표면적으로 읽음.
+
+            OX·스와이프 문항은 정답률뿐 아니라 "끝까지 읽고 답했는지"도 함께 체크하세요.
+            같은 태그가 반복해서 표시된다면, 그 모드의 집중챌린지를 다음 학습 때 우선적으로 실행하세요.
+            """;
+
+    private WeekSeed week1() {
+        List<PassageSeed> listening1to10 = List.of(
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 이거 얼마예요?\n남자: 이천 원이에요.",
+                        q("여자의 다음 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("이거 하나 주세요.", "정답: 가격을 들은 뒤 구매를 결정하는 자연스러운 흐름입니다."),
+                                opt("안녕하세요.", "🔔 이미 대화가 시작된 상황이라 처음 인사는 어색합니다."),
+                                opt("어디에 있어요?", "🔔 위치를 묻는 말로 가격 질문과 무관합니다."),
+                                opt("맛있어요.", "🔔 대화 맥락과 전혀 무관한 답입니다.")
+                        ), 0, "🔔 알림모드 함정: 가격을 들은 뒤 이어지는 짧은 흐름을 놓치면 엉뚱한 답을 고르기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '이천 원이에요-이거 하나 주세요'를 소리 내어 짝지어 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 오늘 날씨 어때요?\n여자: 아주 좋아요. 따뜻해요.",
+                        q("남자의 다음 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("그래요? 다행이에요.", "정답: 좋은 날씨 소식에 이어지는 자연스러운 반응입니다."),
+                                opt("네, 배고파요.", "👍 날씨와 무관한 반응으로 흐름과 맞지 않습니다."),
+                                opt("죄송해요.", "👍 사과할 상황이 아니므로 어색합니다."),
+                                opt("얼마예요?", "👍 가격을 묻는 말로 날씨 대화와 무관합니다.")
+                        ), 0, "👍 즉시반응모드 함정: 대화를 끝까지 안 듣고 익숙한 표현을 성급하게 고르기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] '아주 좋아요, 따뜻해요'까지 다 듣고 나서 답을 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "여자: 사과 있어요? 세 개 주세요.\n남자: 네, 여기 있어요.",
+                        q("두 사람이 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("과일 가게", "정답: 사과를 사는 대화는 과일 가게에서 이루어집니다."),
+                                opt("병원", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("학교", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("은행", "📜 언급된 내용과 맞지 않습니다.")
+                        ), 0, "📜 스크롤모드 함정: '사과'라는 단어만 빠르게 보고 다른 단서 없이 넘기면 장소를 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '사과', '세 개'라는 단어에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "남자: 머리 좀 잘라 주세요.\n여자: 네, 이쪽에 앉으세요.",
+                        q("남자가 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("미용실", "정답: 머리를 자르는 대화는 미용실에서 이루어집니다."),
+                                opt("식당", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("서점", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("공원", "📜 언급된 내용과 맞지 않습니다.")
+                        ), 0, "📜 스크롤모드 함정: '머리 자르다'라는 표현을 빠르게 넘기면 장소를 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '머리 좀 잘라 주세요'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 지금 몇 시예요?\n남자: 세 시예요.",
+                        q("지금 시간으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("세 시", "정답: 남자가 직접 '세 시'라고 말했습니다."),
+                                opt("두 시", "💬 대화에 없는 시간입니다."),
+                                opt("네 시", "💬 대화에 없는 시간입니다."),
+                                opt("다섯 시", "💬 대화에 없는 시간입니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 숫자를 확인하지 않으면 비슷한 숫자와 헷갈리기 쉽습니다.",
+                                "[집중챌린지: 자막모드] '세 시예요'를 소리 내어 따라 말하며 숫자를 정확히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 이 가방 얼마예요?\n여자: 만 원이에요.",
+                        q("가방의 가격으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("만 원", "정답: 여자가 직접 '만 원'이라고 말했습니다."),
+                                opt("천 원", "💬 대화에 없는 가격입니다."),
+                                opt("이만 원", "💬 대화에 없는 가격입니다."),
+                                opt("오만 원", "💬 대화에 없는 가격입니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 숫자를 확인하지 않으면 비슷한 숫자와 헷갈리기 쉽습니다.",
+                                "[집중챌린지: 자막모드] '만 원이에요'를 소리 내어 따라 말하며 숫자를 정확히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "여자: 창문 좀 열어 주시겠어요?\n남자: 네, 알겠습니다.",
+                        q("남자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("창문을 연다.", "정답: 요청을 승낙했으므로 바로 이어질 행동입니다."),
+                                opt("창문을 닫는다.", "🔔 요청과 반대되는 행동입니다."),
+                                opt("문을 잠근다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("자리에 앉는다.", "🔔 언급되지 않은 행동입니다.")
+                        ), 0, "🔔 알림모드 함정: 승낙 대답 뒤에 바로 그 행동이 이어진다는 것을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '알겠습니다' 뒤에 바로 이어지는 행동을 떠올려 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 이 책 좀 찾아 주시겠어요?\n여자: 네, 잠깐만 기다리세요.",
+                        q("여자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("책을 찾는다.", "정답: 요청을 승낙했으므로 바로 이어질 행동입니다."),
+                                opt("책을 버린다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("문을 닫는다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("전화를 받는다.", "🔔 언급되지 않은 행동입니다.")
+                        ), 0, "🔔 알림모드 함정: 승낙 대답 뒤에 바로 그 행동이 이어진다는 것을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '잠깐만 기다리세요' 뒤에 바로 이어지는 행동을 떠올려 보세요.")),
+                onePassage(PassageCategory.LISTENING, "OX 빠른 확인",
+                        "여자: 오늘 비가 와요.\n남자: 네, 우산 가지고 가세요.",
+                        ox("이 대화에서 오늘 비가 옵니다.", true,
+                                "정답: 여자가 직접 '오늘 비가 와요'라고 말했습니다.",
+                                "👍 첫 단어만 듣고 성급하게 판단하면 X를 고르는 실수를 하기 쉽습니다.",
+                                "👍 즉시반응모드 함정: 첫 단어만 듣고 성급하게 판단하면 다른 날씨로 착각하기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 문장을 끝까지 다 듣고 나서 O/X를 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "OX 빠른 확인",
+                        "남자: 저는 매일 아침 운동해요.\n여자: 정말요? 저는 가끔 해요.",
+                        ox("이 대화에서 여자도 매일 운동합니다.", false,
+                                "👍 여자는 '가끔 한다'고 했으므로 O를 고르면 틀립니다.",
+                                "정답: 여자는 '가끔 해요'라고 말했으므로 매일이 아닙니다.",
+                                "👍 즉시반응모드 함정: 누가 무엇을 말했는지 끝까지 안 듣고 성급하게 섞어 버리기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] '남자: 매일'과 '여자: 가끔'을 끝까지 듣고 구분해 보세요."))
+        );
+
+        List<PassageSeed> listening11to20 = List.of(
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "여자: 커피 한 잔 드릴까요?\n남자: 네, 좋아요.",
+                        q("여자의 다음 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("잠깐만 기다리세요.", "정답: 커피를 준비하겠다는 자연스러운 다음 말입니다."),
+                                opt("안녕히 가세요.", "🔔 대화 흐름과 맞지 않는 작별 인사입니다."),
+                                opt("얼마예요?", "🔔 이미 여자가 제안한 상황이라 어색합니다."),
+                                opt("죄송합니다.", "🔔 사과할 상황이 아니므로 어색합니다.")
+                        ), 0, "🔔 알림모드 함정: 승낙 대답 뒤에 이어지는 짧은 흐름을 놓치면 엉뚱한 답을 고르기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '좋아요' 뒤에 이어지는 자연스러운 말을 떠올려 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 대답 고르기",
+                        "남자: 이 옷 입어 봐도 돼요?\n여자: 네, 저쪽에서 입어 보세요.",
+                        q("남자의 다음 말로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네, 감사합니다.", "정답: 승낙에 대한 자연스러운 감사 인사입니다."),
+                                opt("얼마예요?", "🎬 문맥상 가능하지만 가장 자연스러운 응답과는 거리가 있습니다."),
+                                opt("안 살래요.", "🔔 대화 흐름과 맞지 않는 갑작스러운 거절입니다."),
+                                opt("처음 뵙겠습니다.", "🔔 초면 인사로 이미 대화가 진행된 상황과 맞지 않습니다.")
+                        ), 0, "🔔 알림모드 함정: 승낙 대답 뒤에 이어지는 짧은 흐름을 놓치면 엉뚱한 답을 고르기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '저쪽에서 입어 보세요-감사합니다'를 소리 내어 짝지어 말해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "여자: 이 편지 좀 보내 주세요.\n남자: 네, 이쪽으로 주세요.",
+                        q("여자가 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("우체국", "정답: 편지를 보내는 대화는 우체국에서 이루어집니다."),
+                                opt("병원", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("식당", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("영화관", "📜 언급된 내용과 맞지 않습니다.")
+                        ), 0, "📜 스크롤모드 함정: '편지'라는 단어를 빠르게 넘기면 장소를 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '이 편지 좀 보내 주세요'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "장소 고르기",
+                        "남자: 여기 라면 하나 주세요.\n여자: 네, 잠깐만 기다리세요.",
+                        q("남자가 있는 곳으로 가장 알맞은 곳을 고르십시오.", List.of(
+                                opt("식당", "정답: 음식을 주문하는 대화는 식당에서 이루어집니다."),
+                                opt("도서관", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("옷 가게", "📜 언급된 내용과 맞지 않습니다."),
+                                opt("약국", "📜 언급된 내용과 맞지 않습니다.")
+                        ), 0, "📜 스크롤모드 함정: '라면 하나 주세요'라는 표현을 빠르게 넘기면 장소를 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '라면 하나 주세요'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "여자: 생일이 언제예요?\n남자: 오월 십오 일이에요.",
+                        q("남자의 생일로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("오월 십오 일", "정답: 남자가 직접 '오월 십오 일'이라고 말했습니다."),
+                                opt("오월 오 일", "💬 대화에 없는 날짜입니다."),
+                                opt("유월 십오 일", "💬 대화에 없는 날짜입니다."),
+                                opt("사월 십오 일", "💬 대화에 없는 날짜입니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 날짜를 확인하지 않으면 비슷한 숫자와 헷갈리기 쉽습니다.",
+                                "[집중챌린지: 자막모드] '오월 십오 일이에요'를 소리 내어 따라 말하며 날짜를 정확히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "세부 정보 파악",
+                        "남자: 몇 명이에요?\n여자: 네 명이에요.",
+                        q("사람 수로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("네 명", "정답: 여자가 직접 '네 명'이라고 말했습니다."),
+                                opt("두 명", "💬 대화에 없는 숫자입니다."),
+                                opt("세 명", "💬 대화에 없는 숫자입니다."),
+                                opt("다섯 명", "💬 대화에 없는 숫자입니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 숫자를 확인하지 않으면 비슷한 숫자와 헷갈리기 쉽습니다.",
+                                "[집중챌린지: 자막모드] '네 명이에요'를 소리 내어 따라 말하며 숫자를 정확히 확인해 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "여자: 이 짐 좀 옮겨 주시겠어요?\n남자: 네, 어디로 옮길까요?",
+                        q("남자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("짐을 옮긴다.", "정답: 승낙하고 위치를 묻고 있으므로 바로 이어질 행동입니다."),
+                                opt("짐을 버린다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("문을 닫는다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("자리에 앉는다.", "🔔 언급되지 않은 행동입니다.")
+                        ), 0, "🔔 알림모드 함정: 승낙 대답 뒤에 바로 그 행동이 이어진다는 것을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '어디로 옮길까요' 뒤에 바로 이어지는 행동을 떠올려 보세요.")),
+                onePassage(PassageCategory.LISTENING, "이어질 행동 고르기",
+                        "남자: 사진 좀 찍어 주시겠어요?\n여자: 네, 여기 서 보세요.",
+                        q("남자가 이어서 할 행동으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("자리에 선다.", "정답: 사진을 찍기 위해 요청받은 위치에 서는 행동입니다."),
+                                opt("자리를 떠난다.", "🔔 요청과 반대되는 행동입니다."),
+                                opt("사진을 지운다.", "🔔 언급되지 않은 행동입니다."),
+                                opt("전화를 건다.", "🔔 언급되지 않은 행동입니다.")
+                        ), 0, "🔔 알림모드 함정: '여기 서 보세요' 뒤에 바로 그 행동이 이어진다는 것을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '여기 서 보세요' 뒤에 바로 이어지는 행동을 떠올려 보세요.")),
+                onePassage(PassageCategory.LISTENING, "스와이프 빠른 확인",
+                        "여자: 저는 커피를 안 마셔요.\n남자: 저도요. 저는 차를 마셔요.",
+                        swipe("남자는 차를 마십니다. 맞으면 오른쪽, 틀리면 왼쪽으로 골라 보세요.", true,
+                                "아니다", "맞다",
+                                "👍 '저도요'만 듣고 성급하게 판단하면 왼쪽을 고르는 실수를 하기 쉽습니다.",
+                                "정답: 남자가 직접 '저는 차를 마셔요'라고 말했습니다.",
+                                "👍 즉시반응모드 함정: '저도요'라는 짧은 대답을 끝까지 안 들으면 무엇에 동의했는지 놓치기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] '저도요' 뒤에 이어지는 말까지 끝까지 듣고 답을 골라 보세요.")),
+                onePassage(PassageCategory.LISTENING, "스와이프 빠른 확인",
+                        "남자: 지금 밖에 눈이 와요.\n여자: 정말요? 저는 몰랐어요.",
+                        swipe("지금 눈이 옵니다. 맞으면 오른쪽, 틀리면 왼쪽으로 골라 보세요.", true,
+                                "아니다", "맞다",
+                                "👍 첫 단어만 듣고 성급하게 판단하면 왼쪽을 고르는 실수를 하기 쉽습니다.",
+                                "정답: 남자가 직접 '지금 밖에 눈이 와요'라고 말했습니다.",
+                                "👍 즉시반응모드 함정: 첫 단어만 듣고 성급하게 판단하면 다른 날씨로 착각하기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 문장을 끝까지 다 듣고 나서 답을 골라 보세요."))
+        );
+
+        List<PassageSeed> reading1to10 = List.of(
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "저는 학교___갑니다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("에", "정답: 장소로 이동함을 나타낼 때는 '에'가 맞습니다."),
+                                opt("가", "💬 주어를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("을", "💬 목적어를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("도", "💬 '역시, 또한'을 나타내는 조사로 이 문맥과 맞지 않습니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 읽지 않으면 비슷한 조사들을 구분하기 어렵습니다.",
+                                "[집중챌린지: 자막모드] '학교에 갑니다'를 소리 내어 읽고 조사의 쓰임을 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "저는 아침___빵을 먹습니다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("에", "정답: 시간을 나타낼 때는 '에'가 맞습니다."),
+                                opt("가", "💬 주어를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("를", "💬 목적어를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("와", "💬 '~와 함께'를 나타내는 조사로 이 문맥과 맞지 않습니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 읽지 않으면 비슷한 조사들을 구분하기 어렵습니다.",
+                                "[집중챌린지: 자막모드] '아침에 빵을 먹습니다'를 소리 내어 읽고 조사의 쓰임을 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "안내문 일치",
+                        "[도서관 안내]\n문 여는 시간: 오전 9시\n문 닫는 시간: 오후 6시",
+                        q("안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("도서관은 오전 9시에 문을 엽니다.", "정답: 안내문 내용과 일치합니다."),
+                                opt("도서관은 오후 9시에 문을 엽니다.", "📜 오전이라고 했으므로 틀린 정보입니다."),
+                                opt("도서관은 오후 9시에 문을 닫습니다.", "📜 오후 6시라고 했으므로 틀린 정보입니다."),
+                                opt("도서관은 24시간 운영됩니다.", "📜 언급되지 않은 내용입니다.")
+                        ), 0, "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 오전/오후를 뒤바꿔 착각하기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '오전 9시'와 '오후 6시'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "안내문 일치",
+                        "[식당 안내]\n쉬는 날: 월요일\n영업 시간: 오전 11시 ~ 오후 9시",
+                        q("안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("이 식당은 월요일에 쉽니다.", "정답: 안내문 내용과 일치합니다."),
+                                opt("이 식당은 화요일에 쉽니다.", "📜 월요일이라고 했으므로 틀린 정보입니다."),
+                                opt("이 식당은 오전 9시에 문을 엽니다.", "📜 오전 11시라고 했으므로 틀린 정보입니다."),
+                                opt("이 식당은 하루 종일 엽니다.", "📜 영업 시간이 정해져 있으므로 틀린 정보입니다.")
+                        ), 0, "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 요일을 뒤바꿔 착각하기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '쉬는 날: 월요일'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그래서 저는 우산을 썼습니다.\n(나) 오늘 아침에 비가 왔습니다.\n(다) 지금은 비가 그쳤습니다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 비가 옴(나) → 우산을 씀(가) → 그침(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔔 비가 오기도 전에 우산을 쓰는 것은 순서가 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔔 그침이 먼저 나오고 비가 오는 것이 뒤에 오면 흐름이 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔔 그친 뒤에 우산을 쓰는 것은 논리적으로 어색합니다.")
+                        ), 0, "🔔 알림모드 함정: 순서를 하나씩 확인하지 않으면 앞뒤가 바뀐 지점을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '비가 옴→우산을 씀→그침' 순서를 손가락으로 짚으며 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그래서 병원에 갔습니다.\n(나) 어제 배가 아팠습니다.\n(다) 지금은 괜찮습니다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 아픔(나) → 병원(가) → 괜찮음(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔔 아프기도 전에 병원에 가는 것은 순서가 어색합니다."),
+                                opt("(다) - (가) - (나)", "🔔 괜찮음이 먼저 나오고 아픔이 뒤에 오면 흐름이 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔔 병원에 가기 전에 이미 괜찮다는 것은 논리적으로 어색합니다.")
+                        ), 0, "🔔 알림모드 함정: 순서를 하나씩 확인하지 않으면 앞뒤가 바뀐 지점을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '아픔→병원→괜찮음' 순서를 손가락으로 짚으며 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "저는 매일 아침 운동을 합니다. 운동을 하면 기분이 좋아집니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("운동을 하면 기분이 좋아진다.", "정답: 마지막 문장이 글쓴이가 말하고 싶은 핵심입니다."),
+                                opt("운동은 힘들다.", "👍 언급되지 않은 내용입니다."),
+                                opt("저는 운동을 싫어한다.", "👍 매일 한다고 했으므로 반대됩니다."),
+                                opt("저는 저녁에 운동한다.", "👍 아침에 한다고 했으므로 틀린 정보입니다.")
+                        ), 0, "👍 즉시반응모드 함정: 첫 문장만 보고 성급하게 판단하면 뒤에 나오는 진짜 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 두 문장을 모두 읽고 나서 중심 내용을 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "저는 책을 좋아합니다. 시간이 있을 때 도서관에 갑니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("저는 책을 좋아해서 도서관에 간다.", "정답: 두 문장을 종합한 핵심 내용입니다."),
+                                opt("저는 책을 싫어한다.", "👍 좋아한다고 했으므로 반대됩니다."),
+                                opt("저는 도서관에 가지 않는다.", "👍 시간이 있을 때 간다고 했으므로 반대됩니다."),
+                                opt("저는 매일 도서관에 간다.", "👍 '시간이 있을 때'라고 했으므로 매일은 틀린 정보입니다.")
+                        ), 0, "👍 즉시반응모드 함정: 첫 문장만 보고 성급하게 판단하면 뒤에 나오는 진짜 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 두 문장을 모두 읽고 나서 중심 내용을 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.READING, "OX 빠른 확인",
+                        "가게 문에 이런 안내문이 붙어 있습니다.\n\"오늘 쉽니다. 내일 만나요.\"",
+                        ox("이 안내문은 오늘 가게가 쉰다는 것을 알리고 있습니다.", true,
+                                "정답: '오늘 쉽니다'라는 문장이 핵심 내용입니다.",
+                                "📜 빠르게 넘기면 짧은 안내문의 핵심을 놓치고 X를 고르는 실수를 하기 쉽습니다.",
+                                "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 '오늘 쉰다'는 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '오늘 쉽니다'에 손가락을 짚으며 천천히 확인한 뒤 O/X를 골라 보세요.")),
+                onePassage(PassageCategory.READING, "OX 빠른 확인",
+                        "교실 문에 이런 안내문이 붙어 있습니다.\n\"수업이 없습니다. 다음 주에 만나요.\"",
+                        ox("이 안내문은 오늘 수업이 없다는 것을 알리고 있습니다.", true,
+                                "정답: '수업이 없습니다'라는 문장이 핵심 내용입니다.",
+                                "📜 빠르게 넘기면 짧은 안내문의 핵심을 놓치고 X를 고르는 실수를 하기 쉽습니다.",
+                                "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 '수업이 없다'는 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '수업이 없습니다'에 손가락을 짚으며 천천히 확인한 뒤 O/X를 골라 보세요."))
+        );
+
+        List<PassageSeed> reading11to20 = List.of(
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "저는 친구___만납니다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("를", "정답: 목적어를 나타낼 때는 '를'이 맞습니다."),
+                                opt("가", "💬 주어를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("에", "💬 장소·시간을 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("도", "💬 '역시, 또한'을 나타내는 조사로 이 문맥과 맞지 않습니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 읽지 않으면 비슷한 조사들을 구분하기 어렵습니다.",
+                                "[집중챌린지: 자막모드] '친구를 만납니다'를 소리 내어 읽고 조사의 쓰임을 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "빈칸에 알맞은 것 고르기",
+                        "이 옷이 저___작습니다.",
+                        q("빈칸에 알맞은 것을 고르십시오.", List.of(
+                                opt("한테는", "정답: '~에게는'을 나타낼 때는 '한테는'이 맞습니다."),
+                                opt("에서", "💬 장소를 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("으로", "💬 방향·수단을 나타내는 조사로 이 자리와 맞지 않습니다."),
+                                opt("까지", "💬 '~까지'를 나타내는 조사로 이 문맥과 맞지 않습니다.")
+                        ), 0, "💬 자막모드 함정: 소리 내어 읽지 않으면 비슷한 조사들을 구분하기 어렵습니다.",
+                                "[집중챌린지: 자막모드] '저한테는 작습니다'를 소리 내어 읽고 조사의 쓰임을 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "안내문 일치",
+                        "[영화관 안내]\n영화 시작: 오후 7시\n자리: 자유석",
+                        q("안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("자리는 자유롭게 앉을 수 있습니다.", "정답: '자유석'이라는 안내와 일치합니다."),
+                                opt("영화는 오전에 시작합니다.", "📜 오후 7시라고 했으므로 틀린 정보입니다."),
+                                opt("자리가 정해져 있습니다.", "📜 자유석이라고 했으므로 반대됩니다."),
+                                opt("영화는 오후 9시에 시작합니다.", "📜 오후 7시라고 했으므로 틀린 정보입니다.")
+                        ), 0, "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 시간을 뒤바꿔 착각하기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '오후 7시'와 '자유석'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "안내문 일치",
+                        "[버스 안내]\n출발 시간: 오전 8시\n도착 시간: 오전 10시",
+                        q("안내문의 내용과 같은 것을 고르십시오.", List.of(
+                                opt("버스는 오전 8시에 출발합니다.", "정답: 안내문 내용과 일치합니다."),
+                                opt("버스는 오후 8시에 출발합니다.", "📜 오전이라고 했으므로 틀린 정보입니다."),
+                                opt("버스는 오전 10시에 출발합니다.", "📜 도착 시간을 출발 시간으로 착각한 오답입니다."),
+                                opt("버스는 두 시간 전에 출발했습니다.", "📜 언급되지 않은 내용입니다.")
+                        ), 0, "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 출발/도착 시간을 뒤바꿔 착각하기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '출발: 8시'와 '도착: 10시'에 손가락을 짚으며 천천히 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그래서 늦게 일어났습니다.\n(나) 어젯밤에 늦게 잤습니다.\n(다) 학교에 지각했습니다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 늦게 잠(나) → 늦게 일어남(가) → 지각(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔔 늦게 자기도 전에 늦게 일어나는 것은 순서가 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔔 지각이 먼저 나오고 늦게 잠이 뒤에 오면 흐름이 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔔 지각한 뒤에 늦게 일어나는 것은 논리적으로 어색합니다.")
+                        ), 0, "🔔 알림모드 함정: 순서를 하나씩 확인하지 않으면 앞뒤가 바뀐 지점을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '늦게 잠→늦게 일어남→지각' 순서를 손가락으로 짚으며 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "문장 순서 배열",
+                        "다음을 순서에 맞게 배열한 것을 고르십시오.\n(가) 그래서 옷을 샀습니다.\n(나) 백화점에 갔습니다.\n(다) 집에 돌아왔습니다.",
+                        q("문장 순서로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("(나) - (가) - (다)", "정답: 백화점(나) → 구매(가) → 귀가(다) 순서가 자연스럽습니다."),
+                                opt("(가) - (나) - (다)", "🔔 백화점에 가기도 전에 옷을 사는 것은 순서가 어색합니다."),
+                                opt("(다) - (나) - (가)", "🔔 귀가가 먼저 나오고 백화점이 뒤에 오면 흐름이 어색합니다."),
+                                opt("(나) - (다) - (가)", "🔔 집에 돌아온 뒤에 옷을 사는 것은 논리적으로 어색합니다.")
+                        ), 0, "🔔 알림모드 함정: 순서를 하나씩 확인하지 않으면 앞뒤가 바뀐 지점을 놓치기 쉽습니다.",
+                                "[집중챌린지: 알림모드] '백화점→구매→귀가' 순서를 손가락으로 짚으며 확인해 보세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "저는 강아지를 키웁니다. 강아지와 산책하면 즐겁습니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("강아지와 산책하면 즐겁다.", "정답: 마지막 문장이 글쓴이가 말하고 싶은 핵심입니다."),
+                                opt("강아지는 키우기 어렵다.", "👍 언급되지 않은 내용입니다."),
+                                opt("저는 강아지를 싫어한다.", "👍 강아지를 키운다고 했으므로 반대됩니다."),
+                                opt("저는 고양이를 키운다.", "👍 강아지를 키운다고 했으므로 틀린 정보입니다.")
+                        ), 0, "👍 즉시반응모드 함정: 첫 문장만 보고 성급하게 판단하면 뒤에 나오는 진짜 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 두 문장을 모두 읽고 나서 중심 내용을 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.READING, "중심 내용 파악",
+                        "저는 요리를 잘 못합니다. 그래서 요리 학원에 다닙니다.",
+                        q("이 글의 중심 내용으로 가장 알맞은 것을 고르십시오.", List.of(
+                                opt("요리를 배우려고 학원에 다닌다.", "정답: 두 문장을 종합한 핵심 내용입니다."),
+                                opt("저는 요리를 잘한다.", "👍 잘 못한다고 했으므로 반대됩니다."),
+                                opt("저는 학원에 다니지 않는다.", "👍 학원에 다닌다고 했으므로 반대됩니다."),
+                                opt("저는 요리사입니다.", "👍 언급되지 않은 내용입니다.")
+                        ), 0, "👍 즉시반응모드 함정: 첫 문장만 보고 성급하게 판단하면 뒤에 나오는 진짜 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 즉시반응모드] 두 문장을 모두 읽고 나서 중심 내용을 고르는 연습을 해 보세요.")),
+                onePassage(PassageCategory.READING, "스와이프 빠른 확인",
+                        "회사 게시판에 이런 안내문이 붙어 있습니다.\n\"내일 회의가 없습니다.\"",
+                        swipe("이 안내문은 내일 회의가 없다는 것을 알리고 있습니다. 맞으면 오른쪽, 틀리면 왼쪽으로 골라 보세요.", true,
+                                "아니다", "맞다",
+                                "📜 빠르게 넘기면 짧은 안내문의 핵심을 놓치고 왼쪽을 고르는 실수를 하기 쉽습니다.",
+                                "정답: '내일 회의가 없습니다'라는 문장이 핵심 내용입니다.",
+                                "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 '회의가 없다'는 핵심을 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '내일 회의가 없습니다'에 손가락을 짚으며 천천히 확인한 뒤 답을 골라 보세요.")),
+                onePassage(PassageCategory.READING, "스와이프 빠른 확인",
+                        "엘리베이터에 이런 안내문이 붙어 있습니다.\n\"오늘 점검합니다. 계단을 이용하세요.\"",
+                        swipe("이 안내문은 계단을 이용해 달라고 요청하고 있습니다. 맞으면 오른쪽, 틀리면 왼쪽으로 골라 보세요.", true,
+                                "아니다", "맞다",
+                                "📜 빠르게 넘기면 짧은 안내문의 핵심 요청을 놓치고 왼쪽을 고르는 실수를 하기 쉽습니다.",
+                                "정답: '계단을 이용하세요'라는 요청이 핵심 내용입니다.",
+                                "📜 스크롤모드 함정: 짧은 안내문도 빠르게 넘기면 '계단을 이용하세요'라는 핵심 요청을 놓치기 쉽습니다.",
+                                "[집중챌린지: 스크롤모드] '계단을 이용하세요'에 손가락을 짚으며 천천히 확인한 뒤 답을 골라 보세요."))
+        );
+
+        return new WeekSeed("WEEK 1: 1~2급 집중 기초 다지기",
+                "짧은 대화와 지문을 SNS 피드처럼 빠르게 넘기며 풀되, SNS 행동 태그(📜 스크롤모드 / 👍 즉시반응모드 / "
+                        + "🔔 알림모드 / 💬 자막모드)로 나에게 맞는 집중챌린지를 찾는다. 문항 사이사이 OX·스와이프형 "
+                        + "간단 퀴즈로 리듬을 조절한다.",
+                WEEK1_ANSWER_NOTE_TEMPLATE,
+                List.of(
+                        day("1차(40문항) - 듣기 20(이어질 대답/장소/세부 정보/이어질 행동 고르기 + OX·스와이프 빠른 확인 4문항) "
+                                        + "+ 읽기 20(빈칸/안내문 일치/문장 순서/중심 내용/실용문 독해 + OX·스와이프 빠른 확인 4문항). "
+                                        + "SNS 행동 태그로 오답을 표시하고 집중챌린지를 직접 실행하세요.",
+                                merge(listening1to10, listening11to20, reading1to10, reading11to20))
+                ));
+    }
+
+    private void saveCurriculumWithDays(Curriculum curriculum, List<WeekSeed> weekSeeds) {
+        List<CurriculumWeek> weeks = new ArrayList<>();
+        List<CurriculumDay> allDays = new ArrayList<>();
+        int dayNumber = 0;
+
+        for (int w = 0; w < weekSeeds.size(); w++) {
+            WeekSeed weekSeed = weekSeeds.get(w);
+            CurriculumWeek week = new CurriculumWeek();
+            week.setCurriculum(curriculum);
+            week.setWeekNumber(w + 1);
+            week.setTitle(weekSeed.title());
+            week.setGoal(weekSeed.goal());
+            week.setAnswerNoteTemplate(weekSeed.template());
+            weeks.add(week);
+
+            for (DaySeed daySeed : weekSeed.days()) {
+                dayNumber++;
+                CurriculumDay day = new CurriculumDay();
+                day.setWeek(week);
+                day.setDayNumber(dayNumber);
+                day.setTask(daySeed.task());
+
+                List<CurriculumPassage> passages = new ArrayList<>();
+                for (int p = 0; p < daySeed.passages().size(); p++) {
+                    PassageSeed passageSeed = daySeed.passages().get(p);
+                    CurriculumPassage passage = new CurriculumPassage();
+                    passage.setDay(day);
+                    passage.setOrderIndex(p + 1);
+                    passage.setCategory(passageSeed.category());
+                    passage.setSubType(passageSeed.subType());
+                    passage.setPassageText(passageSeed.passageText());
+                    passage.setDiagramSvg(passageSeed.diagramSvg());
+                    passage.setProblems(buildProblems(passage, passageSeed.problems()));
+                    passages.add(passage);
+                }
+                day.setPassages(passages);
+                allDays.add(day);
+            }
+        }
+
+        curriculumRepository.save(curriculum);
+        weeks.forEach(curriculumRepository::saveWeek);
+        curriculumDayRepository.saveAll(allDays);
+    }
+
+    private List<CurriculumProblem> buildProblems(CurriculumPassage passage, List<ProblemSeed> problemSeeds) {
+        List<CurriculumProblem> problems = new ArrayList<>();
+        for (int i = 0; i < problemSeeds.size(); i++) {
+            ProblemSeed problemSeed = problemSeeds.get(i);
+            CurriculumProblem problem = new CurriculumProblem();
+            problem.setPassage(passage);
+            problem.setOrderIndex(i + 1);
+            problem.setQuestionText(problemSeed.question());
+            problem.setOptions(problemSeed.options().stream().map(OptionSeed::text).toList());
+            problem.setCorrectAnswerIndex(problemSeed.correctIndex());
+            problem.setOptionExplanations(problemSeed.options().stream().map(OptionSeed::note).toList());
+            problem.setTrapNote(problemSeed.trapNote());
+            problem.setStrategyTip(problemSeed.strategyTip());
+            problems.add(problem);
+        }
+        return problems;
+    }
+}
