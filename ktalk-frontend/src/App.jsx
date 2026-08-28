@@ -18,6 +18,8 @@ const TAB_TO_STAGE = {
   contents: { stage: 'infer', tool: 'contents' },
   clip: { stage: 'infer', tool: 'clip' },
   chat: { stage: 'pattern', tool: 'chat' },
+  tutor: { stage: 'pattern', tool: 'tutor' },
+  flashcard: { stage: 'review', tool: 'flashcard' },
   personalized: { stage: 'sensory', tool: 'personalized' },
   pronunciation: { stage: 'sensory', tool: 'pronunciation' },
 }

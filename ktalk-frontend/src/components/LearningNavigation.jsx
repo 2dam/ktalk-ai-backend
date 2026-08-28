@@ -11,6 +11,8 @@ import PersonalizedLearning from './PersonalizedLearning'
 import ReviewAlarm from './ReviewAlarm'
 import NativeUsage from './NativeUsage'
 import ClickableKorean from './ClickableKorean'
+import Flashcard from './Flashcard'
+import TutorChat from './TutorChat'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -606,6 +608,9 @@ function LearningNavigation({ target, onRequireAuth }) {
           <PracticeTool id="chat" title="💬 AI와 실전 회화로 패턴 응용해보기" openTool={openTool} setOpenTool={setOpenTool}>
             <CharacterChat />
           </PracticeTool>
+          <PracticeTool id="tutor" title="🎭 역할 튜터와 연습하기 (발음/문법/회화)" openTool={openTool} setOpenTool={setOpenTool}>
+            <TutorChat />
+          </PracticeTool>
         </div>
       )}
 
@@ -685,11 +690,18 @@ function LearningNavigation({ target, onRequireAuth }) {
       )}
 
       {stage === 'review' && (
-        <ReviewAlarm
-          justLearned={lesson}
-          onComplete={() => { fetchDueCount(); setStage('done') }}
-          onRequireAuth={onRequireAuth}
-        />
+        <>
+          <ReviewAlarm
+            justLearned={lesson}
+            onComplete={() => { fetchDueCount(); setStage('done') }}
+            onRequireAuth={onRequireAuth}
+          />
+          <div style={{ textAlign: 'left', marginTop: '16px' }}>
+            <PracticeTool id="flashcard" title="🃏 플래시카드로 단어 다지기 (천 시간 복습)" openTool={openTool} setOpenTool={setOpenTool}>
+              <Flashcard context={lesson?.sentence} />
+            </PracticeTool>
+          </div>
+        </>
       )}
 
       {stage === 'done' && !lesson && (
