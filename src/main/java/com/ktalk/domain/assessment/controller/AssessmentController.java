@@ -4,6 +4,7 @@ import com.ktalk.domain.assessment.dto.AssessmentQuestion;
 import com.ktalk.domain.assessment.dto.AssessmentResultResponse;
 import com.ktalk.domain.assessment.dto.AssessmentSubmitRequest;
 import com.ktalk.domain.assessment.dto.QuickAssignRequest;
+import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.assessment.service.AssessmentQuestionProvider;
 import com.ktalk.domain.assessment.service.AssessmentService;
 import com.ktalk.global.response.ApiResponse;
@@ -63,6 +64,16 @@ public class AssessmentController {
         } catch (Exception e) {
             log.error("빠른 유형 배정 실패", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("배정 실패: " + e.getMessage()));
+        }
+    }
+
+    // 천 시간(1000-hour) 단계별 커리큘럼 조회 — ecue 설계 방식 차용 (공개)
+    @GetMapping("/thousand-hour-stages")
+    public ResponseEntity<ApiResponse> thousandHourStages() {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(LearnerType.thousandHourStages(), "천 시간 단계"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("조회 실패: " + e.getMessage()));
         }
     }
 

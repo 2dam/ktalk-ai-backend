@@ -148,4 +148,46 @@ public enum LearnerType {
 
     public record CurriculumStage(String period, String content) {
     }
+
+    /**
+     * 천 시간(1000-hour) 단계별 커리큘럼 모델.
+     * everyone-can-use-english(ecue)의 "천 시간 법칙"을 한국어 학습용으로 차용한 설계 방식이다.
+     * 입력 우선(LISTEN → SPEAK → READ → WRITE) 원칙을 5단계 누적시간(targetHours)으로 표현한다.
+     *
+     * <p>기존 CurriculumStage(8주 TOPIK 커리큘럼)는 그대로 두고, 이 모델은 "장기 누적 루프" 관점을
+     * 덧씌운다. 원문 복사는 하지 않았다(GPL-3.0) — 아이디어(단계별 누적 입력)만 차용.
+     */
+    public enum InputMode {
+        LISTEN,   // 듣기 우선 (원음 노출)
+        SPEAK,    // 말하기 (쉐도잉)
+        READ,     // 읽기 (원본 지문)
+        WRITE     // 쓰기/문법
+    }
+
+    public record ThousandHourStage(
+            int tier,            // 1~5
+            String name,         // 단계명
+            InputMode inputMode, // 이 단계의 핵심 입력 모드
+            int targetHours,     // 이 단계까지의 누적 목표 학습시간
+            String kContentRef   // 연결할 K-콘텐츠 난이도/유형 힌트
+    ) {}
+
+    // 학습 유형과 무관하게 모든 학습자에게 공통 적용되는 천 시간 단계.
+    // 유형별로 입력 비중만 다르게 할 수도 있으나 1차 구현은 공통 5단계로 고정.
+    public static final List<ThousandHourStage> THOUSAND_HOUR_STAGES = List.of(
+            new ThousandHourStage(1, "원음 몰입기", InputMode.LISTEN, 200,
+                    "쉬운 K-콘텐츠(키즈/일상 vlog), 자막 ON, 의미 유추 위주"),
+            new ThousandHourStage(2, "쉐도잉기", InputMode.SPEAK, 400,
+                    "따라 말하기, 발음 코치 연동, 반복 청취"),
+            new ThousandHourStage(3, "읽기 전환기", InputMode.READ, 650,
+                    "원본 자막/대본 읽기, 사전 팝업 활용"),
+            new ThousandHourStage(4, "쓰기·문법기", InputMode.WRITE, 850,
+                    "문법 선생님 역할 튜터, 패턴 응용"),
+            new ThousandHourStage(5, "자유 구사기", InputMode.SPEAK, 1000,
+                    "회화 파트너 역할 튜터, 주제 자유 대화")
+    );
+
+    public static List<ThousandHourStage> thousandHourStages() {
+        return THOUSAND_HOUR_STAGES;
+    }
 }
