@@ -21034,14 +21034,19 @@ public class SnsDependentCurriculumDataLoader implements CommandLineRunner {
             week.setWeekNumber(w + 1);
             week.setTitle(weekSeed.title());
             week.setGoal(weekSeed.goal());
-            week.setAnswerNoteTemplate(weekSeed.template());
+            week.setTemplate(weekSeed.template());
+            week.setActivities(List.of());
             weeks.add(week);
 
+            int dayInWeek = 0;
             for (DaySeed daySeed : weekSeed.days()) {
                 dayNumber++;
+                dayInWeek++;
                 CurriculumDay day = new CurriculumDay();
+                day.setCurriculum(curriculum);
                 day.setWeek(week);
                 day.setDayNumber(dayNumber);
+                day.setDayInWeek(dayInWeek);
                 day.setTask(daySeed.task());
 
                 List<CurriculumPassage> passages = new ArrayList<>();
@@ -21062,8 +21067,8 @@ public class SnsDependentCurriculumDataLoader implements CommandLineRunner {
             }
         }
 
+        curriculum.setWeeks(weeks);
         curriculumRepository.save(curriculum);
-        weeks.forEach(curriculumRepository::saveWeek);
         curriculumDayRepository.saveAll(allDays);
     }
 

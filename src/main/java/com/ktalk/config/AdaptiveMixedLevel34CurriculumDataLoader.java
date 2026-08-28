@@ -21568,7 +21568,8 @@ public class AdaptiveMixedLevel34CurriculumDataLoader implements CommandLineRunn
             week.setWeekNumber(w + 1);
             week.setTitle(weekSeed.title());
             week.setGoal(weekSeed.goal());
-            week.setAnswerNoteTemplate(weekSeed.template());
+            week.setTemplate(weekSeed.template());
+            week.setActivities(List.of());
             weeks.add(week);
 
             List<DaySeed> daySeeds = weekSeed.days();
