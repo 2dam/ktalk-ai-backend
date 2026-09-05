@@ -16,9 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 학습 유형 진단(시각적 몰입형/체험적 실행형)에 연결되는 8주(56일) TOPIK 커리큘럼을 심어둔다.
+ * 학습 유형 진단(시각적 몰입형)에 연결되는 8주(56일) TOPIK 커리큘럼을 심어둔다.
  * 원고의 골격(주차 목표/활동/학습지 템플릿)만 데이터화하고, 일별 배분은 각 주차 활동
  * 목록을 7일에 걸쳐 순환 배치해서 만든다(원고에 일 단위 구분이 없어서 균등 배분).
+ *
+ * <p>체험적 실행형(EXPERIENTIAL_ACTOR) 시딩은 여기 있었으나, 이제 학습 단계별(1~2급/3~4급/5~6급)
+ * 전용 로더({@code ExperientialActorCurriculumDataLoader} 등)로 완전히 대체되어 제거했다 —
+ * 이 파일의 {@code findByLearnerType(EXPERIENTIAL_ACTOR)} 단일 결과 조회가 전용 로더들이 심어둔
+ * 3개 행과 충돌해 {@code NonUniqueResultException}을 일으키고 있었다.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -32,15 +37,10 @@ public class CurriculumDataLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        // 커리큘럼별로 따로 확인한다 — 나중에 유형이 추가돼도(예: StrategicAnalystCurriculumDataLoader)
-        // 이미 심어진 다른 유형이 있다고 건너뛰지 않도록.
         if (curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.VISUAL_IMMERSIVE, TopikLevel.LEVEL_4).isEmpty()) {
             seedVisualImmersive();
         }
-        if (curriculumRepository.findByLearnerType(LearnerType.EXPERIENTIAL_ACTOR).isEmpty()) {
-            seedExperientialActor();
-        }
-        System.out.println("✅ TOPIK 커리큘럼(시각적 몰입형/체험적 실행형) 확인 완료");
+        System.out.println("✅ TOPIK 커리큘럼(시각적 몰입형) 확인 완료");
     }
 
     private void seedVisualImmersive() {
@@ -156,116 +156,6 @@ public class CurriculumDataLoader implements CommandLineRunner {
         curriculum.setUsageNote(
                 "모든 학습 내용을 색깔 펜 3~4가지로 구분해 필기하고, 복잡한 문법은 마인드맵으로, "
                         + "어휘는 카테고리별 도식화로 정리하세요.");
-
-        saveCurriculumWithDays(curriculum, weeks);
-    }
-
-    private void seedExperientialActor() {
-        List<WeekSeed> weeks = List.of(
-                new WeekSeed(
-                        "기초 문형 30개 마스터",
-                        "직접 쓰고 말하면서 기초 문형을 체화한다.",
-                        List.of(
-                                "오늘의 문법으로 예문 3개씩 직접 작성하기 (예: -아/어서 예문 3개)",
-                                "25분 집중 + 5분 휴식 뽀모도로 기법으로 학습하기",
-                                "작성한 예문을 소리 내어 읽어보기"
-                        ),
-                        null
-                ),
-                new WeekSeed(
-                        "빈출 어휘 플래시카드",
-                        "직접 만든 플래시카드로 어휘를 손과 입으로 익힌다.",
-                        List.of(
-                                "오늘 배운 단어로 플래시카드 직접 제작하기 (앞: 한국어 / 뒤: 뜻·예문)",
-                                "단어를 보면 즉시 예문을 소리 내어 말하는 연습하기"
-                        ),
-                        null
-                ),
-                new WeekSeed(
-                        "문법 통합 연습",
-                        "여러 문법을 한 번에 활용해 짧은 글을 완성한다.",
-                        List.of(
-                                "이번 주 배운 문법 중 5개를 모두 사용해 5문장짜리 글 쓰기",
-                                "빈칸 채우기 워크시트 직접 풀어보기"
-                        ),
-                        """
-                        [문법 연습 - 연결어미]
-                        1. -고 (순차적 나열): 아침에 일어나서 (        ) (        ) 학교에 갔어요.
-                        2. -지만 (대조): 한국어는 어렵지만 (        ) (        ) (        ).
-                        3. -을 때 (시간): (        ) (        ) (        ) 날씨가 가장 좋아요.
-                        (빈칸을 직접 채워 문장을 완성하세요.)
-                        """
-                ),
-                new WeekSeed(
-                        "듣기 집중 훈련",
-                        "쉐도잉과 받아쓰기로 듣기 근육을 직접 만든다.",
-                        List.of(
-                                "쉐도잉: 듣기 지문을 들으며 동시에 따라 말하기 (하루 10분)",
-                                "받아쓰기: 1분 분량 지문을 받아쓰고 정답지와 비교해 오류 수정하기"
-                        ),
-                        """
-                        [받아쓰기 연습지]
-                        내가 들은 내용을 그대로 적어보세요 (최소 3회 반복 청취 후 작성):
-                        ________________________________________
-                        ________________________________________
-                        [정답지와 비교 후 틀린 부분 기록]
-                        1. ______________  2. ______________  3. ______________
-                        """
-                ),
-                new WeekSeed(
-                        "읽기 집중 훈련",
-                        "소리 내어 읽고 직접 요약하며 독해력을 체화한다.",
-                        List.of(
-                                "읽기 지문 3회 반복해서 소리 내어 읽기 (1차 내용파악·2차 모르는 단어 표시·3차 문장구조 분석)",
-                                "읽은 지문을 한국어 3문장으로 직접 요약하기"
-                        ),
-                        null
-                ),
-                new WeekSeed(
-                        "모의고사 실전 풀이 (1)",
-                        "실제 시험 시간에 맞춰 실전처럼 직접 풀어본다.",
-                        List.of(
-                                "실제 시험 시간(180분)에 맞춰 모의고사 풀이하기",
-                                "풀면서 모르는 단어는 바로 형광펜으로 표시하기"
-                        ),
-                        null
-                ),
-                new WeekSeed(
-                        "모의고사 실전 풀이 (2)",
-                        "실전 감각을 유지하며 원고지 쓰기를 준비한다.",
-                        List.of(
-                                "실제 시험 시간(180분)에 맞춰 모의고사 1회분 더 풀이하기",
-                                "지난 모의고사에서 표시한 모르는 단어 복습하기"
-                        ),
-                        null
-                ),
-                new WeekSeed(
-                        "쓰기 원고지 연습 & 오답 액션 플랜",
-                        "실제 원고지에 쓰기 답안을 작성하고 오답을 직접 분석한다.",
-                        List.of(
-                                "51번(2~3문장), 52번(3~4문장) 답안을 원고지에 직접 작성하기",
-                                "53번(5~7문장), 54번(600~700자) 답안을 원고지에 직접 작성하기",
-                                "틀린 문제 하나를 골라 '왜 틀렸을까' 3줄로 분석하기"
-                        ),
-                        """
-                        [오답 액션 플랜]
-                        - 문제 번호: ______
-                        - 틀린 이유(예: 시간 부족 / 어휘 몰라 / 함정에 빠짐): ______
-                        - 다음에 이 문제를 만나면 어떻게 풀 것인가? 3줄 요약:
-                          1. ______________  2. ______________  3. ______________
-                        """
-                )
-        );
-
-        Curriculum curriculum = new Curriculum();
-        curriculum.setLearnerType(LearnerType.EXPERIENTIAL_ACTOR);
-        curriculum.setTitle("TOPIK 액티브 워크북");
-        curriculum.setTargetLevelLabel("3~4급 목표");
-        curriculum.setTargetLevelFrom(TopikLevel.LEVEL_3);
-        curriculum.setTargetLevelTo(TopikLevel.LEVEL_4);
-        curriculum.setUsageNote(
-                "모든 문제는 반드시 직접 풀고 빈칸을 채우며 학습하고, 25분 집중+5분 휴식 뽀모도로 기법을 지키세요. "
-                        + "읽기 지문은 소리 내어 3번 읽고, 쓰기는 원고지에 직접 연습하세요.");
 
         saveCurriculumWithDays(curriculum, weeks);
     }

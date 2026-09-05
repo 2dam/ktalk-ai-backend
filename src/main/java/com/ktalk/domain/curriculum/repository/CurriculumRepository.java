@@ -9,9 +9,6 @@ import java.util.Optional;
 
 public interface CurriculumRepository extends JpaRepository<Curriculum, String> {
 
-    /** VISUAL_IMMERSIVE/EXPERIENTIAL_ACTOR처럼 급수단계 구분 없이 학습유형당 커리큘럼이 하나뿐인 경우용. */
-    Optional<Curriculum> findByLearnerType(LearnerType learnerType);
-
     /** 학습유형 + 급수단계(targetLevelFrom)로 정확히 하나의 커리큘럼을 찾는다(예: STRATEGIC_ANALYST + LEVEL_3 = 3~4급 과정). */
     Optional<Curriculum> findByLearnerTypeAndTargetLevelFrom(LearnerType learnerType, TopikLevel targetLevelFrom);
 
