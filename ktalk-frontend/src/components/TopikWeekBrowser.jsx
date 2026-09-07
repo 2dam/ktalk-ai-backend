@@ -1,0 +1,234 @@
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { API_BASE, authHeaders, hasToken } from '../api'
+import { TAB_COLORS } from '../theme'
+import ClickableKorean from './ClickableKorean'
+import CurriculumPassageCard from './CurriculumPassageCard'
+
+const CURRICULUM_URL = `${API_BASE}/api/curriculum`
+
+const ACCENT = TAB_COLORS.navigation.accent
+const ACCENT_TINT = TAB_COLORS.navigation.tint
+
+const NEEDS_ASSESSMENT_MESSAGE = '먼저 학습 유형 진단을 완료해주세요.'
+
+/**
+ * 배정된 커리큘럼을 주차 단위로 훑어보는 화면. "오늘의 학습"과 달리 진행 순서와
+ * 무관하게 아무 주/일이나 골라 볼 수 있다 — 기출문제집(filterWeeks로 일반 주차만)과
+ * 모의고사(filterWeeks로 모의고사/Final 주차만) 화면이 이 컴포넌트를 함께 쓴다.
+ */
+function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onBack, onRequireAuth, onGoToAssessment }) {
+  const loggedIn = hasToken()
+
+  const [weeks, setWeeks] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [selectedWeek, setSelectedWeek] = useState(null)
+  const [dayNumber, setDayNumber] = useState(null)
+  const [dayContent, setDayContent] = useState(null)
+  const [dayLoading, setDayLoading] = useState(false)
+  const [dayError, setDayError] = useState('')
+
+  useEffect(() => {
+    if (!loggedIn) {
+      setLoading(false)
+      return
+    }
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await axios.get(`${CURRICULUM_URL}/weeks`, { headers: authHeaders() })
+        if (res.data?.success) {
+          setWeeks(res.data.data)
+        } else {
+          setError(res.data?.message || '주차 목록을 불러오지 못했어요.')
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || '주차 목록을 불러오지 못했어요.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const openDay = async (day) => {
+    setDayNumber(day.dayNumber)
+    setDayContent(null)
+    setDayLoading(true)
+    setDayError('')
+    try {
+      const res = await axios.get(`${CURRICULUM_URL}/days/${day.dayNumber}`, { headers: authHeaders() })
+      if (res.data?.success) {
+        setDayContent(res.data.data)
+      } else {
+        setDayError(res.data?.message || '학습 내용을 불러오지 못했어요.')
+      }
+    } catch (err) {
+      setDayError(err.response?.data?.message || '학습 내용을 불러오지 못했어요.')
+    } finally {
+      setDayLoading(false)
+    }
+  }
+
+  if (!loggedIn) {
+    return (
+      <main className="topik-page" id="top">
+        <div className="topik-page-head">
+          <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+          <span className="topik-badge">TOPIK 코스</span>
+          <h1>로그인하고 {heading}을 시작하세요</h1>
+          <p>학습 유형 진단 결과에 맞춰 콘텐츠가 자동으로 배정돼요.</p>
+        </div>
+        <button
+          type="button"
+          className="primary-cta"
+          onClick={onRequireAuth}
+          style={{ margin: '0 auto', display: 'block' }}
+        >
+          로그인하기
+        </button>
+      </main>
+    )
+  }
+
+  const visibleWeeks = weeks ? filterWeeks(weeks) : []
+
+  const backTarget = () => {
+    if (dayNumber !== null) {
+      setDayNumber(null)
+      setDayContent(null)
+      setDayError('')
+      return
+    }
+    if (selectedWeek !== null) {
+      setSelectedWeek(null)
+      return
+    }
+    onBack()
+  }
+
+  return (
+    <main className="topik-page" id="top">
+      <div className="topik-page-head">
+        <button type="button" className="topik-back" onClick={backTarget}>← 이전으로</button>
+        <span className="topik-badge">TOPIK 코스</span>
+        <h1>{heading}</h1>
+        <p>{description}</p>
+      </div>
+
+      <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
+        {loading && <p>불러오는 중...</p>}
+
+        {!loading && error === NEEDS_ASSESSMENT_MESSAGE && (
+          <div>
+            <p style={{ color: '#666' }}>{error}</p>
+            <button
+              type="button"
+              onClick={onGoToAssessment}
+              style={{
+                padding: '10px 18px', cursor: 'pointer',
+                backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px',
+              }}
+            >
+              학습 유형 진단 하러 가기
+            </button>
+          </div>
+        )}
+
+        {!loading && error && error !== NEEDS_ASSESSMENT_MESSAGE && (
+          <p style={{ color: '#dc3545' }}>⚠ {error}</p>
+        )}
+
+        {!loading && !error && dayNumber !== null && (
+          <>
+            {dayLoading && <p>불러오는 중...</p>}
+            {!dayLoading && dayError && <p style={{ color: '#dc3545' }}>⚠ {dayError}</p>}
+            {!dayLoading && !dayError && dayContent && (
+              <>
+                <div style={{ fontSize: '12px', color: '#999', marginBottom: '4px' }}>
+                  {dayContent.weekNumber}주차 · {dayContent.dayInWeek}일째 · {dayContent.weekTitle}
+                </div>
+                <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>{dayContent.weekGoal}</p>
+
+                <div style={{
+                  fontSize: '18px', fontWeight: 700, padding: '18px', borderRadius: '12px',
+                  backgroundColor: '#fff7ed', border: '1px solid ' + ACCENT_TINT, marginBottom: '16px',
+                }}>
+                  <ClickableKorean text={dayContent.task} />
+                </div>
+
+                {dayContent.template && (
+                  <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
+                    <summary style={{ cursor: 'pointer' }}>📎 이 회차 학습지 템플릿 보기</summary>
+                    <pre style={{
+                      marginTop: '8px', padding: '14px', backgroundColor: '#f9f9f9', borderRadius: '8px',
+                      whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: 1.6, fontFamily: 'inherit',
+                    }}>
+                      {dayContent.template}
+                    </pre>
+                  </details>
+                )}
+
+                {dayContent.passages?.length > 0 && (
+                  <div>
+                    {dayContent.passages.map((passage, idx) => (
+                      <CurriculumPassageCard key={passage.id} passage={passage} index={idx} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {!loading && !error && dayNumber === null && selectedWeek !== null && (
+          <>
+            <h2 style={{ marginTop: 0 }}>{selectedWeek.title}</h2>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>{selectedWeek.goal}</p>
+            <div className="topik-page-grid">
+              {selectedWeek.days.map((day) => (
+                <button
+                  type="button"
+                  className="topik-page-card"
+                  key={day.dayNumber}
+                  onClick={() => openDay(day)}
+                >
+                  <b>{day.dayInWeek}회차</b>
+                  <small>{day.task}</small>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {!loading && !error && dayNumber === null && selectedWeek === null && (
+          <>
+            {visibleWeeks.length === 0 ? (
+              <p style={{ color: '#666' }}>{emptyMessage}</p>
+            ) : (
+              <div className="topik-page-grid">
+                {visibleWeeks.map((week) => (
+                  <button
+                    type="button"
+                    className="topik-page-card"
+                    key={week.weekNumber}
+                    onClick={() => setSelectedWeek(week)}
+                  >
+                    <b>{week.title}</b>
+                    <small>{week.goal}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </main>
+  )
+}
+
+export default TopikWeekBrowser

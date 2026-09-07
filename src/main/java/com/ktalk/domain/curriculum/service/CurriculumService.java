@@ -3,16 +3,20 @@ package com.ktalk.domain.curriculum.service;
 import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.assessment.repository.AssessmentResultRepository;
 import com.ktalk.domain.curriculum.dto.CurriculumDayResponse;
+import com.ktalk.domain.curriculum.dto.CurriculumWeekSummaryResponse;
 import com.ktalk.domain.curriculum.dto.PassageResponse;
 import com.ktalk.domain.curriculum.dto.ProblemAnswerResponse;
+import com.ktalk.domain.curriculum.dto.WrongAnswerResponse;
 import com.ktalk.domain.curriculum.entity.Curriculum;
 import com.ktalk.domain.curriculum.entity.CurriculumDay;
 import com.ktalk.domain.curriculum.entity.CurriculumProblem;
 import com.ktalk.domain.curriculum.entity.UserCurriculumProgress;
+import com.ktalk.domain.curriculum.entity.UserWrongAnswer;
 import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumProblemRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumRepository;
 import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
+import com.ktalk.domain.curriculum.repository.UserWrongAnswerRepository;
 import com.ktalk.domain.topik.entity.TopikLevel;
 import com.ktalk.domain.topik.entity.Word;
 import com.ktalk.domain.topik.repository.WordRepository;
@@ -23,7 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 학습 유형 진단(AssessmentResult.learnerType) 결과에 맞는 8주 커리큘럼을 하루
@@ -43,6 +50,7 @@ public class CurriculumService {
     private final AssessmentResultRepository assessmentResultRepository;
     private final UserRepository userRepository;
     private final WordRepository wordRepository;
+    private final UserWrongAnswerRepository wrongAnswerRepository;
 
     @Transactional
     public CurriculumDayResponse getToday(Long userId) {
@@ -60,20 +68,100 @@ public class CurriculumService {
         return buildResponse(progress);
     }
 
-    /** 지문 하나에 딸린 문제 하나를 채점한다. 로그인 없이도 풀 수 있는 정적 문제집이라
-     * 별도 사용자 상태를 남기지 않는다(오답노트 등 개인화가 필요해지면 여기에 추가). */
+    /** 배정된 커리큘럼의 주차 목록(주차별 제목/목표 + 그 주의 일자 목록)을 훑어본다.
+     * "오늘의 학습" 진행 상태와는 무관하게 아무 주/일이나 미리 볼 수 있다
+     * (기출문제집·모의고사 화면이 여기서 원하는 주를 골라 peekDay로 상세를 연다). */
     @Transactional(readOnly = true)
-    public ProblemAnswerResponse submitAnswer(String problemId, int selectedIndex) {
+    public List<CurriculumWeekSummaryResponse> getWeeks(Long userId) {
+        UserCurriculumProgress progress = getOrAssignProgress(userId);
+        Curriculum curriculum = progress.getCurriculum();
+
+        Map<String, List<CurriculumDay>> daysByWeekId = curriculumDayRepository
+                .findByCurriculumId(curriculum.getId()).stream()
+                .collect(Collectors.groupingBy(day -> day.getWeek().getId()));
+
+        return curriculum.getWeeks().stream()
+                .map(week -> new CurriculumWeekSummaryResponse(
+                        week.getWeekNumber(),
+                        week.getTitle(),
+                        week.getGoal(),
+                        daysByWeekId.getOrDefault(week.getId(), List.of()).stream()
+                                .sorted(Comparator.comparingInt(CurriculumDay::getDayInWeek))
+                                .map(day -> new CurriculumWeekSummaryResponse.DaySummaryResponse(
+                                        day.getDayNumber(), day.getDayInWeek(), day.getTask()))
+                                .toList()
+                ))
+                .toList();
+    }
+
+    /** 특정 일자의 학습 내용을 "오늘의 학습" 진행과 무관하게 미리 본다(기출문제집/모의고사용). */
+    @Transactional(readOnly = true)
+    public CurriculumDayResponse peekDay(Long userId, int dayNumber) {
+        UserCurriculumProgress progress = getOrAssignProgress(userId);
+        Curriculum curriculum = progress.getCurriculum();
+        CurriculumDay day = curriculumDayRepository.findByCurriculumIdAndDayNumber(curriculum.getId(), dayNumber)
+                .orElseThrow(() -> new IllegalArgumentException("해당 학습 내용을 찾을 수 없습니다: " + dayNumber + "일째"));
+
+        return toResponse(curriculum, progress, day, false);
+    }
+
+    /** 지문 하나에 딸린 문제 하나를 채점한다. 로그인 없이도 풀 수 있는 정적 문제집이라
+     * userId가 없어도(비로그인) 채점 자체는 그대로 동작하고, 로그인 상태면 틀린 문제를
+     * 오답노트에 기록한다(다시 맞히면 오답노트에서 자동으로 지운다). */
+    @Transactional
+    public ProblemAnswerResponse submitAnswer(String problemId, int selectedIndex, Long userId) {
         CurriculumProblem problem = curriculumProblemRepository.findById(problemId)
                 .orElseThrow(() -> new IllegalArgumentException("문제를 찾을 수 없습니다: " + problemId));
 
+        boolean correct = selectedIndex == problem.getCorrectAnswerIndex();
+        if (userId != null) {
+            recordWrongAnswer(userId, problem, selectedIndex, correct);
+        }
+
         return new ProblemAnswerResponse(
-                selectedIndex == problem.getCorrectAnswerIndex(),
+                correct,
                 problem.getCorrectAnswerIndex(),
                 problem.getOptionExplanations(),
                 problem.getTrapNote(),
                 problem.getStrategyTip()
         );
+    }
+
+    private void recordWrongAnswer(Long userId, CurriculumProblem problem, int selectedIndex, boolean correct) {
+        if (correct) {
+            wrongAnswerRepository.deleteByUser_IdAndProblem_Id(userId, problem.getId());
+            return;
+        }
+        UserWrongAnswer wrongAnswer = wrongAnswerRepository.findByUser_IdAndProblem_Id(userId, problem.getId())
+                .orElseGet(() -> {
+                    User user = userRepository.findById(userId).orElse(null);
+                    if (user == null) {
+                        return null;
+                    }
+                    UserWrongAnswer created = new UserWrongAnswer();
+                    created.setUser(user);
+                    created.setProblem(problem);
+                    return created;
+                });
+        if (wrongAnswer == null) {
+            return;
+        }
+        wrongAnswer.setSelectedIndex(selectedIndex);
+        wrongAnswerRepository.save(wrongAnswer);
+    }
+
+    /** 로그인한 사용자가 지금까지 틀린 문제 목록(오답노트). 최근 틀린 순. */
+    @Transactional(readOnly = true)
+    public List<WrongAnswerResponse> getWrongNotes(Long userId) {
+        return wrongAnswerRepository.findByUser_IdOrderByCreatedAtDesc(userId).stream()
+                .map(WrongAnswerResponse::from)
+                .toList();
+    }
+
+    /** 오답노트에서 항목 하나를 수동으로 지운다("복습 완료 처리"). */
+    @Transactional
+    public void removeWrongNote(Long userId, String problemId) {
+        wrongAnswerRepository.deleteByUser_IdAndProblem_Id(userId, problemId);
     }
 
     private UserCurriculumProgress getOrAssignProgress(Long userId) {
@@ -116,6 +204,10 @@ public class CurriculumService {
                 .findByCurriculumIdAndDayNumber(curriculum.getId(), progress.getCurrentDay())
                 .orElseThrow(() -> new IllegalStateException("커리큘럼 데이터가 손상됐습니다: day " + progress.getCurrentDay()));
 
+        return toResponse(curriculum, progress, day, false);
+    }
+
+    private CurriculumDayResponse toResponse(Curriculum curriculum, UserCurriculumProgress progress, CurriculumDay day, boolean finished) {
         List<PassageResponse> passages = day.getPassages().stream().map(PassageResponse::from).toList();
 
         return new CurriculumDayResponse(
@@ -129,9 +221,9 @@ public class CurriculumService {
                 day.getDayNumber(),
                 day.getDayInWeek(),
                 day.getTask(),
-                totalDays,
+                totalDays(curriculum),
                 progress.getCompletedDayCount(),
-                false,
+                finished,
                 recommendedWords(curriculum),
                 passages
         );

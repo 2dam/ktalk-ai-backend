@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import TopikQuiz from './TopikQuiz'
 import TodayCurriculum from './TodayCurriculum'
+import TopikWeekBrowser from './TopikWeekBrowser'
+import WrongNoteList from './WrongNoteList'
 
-// 기출문제집/모의고사/오답노트는 아직 전용 화면이 없어서 비활성화해 둔다 — 예전에는
-// 홈 화면의 무관한 AI 체험 탭(contents/chat/personalized)으로 잘못 연결되어 있었다.
 const CONTENT_ITEMS = [
-  { label: '기출문제집', icon: '📘', desc: '실제 시험과 같은 난이도의 기출문제로 실전 감각을 익혀요.', comingSoon: true },
-  { label: '모의고사', icon: '⏱', desc: '시간 제한 모의고사로 실전처럼 풀어보고 점수를 확인해요.', comingSoon: true },
-  { label: '오답노트', icon: '📝', desc: '틀린 문제만 모아 반복 학습하고 취약점을 보완해요.', comingSoon: true },
-  { label: '학습 유형 진단', tabId: 'assessment', icon: '🎯', desc: '20문항 진단으로 나에게 맞는 학습 전략을 찾아요.' },
+  { label: '기출문제집', icon: '📘', desc: '실제 시험과 같은 난이도의 기출문제로 실전 감각을 익혀요.', view: 'exam-bank' },
+  { label: '모의고사', icon: '⏱', desc: '시간 제한 모의고사로 실전처럼 풀어보고 점수를 확인해요.', view: 'mock-exam' },
+  { label: '오답노트', icon: '📝', desc: '틀린 문제만 모아 반복 학습하고 취약점을 보완해요.', view: 'wrong-notes' },
+  { label: '학습 유형 진단', icon: '🎯', desc: '20문항 진단으로 나에게 맞는 학습 전략을 찾아요.', tabId: 'assessment' },
 ]
 
 const LEVEL_ITEMS = [
@@ -16,6 +16,10 @@ const LEVEL_ITEMS = [
   { label: '3~4급', desc: '중급 학습자를 위한 실전 독해·듣기 커리큘럼' },
   { label: '5~6급', desc: '고급 학습자를 위한 심화 작문·토론 커리큘럼' },
 ]
+
+// 모의고사/Final 예상문제 주차만 이 패턴으로 구분한다(제목 규칙은 각 학습유형
+// CurriculumDataLoader의 mockExam1()/mockExam2()/finalExam1()에서 정한 것과 동일).
+const isExamWeek = (week) => week.title.includes('모의고사') || week.title.startsWith('Final')
 
 function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
   const [view, setView] = useState('menu')
@@ -31,6 +35,35 @@ function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
         onGoToAssessment={() => onSelectTab('assessment')}
       />
     )
+  }
+  if (view === 'exam-bank') {
+    return (
+      <TopikWeekBrowser
+        heading="기출문제집"
+        description="주차별로 정리된 기출문제 스타일 문제를 골라서 풀어보세요."
+        filterWeeks={(weeks) => weeks.filter((week) => !isExamWeek(week))}
+        emptyMessage="아직 이 학습유형에는 기출문제집 콘텐츠가 준비되지 않았어요."
+        onBack={() => setView('menu')}
+        onRequireAuth={onRequireAuth}
+        onGoToAssessment={() => onSelectTab('assessment')}
+      />
+    )
+  }
+  if (view === 'mock-exam') {
+    return (
+      <TopikWeekBrowser
+        heading="모의고사"
+        description="실전 모의고사·Final 예상문제를 골라서 시간 제한 없이 풀어보세요."
+        filterWeeks={(weeks) => weeks.filter(isExamWeek)}
+        emptyMessage="아직 이 학습유형에는 모의고사 콘텐츠가 준비되지 않았어요."
+        onBack={() => setView('menu')}
+        onRequireAuth={onRequireAuth}
+        onGoToAssessment={() => onSelectTab('assessment')}
+      />
+    )
+  }
+  if (view === 'wrong-notes') {
+    return <WrongNoteList onBack={() => setView('menu')} onRequireAuth={onRequireAuth} />
   }
 
   return (
@@ -64,14 +97,10 @@ function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
               type="button"
               className="topik-page-card"
               key={item.label}
-              disabled={item.comingSoon}
-              aria-disabled={item.comingSoon}
-              style={item.comingSoon ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-              onClick={item.comingSoon ? undefined : () => onSelectTab(item.tabId)}
+              onClick={() => (item.view ? setView(item.view) : onSelectTab(item.tabId))}
             >
               <span className="topik-page-card-icon">{item.icon}</span>
               <b>{item.label}</b>
-              {item.comingSoon && <span className="topik-badge" style={{ marginLeft: 8 }}>준비 중</span>}
               <small>{item.desc}</small>
             </button>
           ))}
