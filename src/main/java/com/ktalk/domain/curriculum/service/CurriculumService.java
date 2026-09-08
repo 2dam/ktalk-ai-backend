@@ -221,6 +221,37 @@ public class CurriculumService {
         };
     }
 
+    /** 적응형 퀴즈에서 급수 구간이 실제로 바뀌었을 때(AdaptiveQuizService가 호출) 이미
+     * 배정된 커리큘럼을 새 구간에 맞는 것으로 교체한다. 아직 커리큘럼을 배정받은 적이
+     * 없거나, 이미 맞는 구간이거나, 그 학습유형에 새 구간의 커리큘럼이 없으면 아무것도
+     * 하지 않는다(진행 중이던 하루 진도는 새 커리큘럼 내용이 완전히 다르므로 1일차로
+     * 다시 시작한다 — 이어보기는 지원하지 않는다). */
+    @Transactional
+    public boolean syncCurriculumTier(Long userId) {
+        UserCurriculumProgress progress = progressRepository.findByUserId(userId).orElse(null);
+        if (progress == null) {
+            return false;
+        }
+
+        TopikLevel desiredLevelFrom = topikProgressRepository.findByUserId(userId)
+                .map(topikProgress -> groupStartLevel(topikProgress.getTopikLevel()))
+                .orElse(null);
+        if (desiredLevelFrom == null || desiredLevelFrom == progress.getCurriculum().getTargetLevelFrom()) {
+            return false;
+        }
+
+        LearnerType learnerType = progress.getCurriculum().getLearnerType();
+        return curriculumRepository.findByLearnerTypeAndTargetLevelFrom(learnerType, desiredLevelFrom)
+                .map(newCurriculum -> {
+                    progress.setCurriculum(newCurriculum);
+                    progress.setCurrentDay(1);
+                    progress.setCompletedDayCount(0);
+                    progressRepository.save(progress);
+                    return true;
+                })
+                .orElse(false);
+    }
+
     private int totalDays(Curriculum curriculum) {
         return (int) curriculumDayRepository.countByCurriculumId(curriculum.getId());
     }

@@ -1,9 +1,11 @@
 package com.ktalk.domain.topik.service;
 
+import com.ktalk.domain.curriculum.service.CurriculumService;
 import com.ktalk.domain.topik.dto.ProgressResponse;
 import com.ktalk.domain.topik.dto.QuizItemResponse;
 import com.ktalk.domain.topik.dto.SubmitAnswerResponse;
 import com.ktalk.domain.topik.entity.QuizItem;
+import com.ktalk.domain.topik.entity.TopikGroup;
 import com.ktalk.domain.topik.entity.TopikLevel;
 import com.ktalk.domain.topik.entity.UserTopikProgress;
 import com.ktalk.domain.topik.repository.QuizItemRepository;
@@ -36,6 +38,7 @@ public class AdaptiveQuizService {
     private final QuizItemRepository quizItemRepository;
     private final UserTopikProgressRepository progressRepository;
     private final UserRepository userRepository;
+    private final CurriculumService curriculumService;
     private final Random random = new Random();
 
     @Transactional
@@ -88,12 +91,24 @@ public class AdaptiveQuizService {
         item.recordAttempt(correct);
         quizItemRepository.save(item);
 
+        TopikGroup previousGroup = progress.getTopikLevel().getGroup();
         boolean levelChanged = progress.recordAnswer(correct);
         progressRepository.save(progress);
 
         if (levelChanged) {
             log.info("사용자 {} TOPIK 등급 변경: {}({})", userId,
                     progress.getTopikLevel().getDisplayName(), progress.getTopikLevel().getGroup().getLabel());
+
+            // 급수 구간(하/중/상급) 자체가 바뀌었을 때만 배정된 커리큘럼도 새 구간으로
+            // 맞춰준다 — 같은 구간 안에서의 등급 변화(예: 1급→2급)는 커리큘럼이 동일하므로
+            // 건드릴 필요가 없다.
+            if (progress.getTopikLevel().getGroup() != previousGroup) {
+                boolean switched = curriculumService.syncCurriculumTier(userId);
+                if (switched) {
+                    log.info("사용자 {} 커리큘럼을 새 급수 구간({})으로 재배정",
+                            userId, progress.getTopikLevel().getGroup().getLabel());
+                }
+            }
         }
 
         String correctAnswerText = item.getOptions().get(item.getCorrectAnswerIndex());
