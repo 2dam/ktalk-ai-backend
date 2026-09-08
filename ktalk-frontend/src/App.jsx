@@ -32,7 +32,7 @@ const WEEK_METRICS = [
 
 // tabId가 있으면 jumpToExperience로, topikView가 있으면 TOPIK 코스의 해당 화면으로 이동한다.
 const missionCards = [
-  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint', tabId: 'personalized' },
+  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint', topikView: 'curriculum' },
   { title: '실전복습', value: '3분', copy: 'AI와 바로 말하기', tone: 'blue', tabId: 'chat' },
   { title: '오답노트', value: '7개', copy: '다시 볼 표현', tone: 'rose', topikView: 'wrong-notes' },
   { title: 'AI 발음 코치', value: '92점', copy: '최근 발음 정확도', tone: 'violet', tabId: 'pronunciation' },
