@@ -169,7 +169,15 @@ function PracticeTool({ id, title, openTool, setOpenTool, children }) {
   return (
     <details
       open={isOpen}
-      onToggle={(e) => setOpenTool(e.target.open ? id : null)}
+      onToggle={(e) => {
+        // 다른 패널이 외부 요청(jumpToExperience)으로 열리면 이 패널은 React가
+        // open=false를 내려서 "덩달아" 닫히는데, 그때도 브라우저는 toggle 이벤트를
+        // 쏜다. e.target.open이 이미 isOpen과 같다면 그건 React가 방금 만든
+        // 상태를 그대로 반영한 메아리일 뿐이니 무시한다 — 진짜 사용자 클릭이면
+        // 브라우저가 React보다 먼저 open을 바꿔서 둘이 서로 다를 때만 반응한다.
+        if (e.target.open === isOpen) return
+        setOpenTool(e.target.open ? id : null)
+      }}
       style={{ marginTop: '16px', border: '1px solid #eee', borderRadius: '8px', padding: '14px 16px' }}
     >
       <summary style={{ cursor: 'pointer', fontWeight: 700, color: ACCENT_DARK }}>{title}</summary>
