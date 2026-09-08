@@ -36,10 +36,18 @@ function ClickableKorean({ text, style }) {
             className="clickable-word"
             role="button"
             tabIndex={0}
-            onClick={() => setActiveQuery(clean)}
+            onClick={(event) => {
+              // 이 단어가 답안 선택 버튼 등 클릭 가능한 조상 요소 안에 있을 수 있어서,
+              // 전파를 막지 않으면 단어를 클릭했을 뿐인데 그 조상의 클릭(예: 정답 제출)까지
+              // 같이 실행돼버린다. 실제로 이 때문에 조상 버튼이 disabled되면서 사전
+              // 팝업이 그 안에 갇혀 닫히지 않는 버그가 있었다.
+              event.stopPropagation()
+              setActiveQuery(clean)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
+                event.stopPropagation()
                 setActiveQuery(clean)
               }
             }}

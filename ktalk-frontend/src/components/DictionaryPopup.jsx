@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import axios from 'axios'
 import { DICTIONARY_URL } from '../api'
 
@@ -44,7 +45,11 @@ function DictionaryPopup({ query, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // 이 팝업은 답안 선택 버튼처럼 클릭 가능한 조상 안에 있는 단어에서 열릴 수 있다.
+  // 그 조상 안에 그대로 렌더링하면, 팝업이 열려 있는 동안 그 조상(또는 같은 그룹의
+  // 형제 버튼)이 disabled되는 순간 팝업의 닫기 버튼·배경 클릭이 먹통이 되어 영원히
+  // 닫히지 않는 버그가 생긴다. body로 포탈시켜 조상 요소의 상태와 완전히 분리한다.
+  return createPortal(
     <span className="dictionary-popup-overlay" onClick={onClose}>
       <span className="dictionary-popup" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="dictionary-popup-close" onClick={onClose} aria-label="닫기">×</button>
@@ -67,7 +72,8 @@ function DictionaryPopup({ query, onClose }) {
           </ul>
         )}
       </span>
-    </span>
+    </span>,
+    document.body,
   )
 }
 
