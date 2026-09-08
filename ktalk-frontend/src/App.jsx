@@ -4,9 +4,11 @@ import { AuthCard } from './WelcomeScreen'
 import TopikPage from './components/TopikPage'
 import LearningNavigation from './components/LearningNavigation'
 import RecommendedChannels from './components/RecommendedChannels'
-import { AUTH_URL } from './api'
+import { API_BASE, AUTH_URL, authHeaders } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
+
+const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
 // Learning Navigation이 전체 학습 과정을 아우르는 하나의 방법론이 되면서,
 // 예전에 독립된 탭이었던 기능들은 이제 그 방법론의 어느 단계에 속하는 도구인지로
@@ -31,10 +33,12 @@ const WEEK_METRICS = [
 ]
 
 // tabId가 있으면 jumpToExperience로, topikView가 있으면 TOPIK 코스의 해당 화면으로 이동한다.
+// statKey가 있으면 로그인 시 실제 값을 불러와 value 대신 보여준다(비로그인/로딩
+// 실패 시에는 value의 예시 숫자를 그대로 보여줘서 마케팅 화면이 비지 않게 한다).
 const missionCards = [
-  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint', topikView: 'curriculum' },
+  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint', topikView: 'curriculum', statKey: 'todayCount', unit: '개' },
   { title: '실전복습', value: '3분', copy: 'AI와 바로 말하기', tone: 'blue', tabId: 'chat' },
-  { title: '오답노트', value: '7개', copy: '다시 볼 표현', tone: 'rose', topikView: 'wrong-notes' },
+  { title: '오답노트', value: '7개', copy: '다시 볼 표현', tone: 'rose', topikView: 'wrong-notes', statKey: 'wrongCount', unit: '개' },
   { title: 'AI 발음 코치', value: '92점', copy: '최근 발음 정확도', tone: 'violet', tabId: 'pronunciation' },
   { title: '추천 유튜브 학습', value: '5개', copy: '내 수준 맞춤 클립', tone: 'amber', tabId: 'clip' },
 ]
@@ -71,6 +75,7 @@ function App() {
   const [pendingScroll, setPendingScroll] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
   const [topikInitialView, setTopikInitialView] = useState('menu')
+  const [missionStats, setMissionStats] = useState({})
 
   // 로그인 모달이 열려 있을 때 Esc로 닫기
   useEffect(() => {
@@ -130,6 +135,27 @@ function App() {
   }, [])
 
   const isLoggedIn = authChecked && !!user
+
+  // 로그인된 사용자에게는 "오늘의 미션"/"오답노트" 카드에 실제 개수를 보여준다.
+  // 진단을 아직 안 했거나 API가 실패하면 조용히 무시하고 예시 숫자를 그대로 둔다.
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const headers = authHeaders()
+    axios.get(`${CURRICULUM_URL}/today`, { headers })
+      .then((res) => {
+        if (!res.data?.success) return
+        const totalCount = (res.data.data.passages || [])
+          .reduce((sum, passage) => sum + (passage.problems?.length || 0), 0)
+        setMissionStats((prev) => ({ ...prev, todayCount: totalCount }))
+      })
+      .catch(() => {})
+    axios.get(`${CURRICULUM_URL}/wrong-notes`, { headers })
+      .then((res) => {
+        if (!res.data?.success) return
+        setMissionStats((prev) => ({ ...prev, wrongCount: res.data.data.length }))
+      })
+      .catch(() => {})
+  }, [isLoggedIn])
 
   const trustPoints = useMemo(() => [
     { icon: '✓', title: '6가지 학습 유형', desc: '생활습관·집중력·동기를 함께 분석' },
@@ -359,18 +385,22 @@ function App() {
         </section>
 
         <section className="mission-strip" aria-label="오늘의 학습 카드">
-          {missionCards.map((card) => (
-            <button
-              type="button"
-              className={`mission-card ${card.tone}`}
-              key={card.title}
-              onClick={() => (card.topikView ? goToTopikView(card.topikView) : jumpToExperience(card.tabId))}
-            >
-              <span>{card.title}</span>
-              <strong>{card.value}</strong>
-              <small>{card.copy}</small>
-            </button>
-          ))}
+          {missionCards.map((card) => {
+            const liveCount = card.statKey ? missionStats[card.statKey] : null
+            const displayValue = liveCount != null ? `${liveCount}${card.unit || ''}` : card.value
+            return (
+              <button
+                type="button"
+                className={`mission-card ${card.tone}`}
+                key={card.title}
+                onClick={() => (card.topikView ? goToTopikView(card.topikView) : jumpToExperience(card.tabId))}
+              >
+                <span>{card.title}</span>
+                <strong>{displayValue}</strong>
+                <small>{card.copy}</small>
+              </button>
+            )
+          })}
         </section>
 
         <section className="loop-section">
