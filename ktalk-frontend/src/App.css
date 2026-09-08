@@ -657,6 +657,16 @@
   padding: 18px;
   border-radius: 22px;
   border: 1px solid #e3e8e5;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.mission-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(20, 64, 56, 0.12);
+  border-color: #8db6ad;
 }
 
 .mission-card span,

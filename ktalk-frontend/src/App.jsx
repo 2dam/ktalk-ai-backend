@@ -30,12 +30,13 @@ const WEEK_METRICS = [
   { label: '금주복습', tabId: 'personalized' },
 ]
 
+// tabId가 있으면 jumpToExperience로, topikView가 있으면 TOPIK 코스의 해당 화면으로 이동한다.
 const missionCards = [
-  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint' },
-  { title: '실전복습', value: '3분', copy: 'AI와 바로 말하기', tone: 'blue' },
-  { title: '오답노트', value: '7개', copy: '다시 볼 표현', tone: 'rose' },
-  { title: 'AI 발음 코치', value: '92점', copy: '최근 발음 정확도', tone: 'violet' },
-  { title: '추천 유튜브 학습', value: '5개', copy: '내 수준 맞춤 클립', tone: 'amber' },
+  { title: '오늘의 미션', value: '12개', copy: '오늘 복습할 표현', tone: 'mint', tabId: 'personalized' },
+  { title: '실전복습', value: '3분', copy: 'AI와 바로 말하기', tone: 'blue', tabId: 'chat' },
+  { title: '오답노트', value: '7개', copy: '다시 볼 표현', tone: 'rose', topikView: 'wrong-notes' },
+  { title: 'AI 발음 코치', value: '92점', copy: '최근 발음 정확도', tone: 'violet', tabId: 'pronunciation' },
+  { title: '추천 유튜브 학습', value: '5개', copy: '내 수준 맞춤 클립', tone: 'amber', tabId: 'clip' },
 ]
 
 const howSteps = [
@@ -69,6 +70,7 @@ function App() {
   const [route, setRoute] = useState(() => window.location.pathname)
   const [pendingScroll, setPendingScroll] = useState(null)
   const [showAuth, setShowAuth] = useState(false)
+  const [topikInitialView, setTopikInitialView] = useState('menu')
 
   // 로그인 모달이 열려 있을 때 Esc로 닫기
   useEffect(() => {
@@ -192,6 +194,12 @@ function App() {
 
   const goToTopikPage = (event) => {
     event?.preventDefault()
+    setTopikInitialView('menu')
+    navigateTo('/topik')
+  }
+
+  const goToTopikView = (view) => {
+    setTopikInitialView(view)
     navigateTo('/topik')
   }
 
@@ -272,6 +280,7 @@ function App() {
 
       {route === '/topik' ? (
         <TopikPage
+          initialView={topikInitialView}
           onSelectTab={jumpToExperience}
           onBack={() => navigateTo('/')}
           onRequireAuth={() => setShowAuth(true)}
@@ -351,11 +360,16 @@ function App() {
 
         <section className="mission-strip" aria-label="오늘의 학습 카드">
           {missionCards.map((card) => (
-            <article className={`mission-card ${card.tone}`} key={card.title}>
+            <button
+              type="button"
+              className={`mission-card ${card.tone}`}
+              key={card.title}
+              onClick={() => (card.topikView ? goToTopikView(card.topikView) : jumpToExperience(card.tabId))}
+            >
               <span>{card.title}</span>
               <strong>{card.value}</strong>
               <small>{card.copy}</small>
-            </article>
+            </button>
           ))}
         </section>
 

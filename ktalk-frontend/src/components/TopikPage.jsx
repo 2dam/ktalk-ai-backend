@@ -21,8 +21,8 @@ const LEVEL_ITEMS = [
 // CurriculumDataLoader의 mockExam1()/mockExam2()/finalExam1()에서 정한 것과 동일).
 const isExamWeek = (week) => week.title.includes('모의고사') || week.title.startsWith('Final')
 
-function TopikPage({ onSelectTab, onBack, onRequireAuth }) {
-  const [view, setView] = useState('menu')
+function TopikPage({ initialView = 'menu', onSelectTab, onBack, onRequireAuth }) {
+  const [view, setView] = useState(initialView)
 
   if (view === 'quiz') {
     return <TopikQuiz onBack={() => setView('menu')} onRequireAuth={onRequireAuth} />
