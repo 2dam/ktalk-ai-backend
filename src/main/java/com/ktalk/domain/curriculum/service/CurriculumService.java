@@ -17,8 +17,10 @@ import com.ktalk.domain.curriculum.repository.CurriculumProblemRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumRepository;
 import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
 import com.ktalk.domain.curriculum.repository.UserWrongAnswerRepository;
+import com.ktalk.domain.topik.entity.TopikGroup;
 import com.ktalk.domain.topik.entity.TopikLevel;
 import com.ktalk.domain.topik.entity.Word;
+import com.ktalk.domain.topik.repository.UserTopikProgressRepository;
 import com.ktalk.domain.topik.repository.WordRepository;
 import com.ktalk.domain.user.entity.User;
 import com.ktalk.domain.user.repository.UserRepository;
@@ -30,6 +32,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +54,7 @@ public class CurriculumService {
     private final UserRepository userRepository;
     private final WordRepository wordRepository;
     private final UserWrongAnswerRepository wrongAnswerRepository;
+    private final UserTopikProgressRepository topikProgressRepository;
 
     @Transactional
     public CurriculumDayResponse getToday(Long userId) {
@@ -173,11 +177,7 @@ public class CurriculumService {
                 .orElseThrow(() -> new IllegalStateException("먼저 학습 유형 진단을 완료해주세요."))
                 .getLearnerType();
 
-        // 학습유형에 급수단계별(1~2급/3~4급/5~6급) 커리큘럼이 여러 개 있을 수 있어, 가장 낮은
-        // 급수단계부터 시작한다. 상위 급수단계로의 진급 로직은 아직 없다(향후 과제).
-        Curriculum curriculum = curriculumRepository.findFirstByLearnerTypeOrderByTargetLevelFromAsc(learnerType)
-                .orElseThrow(() -> new IllegalStateException(
-                        learnerType.getLabel() + " 유형의 상세 커리큘럼은 아직 준비 중이에요."));
+        Curriculum curriculum = resolveCurriculumForLevel(userId, learnerType);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다: " + userId));
@@ -187,6 +187,38 @@ public class CurriculumService {
         progress.setCurriculum(curriculum);
         progress.setCurrentDay(1);
         return progressRepository.save(progress);
+    }
+
+    /** TOPIK 적응형 퀴즈(UserTopikProgress)로 추정된 실력이 있으면 그 급수 구간
+     * (1~2급/3~4급/5~6급)에 맞는 커리큘럼을 배정한다. 적응형 퀴즈를 아직 한 번도
+     * 안 풀어본 신규 사용자이거나, 그 학습유형에 해당 급수 구간의 커리큘럼이 아직
+     * 준비되지 않았으면(예: AdaptiveMixed는 5~6급 커리큘럼이 없음) 가장 낮은
+     * 급수단계로 대신 배정한다. */
+    private Curriculum resolveCurriculumForLevel(Long userId, LearnerType learnerType) {
+        Optional<TopikLevel> desiredLevelFrom = topikProgressRepository.findByUserId(userId)
+                .map(progress -> groupStartLevel(progress.getTopikLevel()));
+
+        if (desiredLevelFrom.isPresent()) {
+            Optional<Curriculum> matched = curriculumRepository
+                    .findByLearnerTypeAndTargetLevelFrom(learnerType, desiredLevelFrom.get());
+            if (matched.isPresent()) {
+                return matched.get();
+            }
+        }
+
+        return curriculumRepository.findFirstByLearnerTypeOrderByTargetLevelFromAsc(learnerType)
+                .orElseThrow(() -> new IllegalStateException(
+                        learnerType.getLabel() + " 유형의 상세 커리큘럼은 아직 준비 중이에요."));
+    }
+
+    /** TOPIK 등급이 속한 급수 구간의 시작 등급(하급→1급/중급→3급/상급→5급)을 돌려준다 —
+     * 커리큘럼은 이 시작 등급을 targetLevelFrom으로 저장한다(각 CurriculumDataLoader 참고). */
+    private TopikLevel groupStartLevel(TopikLevel level) {
+        return switch (level.getGroup()) {
+            case LOWER -> TopikLevel.LEVEL_1;
+            case MIDDLE -> TopikLevel.LEVEL_3;
+            case UPPER -> TopikLevel.LEVEL_5;
+        };
     }
 
     private int totalDays(Curriculum curriculum) {
