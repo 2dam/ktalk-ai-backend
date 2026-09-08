@@ -25,8 +25,11 @@ import com.ktalk.domain.topik.repository.WordRepository;
 import com.ktalk.domain.user.entity.User;
 import com.ktalk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -55,6 +58,7 @@ public class CurriculumService {
     private final WordRepository wordRepository;
     private final UserWrongAnswerRepository wrongAnswerRepository;
     private final UserTopikProgressRepository topikProgressRepository;
+    private final PlatformTransactionManager transactionManager;
 
     @Transactional
     public CurriculumDayResponse getToday(Long userId) {
@@ -169,7 +173,24 @@ public class CurriculumService {
     }
 
     private UserCurriculumProgress getOrAssignProgress(Long userId) {
-        return progressRepository.findByUserId(userId).orElseGet(() -> assignCurriculum(userId));
+        return progressRepository.findByUserId(userId).orElseGet(() -> assignCurriculumRaceSafe(userId));
+    }
+
+    /** assignCurriculum()의 INSERT를 별도 트랜잭션(REQUIRES_NEW)에서 시도한다. 같은
+     * 사용자가 "오늘의 학습"을 동시에 두 번 요청하면(더블 클릭, 여러 탭 등) 둘 다
+     * findByUserId에서 "아직 없음"을 보고 동시에 배정을 시도할 수 있는데, 이때 하나는
+     * user_curriculum_progress의 user_id 유니크 제약을 어겨 실패한다. 같은 트랜잭션
+     * 안에서 이 실패를 그냥 잡으면 PostgreSQL이 트랜잭션 전체를 이미 무효화한 뒤라
+     * 이어지는 조회도 실패하므로, 실패 가능한 INSERT만 별도 트랜잭션으로 격리해
+     * 실패해도 바깥 트랜잭션은 멀쩡하게 두고 그 안에서 다시 조회한다. */
+    private UserCurriculumProgress assignCurriculumRaceSafe(Long userId) {
+        TransactionTemplate isolatedInsert = new TransactionTemplate(transactionManager);
+        isolatedInsert.setPropagationBehavior(TransactionTemplate.PROPAGATION_REQUIRES_NEW);
+        try {
+            return isolatedInsert.execute(status -> assignCurriculum(userId));
+        } catch (DataIntegrityViolationException e) {
+            return progressRepository.findByUserId(userId).orElseThrow(() -> e);
+        }
     }
 
     private UserCurriculumProgress assignCurriculum(Long userId) {
