@@ -9,6 +9,7 @@ public record SubmitAnswerResponse(
         TopikLevel currentLevel,
         TopikGroup currentGroup,
         boolean levelChanged,
+        boolean curriculumTierChanged,
         int attemptCount,
         int correctCount
 ) {}

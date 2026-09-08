@@ -12,6 +12,7 @@ const LEVEL_LABELS = {
   LEVEL_1: '1급', LEVEL_2: '2급', LEVEL_3: '3급', LEVEL_4: '4급', LEVEL_5: '5급', LEVEL_6: '6급',
 }
 const GROUP_LABELS = { LOWER: '하급', MIDDLE: '중급', UPPER: '상급' }
+const TIER_RANGE_LABELS = { LOWER: '1~2급', MIDDLE: '3~4급', UPPER: '5~6급' }
 
 // 백엔드가 5문제마다 정답률로 등급을 자동 조정하기 때문에, 급수 카드 3개는 모두 이
 // 화면으로 들어온다 — 몇 급으로 시작하든 몇 문제 안에 실제 실력에 맞게 수렴한다.
@@ -220,6 +221,21 @@ function TopikQuiz({ onBack, onRequireAuth }) {
               })}
             </div>
 
+            {result?.curriculumTierChanged && (
+              <div style={{
+                padding: '18px 20px', borderRadius: '12px', marginBottom: '16px', textAlign: 'center',
+                background: 'linear-gradient(135deg, #fef3c7, #fde68a)', border: '1px solid #f59e0b',
+              }}>
+                <div style={{ fontSize: '30px', marginBottom: '6px' }}>🎉</div>
+                <div style={{ fontWeight: 800, fontSize: '17px', color: '#92400e', marginBottom: '4px' }}>
+                  축하합니다! {TIER_RANGE_LABELS[result.currentGroup]}으로 승급했어요!
+                </div>
+                <div style={{ fontSize: '13px', color: '#92400e' }}>
+                  "오늘의 학습" 커리큘럼도 새 단계에 맞춰 자동으로 바뀌었어요.
+                </div>
+              </div>
+            )}
+
             {result && (
               <div style={{
                 padding: '14px 16px', borderRadius: '10px', marginBottom: '16px',
@@ -229,7 +245,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>
                   {result.correct ? '✅ 정답이에요!' : `❌ 아쉬워요. 정답: ${result.correctAnswer}`}
                 </div>
-                {result.levelChanged && (
+                {result.levelChanged && !result.curriculumTierChanged && (
                   <div style={{ fontSize: '13px', color: '#666' }}>
                     등급이 {GROUP_LABELS[result.currentGroup]} · {LEVEL_LABELS[result.currentLevel]}(으)로 조정됐어요.
                   </div>

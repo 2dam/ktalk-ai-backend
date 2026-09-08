@@ -95,6 +95,7 @@ public class AdaptiveQuizService {
         boolean levelChanged = progress.recordAnswer(correct);
         progressRepository.save(progress);
 
+        boolean curriculumTierChanged = false;
         if (levelChanged) {
             log.info("사용자 {} TOPIK 등급 변경: {}({})", userId,
                     progress.getTopikLevel().getDisplayName(), progress.getTopikLevel().getGroup().getLabel());
@@ -103,8 +104,8 @@ public class AdaptiveQuizService {
             // 맞춰준다 — 같은 구간 안에서의 등급 변화(예: 1급→2급)는 커리큘럼이 동일하므로
             // 건드릴 필요가 없다.
             if (progress.getTopikLevel().getGroup() != previousGroup) {
-                boolean switched = curriculumService.syncCurriculumTier(userId);
-                if (switched) {
+                curriculumTierChanged = curriculumService.syncCurriculumTier(userId);
+                if (curriculumTierChanged) {
                     log.info("사용자 {} 커리큘럼을 새 급수 구간({})으로 재배정",
                             userId, progress.getTopikLevel().getGroup().getLabel());
                 }
@@ -118,6 +119,7 @@ public class AdaptiveQuizService {
                 progress.getTopikLevel(),
                 progress.getTopikLevel().getGroup(),
                 levelChanged,
+                curriculumTierChanged,
                 progress.getAttemptCount(),
                 progress.getCorrectCount()
         );
