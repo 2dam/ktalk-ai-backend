@@ -4,6 +4,7 @@ import { AuthCard } from './WelcomeScreen'
 import TopikPage from './components/TopikPage'
 import LearningNavigation from './components/LearningNavigation'
 import RecommendedChannels from './components/RecommendedChannels'
+import InstallButton from './components/InstallButton'
 import { API_BASE, AUTH_URL, authHeaders } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
 import './App.css'
@@ -260,6 +261,7 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          <InstallButton />
           {isLoggedIn ? (
             <div className="user-chip">
               <span>{user.username}</span>
