@@ -13,11 +13,16 @@ import java.util.HexFormat;
  */
 final class CurriculumContentHash {
 
+    /** 시드를 DB에 넣는 방식(예: 보기 섞기)이 바뀌면 올려서 기존 커리큘럼을 한 번 다시 심게 한다. */
+    private static final String SEED_PIPELINE_VERSION = "shuffle-v1";
+
     private CurriculumContentHash() {}
 
     static String of(Object... parts) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(SEED_PIPELINE_VERSION.getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) 0);
             for (Object part : parts) {
                 digest.update(String.valueOf(part).getBytes(StandardCharsets.UTF_8));
                 digest.update((byte) 0);
