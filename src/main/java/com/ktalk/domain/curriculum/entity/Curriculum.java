@@ -52,6 +52,10 @@ public class Curriculum {
     @Column(length = 1000)
     private String usageNote;
 
+    /** 시드 콘텐츠 지문(SHA-256). 시더가 내용이 바뀐 때만 다시 심도록 비교하는 데 쓴다. */
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     @OneToMany(mappedBy = "curriculum", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("weekNumber ASC")
     private List<CurriculumWeek> weeks = new ArrayList<>();

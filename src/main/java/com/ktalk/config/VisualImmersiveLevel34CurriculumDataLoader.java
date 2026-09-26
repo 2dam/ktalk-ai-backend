@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 시각적 몰입형(VISUAL_IMMERSIVE) 유형의 3~4급 "TOPIK 컬러맵 완전분석" 커리큘럼을 심는다.
@@ -77,8 +78,7 @@ public class VisualImmersiveLevel34CurriculumDataLoader implements CommandLineRu
     @Override
     @Transactional
     public void run(String... args) {
-        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.VISUAL_IMMERSIVE, TopikLevel.LEVEL_3)
-                .ifPresent(this::deleteExisting);
+        Optional<Curriculum> existingCurriculum = curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.VISUAL_IMMERSIVE, TopikLevel.LEVEL_3);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.VISUAL_IMMERSIVE);
@@ -91,6 +91,15 @@ public class VisualImmersiveLevel34CurriculumDataLoader implements CommandLineRu
                         + "설명합니다. 색깔 펜 3~4자루를 준비해 오답 노트를 도식화하며 시각적으로 기억을 강화하세요.");
 
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8(), mockExam1(), mockExam2(), finalExam1());
+        // 내용이 그대로면 다시 심지 않는다 — 다시 심으면 문항 ID가 바뀌어 사용자 진도와 오답노트가 지워진다.
+        String contentHash = CurriculumContentHash.of(curriculum.getTitle(), curriculum.getTargetLevelLabel(),
+                curriculum.getUsageNote(), weeks);
+        if (existingCurriculum.isPresent() && contentHash.equals(existingCurriculum.get().getContentHash())) {
+            System.out.println("↪ 변경 없음, 재시딩 건너뜀: " + curriculum.getTitle() + " (" + curriculum.getTargetLevelLabel() + ")");
+            return;
+        }
+        existingCurriculum.ifPresent(this::deleteExisting);
+        curriculum.setContentHash(contentHash);
         saveCurriculumWithDays(curriculum, weeks);
 
         System.out.println("🎨 TOPIK 커리큘럼(시각적 몰입형, 3~4급) WEEK1~7 완료 + WEEK8 1차(40문항) 신설 - 계속 진행 중!");

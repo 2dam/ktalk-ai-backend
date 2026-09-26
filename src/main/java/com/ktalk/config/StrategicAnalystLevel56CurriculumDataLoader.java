@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 전략적 분석가(STRATEGIC_ANALYST) 유형의 5~6급 "TOPIK 기출 완전분석" 커리큘럼을 심는다.
@@ -100,8 +101,7 @@ public class StrategicAnalystLevel56CurriculumDataLoader implements CommandLineR
     @Override
     @Transactional
     public void run(String... args) {
-        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.STRATEGIC_ANALYST, TopikLevel.LEVEL_5)
-                .ifPresent(this::deleteExisting);
+        Optional<Curriculum> existingCurriculum = curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.STRATEGIC_ANALYST, TopikLevel.LEVEL_5);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.STRATEGIC_ANALYST);
@@ -114,6 +114,15 @@ public class StrategicAnalystLevel56CurriculumDataLoader implements CommandLineR
                         + "설명하고 문제 풀이 전략을 제시하며, 스스로 오답을 데이터화할 수 있도록 안내합니다.");
 
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8(), mockExam1(), mockExam2(), finalExam1());
+        // 내용이 그대로면 다시 심지 않는다 — 다시 심으면 문항 ID가 바뀌어 사용자 진도와 오답노트가 지워진다.
+        String contentHash = CurriculumContentHash.of(curriculum.getTitle(), curriculum.getTargetLevelLabel(),
+                curriculum.getUsageNote(), weeks);
+        if (existingCurriculum.isPresent() && contentHash.equals(existingCurriculum.get().getContentHash())) {
+            System.out.println("↪ 변경 없음, 재시딩 건너뜀: " + curriculum.getTitle() + " (" + curriculum.getTargetLevelLabel() + ")");
+            return;
+        }
+        existingCurriculum.ifPresent(this::deleteExisting);
+        curriculum.setContentHash(contentHash);
         saveCurriculumWithDays(curriculum, weeks);
 
         System.out.println("🎉 TOPIK 커리큘럼(전략적 분석가, 5~6급) 전 과정 완료(2,450문항)! WEEK1~8(56차, 2,240문항) + 실전 모의고사 2회·Final 1회(210문항) 모두 완주!");

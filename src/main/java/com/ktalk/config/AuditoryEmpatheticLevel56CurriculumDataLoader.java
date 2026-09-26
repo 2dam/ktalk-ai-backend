@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 청각적 교감형(AUDITORY_EMPATHETIC) 유형의 5~6급 "TOPIK 쉐도잉 리듬 노트" 커리큘럼을 심는다.
@@ -78,8 +79,7 @@ public class AuditoryEmpatheticLevel56CurriculumDataLoader implements CommandLin
     @Override
     @Transactional
     public void run(String... args) {
-        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.AUDITORY_EMPATHETIC, TopikLevel.LEVEL_5)
-                .ifPresent(this::deleteExisting);
+        Optional<Curriculum> existingCurriculum = curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.AUDITORY_EMPATHETIC, TopikLevel.LEVEL_5);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.AUDITORY_EMPATHETIC);
@@ -94,6 +94,15 @@ public class AuditoryEmpatheticLevel56CurriculumDataLoader implements CommandLin
                         + "더욱 세밀하게 소리로 익히세요.");
 
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8(), mockExam1(), mockExam2(), finalExam1());
+        // 내용이 그대로면 다시 심지 않는다 — 다시 심으면 문항 ID가 바뀌어 사용자 진도와 오답노트가 지워진다.
+        String contentHash = CurriculumContentHash.of(curriculum.getTitle(), curriculum.getTargetLevelLabel(),
+                curriculum.getUsageNote(), weeks);
+        if (existingCurriculum.isPresent() && contentHash.equals(existingCurriculum.get().getContentHash())) {
+            System.out.println("↪ 변경 없음, 재시딩 건너뜀: " + curriculum.getTitle() + " (" + curriculum.getTargetLevelLabel() + ")");
+            return;
+        }
+        existingCurriculum.ifPresent(this::deleteExisting);
+        curriculum.setContentHash(contentHash);
         saveCurriculumWithDays(curriculum, weeks);
 
         System.out.println("🎧 TOPIK 커리큘럼(청각적 교감형, 5~6급) WEEK1 1차 시딩 완료!");

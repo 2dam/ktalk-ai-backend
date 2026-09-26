@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 혼합 적응형(ADAPTIVE_MIXED) 유형의 3~4급 "TOPIK 유연 적응 워크북" 커리큘럼을 심는다.
@@ -86,8 +87,7 @@ public class AdaptiveMixedLevel34CurriculumDataLoader implements CommandLineRunn
     @Override
     @Transactional
     public void run(String... args) {
-        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.ADAPTIVE_MIXED, TopikLevel.LEVEL_3)
-                .ifPresent(this::deleteExisting);
+        Optional<Curriculum> existingCurriculum = curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.ADAPTIVE_MIXED, TopikLevel.LEVEL_3);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.ADAPTIVE_MIXED);
@@ -105,6 +105,15 @@ public class AdaptiveMixedLevel34CurriculumDataLoader implements CommandLineRunn
                         + "루틴을 유지하세요.");
 
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8(), mockExam1(), mockExam2(), finalExam1());
+        // 내용이 그대로면 다시 심지 않는다 — 다시 심으면 문항 ID가 바뀌어 사용자 진도와 오답노트가 지워진다.
+        String contentHash = CurriculumContentHash.of(curriculum.getTitle(), curriculum.getTargetLevelLabel(),
+                curriculum.getUsageNote(), weeks);
+        if (existingCurriculum.isPresent() && contentHash.equals(existingCurriculum.get().getContentHash())) {
+            System.out.println("↪ 변경 없음, 재시딩 건너뜀: " + curriculum.getTitle() + " (" + curriculum.getTargetLevelLabel() + ")");
+            return;
+        }
+        existingCurriculum.ifPresent(this::deleteExisting);
+        curriculum.setContentHash(contentHash);
         saveCurriculumWithDays(curriculum, weeks);
 
         System.out.println("🔄 TOPIK 커리큘럼(혼합 적응형, 3~4급) WEEK1 1차 시딩 완료!");

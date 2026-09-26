@@ -3,6 +3,8 @@ package com.ktalk.domain.curriculum.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ktalk.domain.user.entity.User;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,6 +36,7 @@ public class UserWrongAnswer {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "problem_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private CurriculumProblem problem;
 
     @Column(nullable = false)

@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 체험적 실행형(EXPERIENTIAL_ACTOR) 유형의 1~2급 "TOPIK 직접 실행 워크북" 커리큘럼을 심는다.
@@ -88,8 +89,7 @@ public class ExperientialActorCurriculumDataLoader implements CommandLineRunner 
     @Override
     @Transactional
     public void run(String... args) {
-        curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.EXPERIENTIAL_ACTOR, TopikLevel.LEVEL_1)
-                .ifPresent(this::deleteExisting);
+        Optional<Curriculum> existingCurriculum = curriculumRepository.findByLearnerTypeAndTargetLevelFrom(LearnerType.EXPERIENTIAL_ACTOR, TopikLevel.LEVEL_1);
 
         Curriculum curriculum = new Curriculum();
         curriculum.setLearnerType(LearnerType.EXPERIENTIAL_ACTOR);
@@ -105,6 +105,15 @@ public class ExperientialActorCurriculumDataLoader implements CommandLineRunner 
                         + "뽀모도로 리듬을 지키고, 채점은 그 즉시 하세요.");
 
         List<WeekSeed> weeks = List.of(week1(), week2(), week3(), week4(), week5(), week6(), week7(), week8(), mockExam1(), mockExam2(), finalExam1());
+        // 내용이 그대로면 다시 심지 않는다 — 다시 심으면 문항 ID가 바뀌어 사용자 진도와 오답노트가 지워진다.
+        String contentHash = CurriculumContentHash.of(curriculum.getTitle(), curriculum.getTargetLevelLabel(),
+                curriculum.getUsageNote(), weeks);
+        if (existingCurriculum.isPresent() && contentHash.equals(existingCurriculum.get().getContentHash())) {
+            System.out.println("↪ 변경 없음, 재시딩 건너뜀: " + curriculum.getTitle() + " (" + curriculum.getTargetLevelLabel() + ")");
+            return;
+        }
+        existingCurriculum.ifPresent(this::deleteExisting);
+        curriculum.setContentHash(contentHash);
         saveCurriculumWithDays(curriculum, weeks);
 
         System.out.println("✍️ TOPIK 커리큘럼(체험적 실행형, 1~2급) WEEK1 1차 시딩 완료!");
