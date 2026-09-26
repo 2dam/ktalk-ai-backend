@@ -4,6 +4,7 @@ import { API_BASE, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
 import CurriculumPassageCard from './CurriculumPassageCard'
+import { WrongNotesPanel } from './WrongNoteList'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -224,6 +225,19 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                     {data.passages.map((passage, idx) => (
                       <CurriculumPassageCard key={passage.id} passage={passage} index={idx} />
                     ))}
+                  </div>
+                )}
+
+                {(!data.passages || data.passages.length === 0) && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{
+                      padding: '14px 16px', borderRadius: '10px', marginBottom: '14px',
+                      backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '14px', lineHeight: 1.6,
+                    }}>
+                      📝 오늘은 복습일이에요. 지금까지 풀다 틀린 문제를 아래에서 다시 확인하고,
+                      이해했으면 각 문제의 삭제 버튼으로 정리하세요. 다 끝났으면 완료 버튼을 눌러 다음으로 넘어가요.
+                    </div>
+                    <WrongNotesPanel />
                   </div>
                 )}
 

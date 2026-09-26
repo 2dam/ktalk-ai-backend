@@ -93,18 +93,16 @@ function WrongNoteCard({ note, onRemove }) {
   )
 }
 
-function WrongNoteList({ onBack, onRequireAuth }) {
-  const loggedIn = hasToken()
-
+/**
+ * 오답노트 목록(로딩/빈 상태/카드 포함). 로그인된 상태에서만 쓴다. 오답노트 화면과, 지문이 없는
+ * 복습일(채점 후 오답 정리 등)의 하루 학습 화면이 함께 쓴다.
+ */
+export function WrongNotesPanel() {
   const [notes, setNotes] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!loggedIn) {
-      setLoading(false)
-      return
-    }
     const load = async () => {
       setLoading(true)
       setError('')
@@ -122,12 +120,35 @@ function WrongNoteList({ onBack, onRequireAuth }) {
       }
     }
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleRemove = (problemId) => {
     setNotes((prev) => (prev ? prev.filter((n) => n.problemId !== problemId) : prev))
   }
+
+  return (
+    <>
+      {loading && <p>불러오는 중...</p>}
+      {!loading && error && <p style={{ color: '#dc3545' }}>⚠ {error}</p>}
+      {!loading && !error && notes?.length === 0 && (
+        <p style={{ color: '#666' }}>아직 틀린 문제가 없어요. 문제를 풀다 틀리면 여기 자동으로 쌓여요!</p>
+      )}
+      {!loading && !error && notes?.length > 0 && (
+        <>
+          <p style={{ fontSize: '13px', color: ACCENT, marginTop: 0, marginBottom: '16px' }}>
+            총 {notes.length}개의 복습할 문제가 있어요.
+          </p>
+          {notes.map((note) => (
+            <WrongNoteCard key={note.problemId} note={note} onRemove={handleRemove} />
+          ))}
+        </>
+      )}
+    </>
+  )
+}
+
+function WrongNoteList({ onBack, onRequireAuth }) {
+  const loggedIn = hasToken()
 
   if (!loggedIn) {
     return (
@@ -160,21 +181,7 @@ function WrongNoteList({ onBack, onRequireAuth }) {
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-        {loading && <p>불러오는 중...</p>}
-        {!loading && error && <p style={{ color: '#dc3545' }}>⚠ {error}</p>}
-        {!loading && !error && notes?.length === 0 && (
-          <p style={{ color: '#666' }}>아직 틀린 문제가 없어요. 문제를 풀다 틀리면 여기 자동으로 쌓여요!</p>
-        )}
-        {!loading && !error && notes?.length > 0 && (
-          <>
-            <p style={{ fontSize: '13px', color: ACCENT, marginTop: 0, marginBottom: '16px' }}>
-              총 {notes.length}개의 복습할 문제가 있어요.
-            </p>
-            {notes.map((note) => (
-              <WrongNoteCard key={note.problemId} note={note} onRemove={handleRemove} />
-            ))}
-          </>
-        )}
+        <WrongNotesPanel />
       </div>
     </main>
   )
