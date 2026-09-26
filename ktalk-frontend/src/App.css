@@ -1227,6 +1227,16 @@ footer.site-footer {
     padding: 14px;
   }
 
+  /* 입력창 + 버튼 한 줄이 좁은 화면에서 오른쪽으로 잘리므로 세로로 쌓는다. */
+  .interest-row {
+    flex-direction: column;
+  }
+
+  .interest-row button {
+    width: 100%;
+    padding: 12px;
+  }
+
   .tool-surface [style*="padding: 24px"] {
     padding: 16px !important;
   }

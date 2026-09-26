@@ -393,13 +393,13 @@ function LearningNavigation({ target, onRequireAuth }) {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="interest-row" style={{ display: 'flex', gap: '10px' }}>
             <input
               type="text"
               value={interest}
               onChange={(e) => setInterest(e.target.value)}
               placeholder="직접 입력해도 좋아요 (예: 우주, 축구선수 이름...)"
-              style={{ flex: 1, padding: '12px', fontSize: '16px' }}
+              style={{ flex: 1, minWidth: 0, padding: '12px', fontSize: '16px' }}
               disabled={isGenerating}
               onKeyDown={(e) => { if (e.key === 'Enter') handleStart() }}
             />
