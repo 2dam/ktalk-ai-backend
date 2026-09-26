@@ -80,23 +80,32 @@ function speak(text) {
 function StageTracker({ stage, stages }) {
   const currentIndex = stages.findIndex((s) => s.id === stage)
   return (
-    <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
-      {stages.map((s, idx) => (
-        <div key={s.id} style={{ flex: 1, textAlign: 'center' }}>
-          <div
-            style={{
-              height: '6px',
-              borderRadius: '3px',
-              backgroundColor: idx <= currentIndex ? ACCENT : '#eee',
-              marginBottom: '6px',
-              transition: 'background-color 0.3s',
-            }}
-          />
-          <span style={{ fontSize: '11px', color: idx <= currentIndex ? ACCENT_DARK : '#999', fontWeight: idx === currentIndex ? 700 : 400 }}>
-            {s.label}
-          </span>
-        </div>
-      ))}
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '6px' }}>
+        {stages.map((s, idx) => (
+          <div key={s.id} style={{ flex: 1, textAlign: 'center' }}>
+            <div
+              style={{
+                height: '6px',
+                borderRadius: '3px',
+                backgroundColor: idx <= currentIndex ? ACCENT : '#eee',
+                marginBottom: '6px',
+                transition: 'background-color 0.3s',
+              }}
+            />
+            {/* 데스크톱은 단계 이름을 전부, 모바일은 칸이 좁아 글자가 깨지므로 아래 한 줄로 대체한다. */}
+            <span
+              className="stage-label"
+              style={{ fontSize: '11px', color: idx <= currentIndex ? ACCENT_DARK : '#999', fontWeight: idx === currentIndex ? 700 : 400 }}
+            >
+              {s.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="stage-current" style={{ color: ACCENT_DARK }}>
+        {currentIndex + 1}/{stages.length} · {stages[currentIndex]?.label}
+      </div>
     </div>
   )
 }

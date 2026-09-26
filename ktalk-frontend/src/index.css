@@ -10,6 +10,8 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -22,6 +24,9 @@ body {
 
 body {
   min-height: 100svh;
+  /* 한국어가 단어 중간에서 끊기지 않고 어절 단위로 줄바꿈되도록 한다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 button,

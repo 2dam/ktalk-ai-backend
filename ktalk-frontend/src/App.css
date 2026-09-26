@@ -1205,7 +1205,45 @@ footer.site-footer {
   }
 }
 
+.stage-current {
+  display: none;
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
+  .stage-label {
+    display: none;
+  }
+
+  .stage-current {
+    display: block;
+  }
+
+  /* 학습 도구 카드: 인라인으로 큰 여백/글자를 쓰는 곳들을 모바일에서만 줄인다. */
+  .tool-surface {
+    padding: 14px;
+  }
+
+  .tool-surface [style*="padding: 24px"] {
+    padding: 16px !important;
+  }
+
+  .tool-surface h2 {
+    font-size: 20px;
+  }
+
+  .tool-surface h3 {
+    font-size: 18px !important;
+  }
+
+  .tool-surface p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
   .site-header,
   .hero-section,
   .mission-strip,
