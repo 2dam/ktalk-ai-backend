@@ -21,8 +21,7 @@ const WELCOME_FEATURES = [
 ]
 
 export function AuthCard({ onAuthenticated, onClose, compact = false }) {
-  const [mode, setMode] = useState('login')
-  const [form, setForm] = useState({ username: '', email: '', password: '' })
+  const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -30,21 +29,16 @@ export function AuthCard({ onAuthenticated, onClose, compact = false }) {
     setForm((prev) => ({ ...prev, [field]: event.target.value }))
   }
 
-  const switchMode = (nextMode) => {
-    setMode(nextMode)
-    setError('')
-  }
-
+  // 회원가입은 구글 계정으로만 받는다. 아이디/비밀번호 로그인은 예전에 가입한 기존 계정용이다.
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitting(true)
     setError('')
     try {
-      const endpoint = mode === 'login' ? 'login' : 'register'
-      const payload = mode === 'login'
-        ? { username: form.username, password: form.password }
-        : { username: form.username, email: form.email, password: form.password }
-      const response = await axios.post(`${AUTH_URL}/${endpoint}`, payload)
+      const response = await axios.post(`${AUTH_URL}/login`, {
+        username: form.username,
+        password: form.password,
+      })
       if (response.data.success) {
         localStorage.setItem('token', response.data.token)
         onAuthenticated(response.data.user)
@@ -90,75 +84,46 @@ export function AuthCard({ onAuthenticated, onClose, compact = false }) {
         )}
 
         <div className="auth-heading">
-          <h2>{mode === 'login' ? '로그인하고 시작하기' : '무료로 회원가입'}</h2>
-          <p>
-            {mode === 'login'
-              ? '학습 유형 진단 결과와 학습 기록을 이어서 확인하세요.'
-              : '몇 초면 가입 완료, 바로 진단과 학습을 시작할 수 있어요.'}
-          </p>
+          <h2>구글 계정으로 시작하기</h2>
+          <p>회원가입과 로그인은 구글 계정 하나로 끝나요. 학습 기록도 계정에 이어서 저장돼요.</p>
         </div>
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            <span>아이디</span>
-            <input
-              value={form.username}
-              onChange={updateField('username')}
-              autoComplete="username"
-              required
-            />
-          </label>
-
-          {mode === 'signup' && (
-            <label>
-              <span>이메일</span>
-              <input
-                type="email"
-                value={form.email}
-                onChange={updateField('email')}
-                autoComplete="email"
-                required
-              />
-            </label>
-          )}
-
-          <label>
-            <span>비밀번호</span>
-            <input
-              type="password"
-              value={form.password}
-              onChange={updateField('password')}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={8}
-              required
-            />
-          </label>
-
-          {error && <p className="auth-error">⚠ {error}</p>}
-
-          <button type="submit" className="primary-cta auth-submit" disabled={submitting}>
-            {submitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
-          </button>
-        </form>
 
         <a className="google-login" href={`${API_BASE}/oauth2/authorization/google`}>
           <GoogleIcon />
           구글 계정으로 계속하기
         </a>
 
-        <div className="auth-toggle">
-          {mode === 'login' ? (
-            <>
-              <span>아직 계정이 없으신가요?</span>
-              <button type="button" onClick={() => switchMode('signup')}>회원가입</button>
-            </>
-          ) : (
-            <>
-              <span>이미 계정이 있으신가요?</span>
-              <button type="button" onClick={() => switchMode('login')}>로그인</button>
-            </>
-          )}
-        </div>
+        <details className="legacy-login">
+          <summary>기존 아이디로 로그인</summary>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <label>
+              <span>아이디</span>
+              <input
+                value={form.username}
+                onChange={updateField('username')}
+                autoComplete="username"
+                required
+              />
+            </label>
+
+            <label>
+              <span>비밀번호</span>
+              <input
+                type="password"
+                value={form.password}
+                onChange={updateField('password')}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+
+            {error && <p className="auth-error">⚠ {error}</p>}
+
+            <button type="submit" className="primary-cta auth-submit" disabled={submitting}>
+              {submitting ? '처리 중...' : '로그인'}
+            </button>
+          </form>
+        </details>
 
         {!compact && (
           <div className="welcome-pricing" aria-label="무료 안내">

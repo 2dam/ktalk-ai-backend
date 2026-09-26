@@ -1478,3 +1478,20 @@ footer.site-footer {
   margin: 0 0 20px;
   color: var(--k-muted, #666);
 }
+
+.legacy-login {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.legacy-login summary {
+  cursor: pointer;
+  padding: 6px;
+}
+
+.legacy-login .auth-form {
+  margin-top: 8px;
+  text-align: left;
+}

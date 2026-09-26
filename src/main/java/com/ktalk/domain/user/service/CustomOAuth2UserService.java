@@ -30,11 +30,25 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = userRepository.findByEmail(email).orElseGet(() -> {
             User newUser = new User();
             newUser.setEmail(email);
-            newUser.setUsername(name != null ? name : email);
+            newUser.setUsername(uniqueUsername(name != null && !name.isBlank() ? name : email));
             newUser.setProvider("GOOGLE");
             return userRepository.save(newUser);
         });
 
         return new CustomOAuth2User(oAuth2User, user.getId());
+    }
+
+    // username에는 유니크 제약이 있는데 구글 표시 이름은 겹칠 수 있다(동명이인, 기존 계정과
+    // 같은 이름 등). 겹치면 제약 위반으로 가입/로그인이 실패하므로 숫자를 붙여 빈 이름을 찾는다.
+    private String uniqueUsername(String base) {
+        if (!userRepository.existsByUsername(base)) {
+            return base;
+        }
+        for (int i = 2; ; i++) {
+            String candidate = base + i;
+            if (!userRepository.existsByUsername(candidate)) {
+                return candidate;
+            }
+        }
     }
 }
