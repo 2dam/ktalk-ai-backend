@@ -273,6 +273,35 @@ public class CurriculumService {
                 .orElse(false);
     }
 
+    /** 진단을 다시 받아 학습 유형이 바뀌었을 때(AssessmentService가 호출) 이미 배정된
+     * 커리큘럼을 새 유형의 것으로 교체한다. 배정 로직이 "이미 있으면 그대로 사용"이라 이걸
+     * 안 하면 재진단해도 예전 유형의 커리큘럼이 계속 나온다. 유형이 그대로면 아무것도 하지
+     * 않고, 바뀌면 급수 구간은 현재 실력(적응형 퀴즈)에 맞춰 고르며 1일차부터 다시 시작한다. */
+    @Transactional
+    public boolean syncCurriculumLearnerType(Long userId) {
+        UserCurriculumProgress progress = progressRepository.findByUserId(userId).orElse(null);
+        if (progress == null) {
+            return false;
+        }
+        LearnerType latest = assessmentResultRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+                .map(result -> result.getLearnerType())
+                .orElse(null);
+        if (latest == null || latest == progress.getCurriculum().getLearnerType()) {
+            return false;
+        }
+        Curriculum newCurriculum;
+        try {
+            newCurriculum = resolveCurriculumForLevel(userId, latest);
+        } catch (IllegalStateException noCurriculumYet) {
+            return false;
+        }
+        progress.setCurriculum(newCurriculum);
+        progress.setCurrentDay(1);
+        progress.setCompletedDayCount(0);
+        progressRepository.save(progress);
+        return true;
+    }
+
     private int totalDays(Curriculum curriculum) {
         return (int) curriculumDayRepository.countByCurriculumId(curriculum.getId());
     }

@@ -5,6 +5,7 @@ import com.ktalk.domain.assessment.dto.AssessmentResultResponse;
 import com.ktalk.domain.assessment.entity.AssessmentResult;
 import com.ktalk.domain.assessment.entity.LearnerType;
 import com.ktalk.domain.assessment.repository.AssessmentResultRepository;
+import com.ktalk.domain.curriculum.service.CurriculumService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class AssessmentService {
     private static final double SELF_DIRECTED_THRESHOLD = 3.5;
 
     private final AssessmentResultRepository resultRepository;
+    private final CurriculumService curriculumService;
 
     @Transactional
     public AssessmentResultResponse submit(Long userId, List<AssessmentAnswer> answers) {
@@ -50,6 +52,7 @@ public class AssessmentService {
         result.setAreaDScore(areaScores.get("D"));
         result.setAreaEScore(areaScores.get("E"));
         resultRepository.save(result);
+        curriculumService.syncCurriculumLearnerType(userId);
 
         return AssessmentResultResponse.of(learnerType, areaScores, selfRegulationScore, sense, result.getCreatedAt());
     }
@@ -71,6 +74,7 @@ public class AssessmentService {
         result.setAreaDScore(3.0);
         result.setAreaEScore(3.0);
         resultRepository.save(result);
+        curriculumService.syncCurriculumLearnerType(userId);
 
         Map<String, Double> areaScores = Map.of("A", 3.0, "B", 3.0, "C", 3.0, "D", 3.0, "E", 3.0);
         return AssessmentResultResponse.of(learnerType, areaScores, 3.5,
