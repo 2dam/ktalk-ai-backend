@@ -20,11 +20,6 @@ const WELCOME_FEATURES = [
   { icon: '🔥', copy: '하루 5분, 부담 없이 꾸준히' },
 ]
 
-const WELCOME_PLANS = [
-  { name: 'Pro', price: '$9.90', label: '개인 학습자' },
-  { name: 'Business', price: '$19.90', label: '강사와 팀' },
-]
-
 export function AuthCard({ onAuthenticated, onClose, compact = false }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
@@ -166,14 +161,12 @@ export function AuthCard({ onAuthenticated, onClose, compact = false }) {
         </div>
 
         {!compact && (
-          <div className="welcome-pricing" aria-label="요금제">
-            {WELCOME_PLANS.map((plan) => (
-              <div className="welcome-plan" key={plan.name}>
-                <span>{plan.name}</span>
-                <strong>{plan.price}</strong>
-                <small>{plan.label}</small>
-              </div>
-            ))}
+          <div className="welcome-pricing" aria-label="무료 안내">
+            <div className="welcome-plan">
+              <span>K-Talk AI</span>
+              <strong>무료</strong>
+              <small>모든 기능 무료로 이용</small>
+            </div>
           </div>
         )}
       </div>
