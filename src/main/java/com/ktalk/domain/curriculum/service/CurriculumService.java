@@ -15,6 +15,7 @@ import com.ktalk.domain.curriculum.entity.UserWrongAnswer;
 import com.ktalk.domain.curriculum.repository.CurriculumDayRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumProblemRepository;
 import com.ktalk.domain.curriculum.repository.CurriculumRepository;
+import com.ktalk.domain.curriculum.repository.CurriculumWeekRepository;
 import com.ktalk.domain.curriculum.repository.UserCurriculumProgressRepository;
 import com.ktalk.domain.curriculum.repository.UserWrongAnswerRepository;
 import com.ktalk.domain.topik.entity.TopikGroup;
@@ -58,6 +59,7 @@ public class CurriculumService {
     private final WordRepository wordRepository;
     private final UserWrongAnswerRepository wrongAnswerRepository;
     private final UserTopikProgressRepository topikProgressRepository;
+    private final CurriculumWeekRepository curriculumWeekRepository;
     private final PlatformTransactionManager transactionManager;
 
     @Transactional
@@ -88,7 +90,11 @@ public class CurriculumService {
                 .findByCurriculumId(curriculum.getId()).stream()
                 .collect(Collectors.groupingBy(day -> day.getWeek().getId()));
 
-        return curriculum.getWeeks().stream()
+        // curriculum.getWeeks()는 지연 로딩 컬렉션이라, progress가 방금 배정됐다면(첫 접근 —
+        // getOrAssignProgress가 별도 트랜잭션에서 커리큘럼을 새로 배정한 직후) 그 커리큘럼은
+        // 이미 닫힌 트랜잭션의 세션에 묶여 있어 여기서 접근하면 LazyInitializationException이
+        // 난다. 저장소로 직접 조회해 현재 세션에서 완전히 로딩된 리스트를 쓴다.
+        return curriculumWeekRepository.findByCurriculumIdOrderByWeekNumberAsc(curriculum.getId()).stream()
                 .map(week -> new CurriculumWeekSummaryResponse(
                         week.getWeekNumber(),
                         week.getTitle(),
