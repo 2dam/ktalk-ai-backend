@@ -5,6 +5,7 @@ import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
 import CurriculumPassageCard from './CurriculumPassageCard'
 import { WrongNotesPanel } from './WrongNoteList'
+import { withEulReul } from '../korean'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -81,7 +82,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
         <div className="topik-page-head">
           <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
           <span className="topik-badge">TOPIK 코스</span>
-          <h1>로그인하고 {heading}을 시작하세요</h1>
+          <h1>로그인하고 {withEulReul(heading)} 시작하세요</h1>
           <p>학습 유형 진단 결과에 맞춰 콘텐츠가 자동으로 배정돼요.</p>
         </div>
         <button

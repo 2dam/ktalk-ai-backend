@@ -247,7 +247,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
                 </div>
                 {result.levelChanged && !result.curriculumTierChanged && (
                   <div style={{ fontSize: '13px', color: '#666' }}>
-                    등급이 {GROUP_LABELS[result.currentGroup]} · {LEVEL_LABELS[result.currentLevel]}(으)로 조정됐어요.
+                    등급이 {GROUP_LABELS[result.currentGroup]} · {LEVEL_LABELS[result.currentLevel]}으로 조정됐어요.
                   </div>
                 )}
               </div>

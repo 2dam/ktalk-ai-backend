@@ -8,6 +8,7 @@ import ClipAndLearn from './ClipAndLearn'
 import CharacterChat from './CharacterChat'
 import PronunciationCoach from './PronunciationCoach'
 import PersonalizedLearning from './PersonalizedLearning'
+import { euroRoSuffix } from '../korean'
 import ReviewAlarm from './ReviewAlarm'
 import NativeUsage from './NativeUsage'
 import ClickableKorean from './ClickableKorean'
@@ -729,7 +730,7 @@ function LearningNavigation({ target, onRequireAuth }) {
       {stage === 'done' && lesson && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '10px' }}>🎉</div>
-          <h3 style={{ marginTop: 0 }}>'{lesson.interest}'(으)로 한 학습을 마쳤어요!</h3>
+          <h3 style={{ marginTop: 0 }}>'{lesson.interest}'{euroRoSuffix(lesson.interest)} 한 학습을 마쳤어요!</h3>
           <div style={{ textAlign: 'left', padding: '16px', backgroundColor: ACCENT_TINT, borderRadius: '12px', marginBottom: '20px' }}>
             <div style={{ marginBottom: '8px' }}><b>문장:</b> {lesson.sentence} ({lesson.meaning})</div>
             <div style={{ marginBottom: '8px' }}><b>패턴:</b> {lesson.pattern}</div>
