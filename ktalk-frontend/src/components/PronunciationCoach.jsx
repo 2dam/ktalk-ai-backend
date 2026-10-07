@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.pronunciation.accent
 const ACCENT_TINT = TAB_COLORS.pronunciation.tint
@@ -97,11 +98,11 @@ function PronunciationCoach() {
       <div>
         <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
           <h2>🎤 AI Pronunciation Coach</h2>
-          <p>목표 문장을 듣고 따라 말한 뒤 녹음하면, AI가 발음을 채점하고 개선 팁을 알려줍니다.</p>
+          <p><Bi en="Listen to the target sentence, repeat it and record - AI will score your pronunciation and give tips.">목표 문장을 듣고 따라 말한 뒤 녹음하면, AI가 발음을 채점하고 개선 팁을 알려줍니다.</Bi></p>
         </div>
 
         <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>목표 문장 선택</label>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}><Bi en="Choose a target sentence">목표 문장 선택</Bi></label>
           <select
               value={targetText}
               onChange={(e) => { setTargetText(e.target.value); setResult(null); setAudioBlob(null); setAudioUrl(null) }}
@@ -123,18 +124,18 @@ function PronunciationCoach() {
             {!isRecording ? (
                 <button onClick={startRecording}
                         style={{ padding: '12px 24px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '24px', fontSize: '16px' }}>
-                  🎙️ 녹음 시작
+                  <Bi en="Start recording">🎙️ 녹음 시작</Bi>
                 </button>
             ) : (
                 <button onClick={stopRecording}
                         style={{ padding: '12px 24px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '24px', fontSize: '16px' }}>
-                  ⏹ 녹음 중지
+                  <Bi en="Stop recording">⏹ 녹음 중지</Bi>
                 </button>
             )}
             {audioUrl && !isRecording && (
                 <button onClick={handleEvaluate} disabled={isEvaluating}
                         style={{ padding: '12px 24px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '24px', fontSize: '16px' }}>
-                  {isEvaluating ? '평가 중...' : '✅ 평가받기'}
+                  <Bi en={isEvaluating ? 'Evaluating...' : 'Get evaluated'}>{isEvaluating ? '평가 중...' : '✅ 평가받기'}</Bi>
                 </button>
             )}
           </div>
@@ -150,12 +151,12 @@ function PronunciationCoach() {
 
         {result && (
             <div style={{ padding: '20px', border: '2px solid #28a745', borderRadius: '8px', backgroundColor: '#f0fff4' }}>
-              <h3>평가 결과</h3>
+              <h3><Bi en="Result">평가 결과</Bi></h3>
               <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#28a745', margin: '10px 0' }}>
                 {result.score}점
               </div>
-              <p><strong>인식된 발화:</strong> {result.transcribedText}</p>
-              <p><strong>총평:</strong> {result.feedback}</p>
+              <p><strong><Bi en="Recognized speech">인식된 발화:</Bi></strong> {result.transcribedText}</p>
+              <p><strong><Bi en="Overall">총평:</Bi></strong> {result.feedback}</p>
               {result.tips?.length > 0 && (
                   <ul>
                     {result.tips.map((tip, idx) => <li key={idx}>{tip}</li>)}

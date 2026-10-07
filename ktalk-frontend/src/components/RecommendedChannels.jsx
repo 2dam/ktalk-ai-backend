@@ -1,3 +1,4 @@
+import { Bi } from '../EnglishHint'
 const RECOMMENDED_VIDEOS = [
   {
     channel: 'Talk To Me In Korean',
@@ -20,7 +21,7 @@ function RecommendedChannels() {
   return (
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ marginBottom: '10px', fontSize: '15px', color: '#666' }}>
-          🎬 꾸준히 한국어를 가르치는 채널
+          <Bi en="Channels that teach Korean consistently">🎬 꾸준히 한국어를 가르치는 채널</Bi>
         </h3>
         <div style={{ display: 'flex', gap: 'clamp(4px, 2vw, 12px)', width: '100%' }}>
           {RECOMMENDED_VIDEOS.map((video) => (
@@ -58,7 +59,7 @@ function RecommendedChannels() {
           ))}
         </div>
         <p style={{ fontSize: '11px', color: '#aaa', marginTop: '6px' }}>
-          © 각 영상의 저작권은 해당 채널에 있으며, 클릭 시 YouTube로 이동합니다.
+          <Bi en="Each video belongs to its channel; clicking opens YouTube.">© 각 영상의 저작권은 해당 채널에 있으며, 클릭 시 YouTube로 이동합니다.</Bi>
         </p>
       </div>
   )

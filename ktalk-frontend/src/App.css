@@ -1505,3 +1505,83 @@ footer.site-footer {
   margin-top: 8px;
   text-align: left;
 }
+
+/* ---- 영어 보조표기(한글 문구 아래 옅은 영어) ---- */
+.bi-en {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72em;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: inherit;
+  opacity: 0.6;
+  white-space: normal;
+  word-break: normal;
+}
+
+.en-toggle {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(20, 35, 33, 0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.en-toggle.on {
+  background: var(--k-green);
+  border-color: var(--k-green);
+  color: #fff;
+}
+
+/* 큰 제목 아래 영어는 제목 크기에 비례하되 읽기 편한 범위로 제한한다. */
+h1 > .bi-en {
+  margin-top: 10px;
+  font-size: clamp(14px, 0.3em, 20px);
+  font-weight: 500;
+}
+
+h2 > .bi-en {
+  margin-top: 4px;
+  font-size: clamp(12px, 0.5em, 16px);
+}
+
+h3 > .bi-en {
+  font-size: clamp(11px, 0.62em, 14px);
+}
+
+.hero-subtitle .bi-en,
+.how-head p .bi-en,
+.section-heading p .bi-en {
+  margin-top: 6px;
+  font-size: 0.82em;
+}
+
+@media (max-width: 640px) {
+  .bi-en {
+    font-size: 0.78em;
+  }
+}
+
+/* 책 표지 미니 카드는 글씨가 6~8px라 영어 보조표기를 넣으면 읽을 수 없고, "3~4급"이 두 줄로 깨졌다. */
+.preview-grid .cover .bi-en {
+  display: none;
+}
+
+.preview-grid .cover b {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+/* 단계 표시줄의 작은 라벨(11px) 아래 영어는 비율로 줄이면 8px라 읽을 수 없어서 최소 크기를 둔다. */
+.stage-label .bi-en {
+  font-size: 10px;
+}

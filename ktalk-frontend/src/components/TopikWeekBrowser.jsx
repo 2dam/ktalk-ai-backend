@@ -6,6 +6,7 @@ import ClickableKorean from './ClickableKorean'
 import CurriculumPassageCard from './CurriculumPassageCard'
 import { WrongNotesPanel } from './WrongNoteList'
 import { withEulReul } from '../korean'
+import { Bi } from '../EnglishHint'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -19,7 +20,7 @@ const NEEDS_ASSESSMENT_MESSAGE = '먼저 학습 유형 진단을 완료해주세
  * 무관하게 아무 주/일이나 골라 볼 수 있다 — 기출문제집(filterWeeks로 일반 주차만)과
  * 모의고사(filterWeeks로 모의고사/Final 주차만) 화면이 이 컴포넌트를 함께 쓴다.
  */
-function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onBack, onRequireAuth, onGoToAssessment }) {
+function TopikWeekBrowser({ heading, headingEn, description, descriptionEn, filterWeeks, emptyMessage, onBack, onRequireAuth, onGoToAssessment }) {
   const loggedIn = hasToken()
 
   const [weeks, setWeeks] = useState(null)
@@ -80,10 +81,13 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
     return (
       <main className="topik-page" id="top">
         <div className="topik-page-head">
-          <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+          <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
           <span className="topik-badge">TOPIK 코스</span>
-          <h1>로그인하고 {withEulReul(heading)} 시작하세요</h1>
-          <p>학습 유형 진단 결과에 맞춰 콘텐츠가 자동으로 배정돼요.</p>
+          <h1>
+            로그인하고 {withEulReul(heading)} 시작하세요
+            <Bi en={`Log in to start ${headingEn}`}>{''}</Bi>
+          </h1>
+          <p><Bi en="Content is assigned automatically based on your learner-type result.">학습 유형 진단 결과에 맞춰 콘텐츠가 자동으로 배정돼요.</Bi></p>
         </div>
         <button
           type="button"
@@ -91,7 +95,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
           onClick={onRequireAuth}
           style={{ margin: '0 auto', display: 'block' }}
         >
-          로그인하기
+          <Bi en="Log in">로그인하기</Bi>
         </button>
       </main>
     )
@@ -116,14 +120,14 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
   return (
     <main className="topik-page" id="top">
       <div className="topik-page-head">
-        <button type="button" className="topik-back" onClick={backTarget}>← 이전으로</button>
+        <button type="button" className="topik-back" onClick={backTarget}><Bi en="Back">← 이전으로</Bi></button>
         <span className="topik-badge">TOPIK 코스</span>
-        <h1>{heading}</h1>
-        <p>{description}</p>
+        <h1><Bi en={headingEn}>{heading}</Bi></h1>
+        <p><Bi en={descriptionEn}>{description}</Bi></p>
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-        {loading && <p>불러오는 중...</p>}
+        {loading && <p><Bi en="Loading...">불러오는 중...</Bi></p>}
 
         {!loading && error === NEEDS_ASSESSMENT_MESSAGE && (
           <div>
@@ -136,7 +140,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
                 backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              학습 유형 진단 하러 가기
+              <Bi en="Go to the learner-type test">학습 유형 진단 하러 가기</Bi>
             </button>
           </div>
         )}
@@ -147,7 +151,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
 
         {!loading && !error && dayNumber !== null && (
           <>
-            {dayLoading && <p>불러오는 중...</p>}
+            {dayLoading && <p><Bi en="Loading...">불러오는 중...</Bi></p>}
             {!dayLoading && dayError && <p style={{ color: '#dc3545' }}>⚠ {dayError}</p>}
             {!dayLoading && !dayError && dayContent && (
               <>
@@ -165,7 +169,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
 
                 {dayContent.template && (
                   <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
-                    <summary style={{ cursor: 'pointer' }}>📎 이 회차 학습지 템플릿 보기</summary>
+                    <summary style={{ cursor: 'pointer' }}><Bi en="View this session's worksheet template">📎 이 회차 학습지 템플릿 보기</Bi></summary>
                     <pre style={{
                       marginTop: '8px', padding: '14px', backgroundColor: '#f9f9f9', borderRadius: '8px',
                       whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: 1.6, fontFamily: 'inherit',
@@ -181,8 +185,10 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
                       padding: '14px 16px', borderRadius: '10px', marginBottom: '14px',
                       backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '14px', lineHeight: 1.6,
                     }}>
-                      📝 오늘은 복습일이에요. 지금까지 풀다 틀린 문제를 아래에서 다시 확인하고,
-                      이해했으면 각 문제의 삭제 버튼으로 정리하세요. 다 끝났으면 완료 버튼을 눌러 다음으로 넘어가요.
+                      <Bi en="Today is a review day. Revisit the questions you missed below, clear each one once you understand it, then press complete to move on.">
+                        📝 오늘은 복습일이에요. 지금까지 풀다 틀린 문제를 아래에서 다시 확인하고,
+                        이해했으면 각 문제의 삭제 버튼으로 정리하세요. 다 끝났으면 완료 버튼을 눌러 다음으로 넘어가요.
+                      </Bi>
                     </div>
                     <WrongNotesPanel />
                   </div>
@@ -212,7 +218,7 @@ function TopikWeekBrowser({ heading, description, filterWeeks, emptyMessage, onB
                   key={day.dayNumber}
                   onClick={() => openDay(day)}
                 >
-                  <b>{day.dayInWeek}회차</b>
+                  <b><Bi en={`Session ${day.dayInWeek}`}>{day.dayInWeek}회차</Bi></b>
                   <small>{day.task}</small>
                 </button>
               ))}

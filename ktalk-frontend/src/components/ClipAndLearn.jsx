@@ -2,6 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 import { AI_URL, LEARNING_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.clip.accent
 const ACCENT_TINT = TAB_COLORS.clip.tint
@@ -107,7 +108,7 @@ function ClipAndLearn() {
       <div>
         <div style={{ marginBottom: '20px', padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT }}>
           <h2>🎬 Clip & Learn</h2>
-          <p>K-드라마/K-POP 영상을 검색하고, 대본을 붙여넣어 퀴즈로 학습해보세요.</p>
+          <p><Bi en="Search K-drama / K-POP videos, paste the script and learn with a quiz.">K-드라마/K-POP 영상을 검색하고, 대본을 붙여넣어 퀴즈로 학습해보세요.</Bi></p>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
             <input
                 type="text"
@@ -118,7 +119,7 @@ function ClipAndLearn() {
             />
             <button type="submit" disabled={isSearching}
                     style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
-              {isSearching ? '검색 중...' : '검색'}
+              <Bi en={isSearching ? 'Searching...' : 'Search'}>{isSearching ? '검색 중...' : '검색'}</Bi>
             </button>
           </form>
           {searchError && <p style={{ color: '#dc3545', marginTop: '10px' }}>⚠ {searchError}</p>}
@@ -169,12 +170,12 @@ function ClipAndLearn() {
                 </div>
               </a>
               <p style={{ fontSize: '13px', color: '#999', marginTop: '-10px', marginBottom: '15px' }}>
-                썸네일을 누르면 유튜브에서 영상이 열립니다.
+                <Bi en="Tap a thumbnail to open the video on YouTube.">썸네일을 누르면 유튜브에서 영상이 열립니다.</Bi>
               </p>
 
               <div style={{ marginTop: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                  대본/자막 붙여넣기 (퀴즈 생성용)
+                  <Bi en="Paste the script / subtitles (to create a quiz)">대본/자막 붙여넣기 (퀴즈 생성용)</Bi>
                 </label>
                 <textarea
                     value={transcript}
@@ -190,12 +191,12 @@ function ClipAndLearn() {
                   </select>
                   <button onClick={handleGenerateQuiz} disabled={isGeneratingQuiz}
                           style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
-                    {isGeneratingQuiz ? '퀴즈 생성 중...' : '퀴즈 생성'}
+                    <Bi en={isGeneratingQuiz ? 'Creating quiz...' : 'Create quiz'}>{isGeneratingQuiz ? '퀴즈 생성 중...' : '퀴즈 생성'}</Bi>
                   </button>
                   {progressId && !completed && (
                       <button onClick={handleComplete}
                               style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>
-                        ✅ 학습 완료로 표시
+                        <Bi en="Mark as learned">✅ 학습 완료로 표시</Bi>
                       </button>
                   )}
                   {completed && <span style={{ color: '#28a745', fontWeight: 'bold' }}>학습 완료! 🎉</span>}
@@ -205,7 +206,7 @@ function ClipAndLearn() {
 
               {quizzes.length > 0 && (
                   <div style={{ marginTop: '20px' }}>
-                    <h4>퀴즈</h4>
+                    <h4><Bi en="Quiz">퀴즈</Bi></h4>
                     {quizzes.map((quiz, qIdx) => {
                       const selected = answers[qIdx]
                       const answered = selected !== undefined

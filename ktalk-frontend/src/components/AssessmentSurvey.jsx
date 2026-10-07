@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { ASSESSMENT_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import { Bi } from '../EnglishHint'
+import { AREA_EN, QUESTION_EN, SCALE_EN, TYPE_EN } from '../assessmentEn'
 
 const ACCENT = TAB_COLORS.assessment.accent
 const ACCENT_TINT = TAB_COLORS.assessment.tint
@@ -88,38 +90,38 @@ function AssessmentSurvey() {
     setAnswers({})
   }
 
-  if (loading) return <p>불러오는 중...</p>
+  if (loading) return <p><Bi en="Loading...">불러오는 중...</Bi></p>
 
   if (result) {
     return (
       <div>
         <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
-          <h2>🧠 나의 학습 유형: {result.label}</h2>
-          <p>{result.description}</p>
+          <h2>🧠 <Bi en={TYPE_EN[result.learnerType]?.label}>나의 학습 유형: {result.label}</Bi></h2>
+          <p><Bi en={TYPE_EN[result.learnerType]?.description}>{result.description}</Bi></p>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <h3>맞춤 학습법</h3>
-          <p>{result.studyTip}</p>
+          <h3><Bi en="Study tips for you">맞춤 학습법</Bi></h3>
+          <p><Bi en={TYPE_EN[result.learnerType]?.studyTip}>{result.studyTip}</Bi></p>
         </div>
 
         <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '200px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h4>추천 교재</h4>
+            <h4><Bi en="Recommended textbooks">추천 교재</Bi></h4>
             <ul>{result.textbooks.map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
           <div style={{ flex: 1, minWidth: '200px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h4>추천 강의</h4>
+            <h4><Bi en="Recommended lectures">추천 강의</Bi></h4>
             <ul>{result.courses.map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
           <div style={{ flex: 1, minWidth: '200px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h4>추천 앱</h4>
+            <h4><Bi en="Recommended apps">추천 앱</Bi></h4>
             <ul>{result.apps.map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <h3>추천 커리큘럼</h3>
+          <h3><Bi en="Recommended curriculum">추천 커리큘럼</Bi></h3>
           {result.curriculum.map((stage) => (
             <div key={stage.period} style={{ padding: '12px', marginBottom: '8px', border: '1px solid #eee', borderRadius: '8px' }}>
               <strong style={{ color: ACCENT }}>{stage.period}</strong>
@@ -132,7 +134,7 @@ function AssessmentSurvey() {
           onClick={handleRetake}
           style={{ padding: '10px 16px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}
         >
-          다시 진단하기
+          <Bi en="Retake the test">다시 진단하기</Bi>
         </button>
       </div>
     )
@@ -147,18 +149,18 @@ function AssessmentSurvey() {
   return (
     <div>
       <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
-        <h2>🧠 학습 유형 진단</h2>
-        <p>생활습관, 집중력 패턴, 학습 동기를 바탕으로 나에게 맞는 학습 전략을 찾아보세요. (약 5~7분 소요)</p>
+        <h2>🧠 <Bi en="Learner-type test">학습 유형 진단</Bi></h2>
+        <p><Bi en="Find the study strategy that fits you, based on your habits, focus patterns and motivation. (about 5-7 minutes)">생활습관, 집중력 패턴, 학습 동기를 바탕으로 나에게 맞는 학습 전략을 찾아보세요. (약 5~7분 소요)</Bi></p>
       </div>
 
       {error && <p style={{ color: '#dc3545' }}>⚠ {error}</p>}
 
       {Object.entries(groupedByArea).map(([area, areaQuestions]) => (
         <div key={area} style={{ marginBottom: '20px' }}>
-          <h3>{AREA_LABELS[area]}</h3>
+          <h3><Bi en={AREA_EN[area]}>{AREA_LABELS[area]}</Bi></h3>
           {areaQuestions.map((q) => (
             <div key={q.code} style={{ padding: '12px', marginBottom: '8px', border: '1px solid #eee', borderRadius: '8px' }}>
-              <div style={{ marginBottom: '8px' }}>{q.text}</div>
+              <div style={{ marginBottom: '8px' }}><Bi en={QUESTION_EN[q.code]}>{q.text}</Bi></div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {SCALE_LABELS.map((label, index) => {
                   const score = index + 1
@@ -179,7 +181,7 @@ function AssessmentSurvey() {
                         borderRadius: '4px',
                       }}
                     >
-                      {label}
+                      <Bi en={SCALE_EN[index]}>{label}</Bi>
                     </button>
                   )
                 })}
@@ -194,7 +196,7 @@ function AssessmentSurvey() {
         disabled={submitting}
         style={{ padding: '12px 20px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px', fontSize: '16px' }}
       >
-        {submitting ? '분석 중...' : '결과 확인하기'}
+        <Bi en={submitting ? 'Analyzing...' : 'See my result'}>{submitting ? '분석 중...' : '결과 확인하기'}</Bi>
       </button>
     </div>
   )

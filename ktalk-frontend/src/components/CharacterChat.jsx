@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.chat.accent
 const ACCENT_TINT = TAB_COLORS.chat.tint
@@ -84,7 +85,7 @@ function CharacterChat() {
       <div>
         <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
           <h2>💬 AI Character Chat</h2>
-          <p>하고 싶은 말을 입력하면, K-POP/K-드라마 속 실제 대사로 비슷한 한국어 표현을 찾아드려요.</p>
+          <p><Bi en="Type what you want to say and we will find similar Korean expressions from real K-POP and K-drama lines.">하고 싶은 말을 입력하면, K-POP/K-드라마 속 실제 대사로 비슷한 한국어 표현을 찾아드려요.</Bi></p>
         </div>
 
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '20px', minHeight: '200px', marginBottom: '15px' }}>
@@ -93,7 +94,7 @@ function CharacterChat() {
                   style={{ color: '#999', cursor: 'text' }}
                   onClick={() => inputRef.current?.focus()}
               >
-                예: "I miss you so much" 라고 입력해보세요.
+                <Bi en="Try typing: 'I miss you so much'">예: "I miss you so much" 라고 입력해보세요.</Bi>
               </p>
           )}
           {messages.map((msg, idx) => (
@@ -172,13 +173,13 @@ function CharacterChat() {
                 )}
               </div>
           ))}
-          {isSending && <p style={{ color: '#999' }}>캐릭터가 표현을 찾는 중...</p>}
+          {isSending && <p style={{ color: '#999' }}><Bi en="The character is finding expressions...">캐릭터가 표현을 찾는 중...</Bi></p>}
           {error && <p style={{ color: '#dc3545' }}>⚠ {error}</p>}
         </div>
 
         <form onSubmit={handleSend} style={{ display: 'flex', gap: '10px' }}>
           <select value={language} onChange={(e) => setLanguage(e.target.value)} style={{ padding: '10px' }}>
-            <option value="">자동 감지</option>
+            <option value="">자동 감지 (Auto)</option>
             <option value="en">English</option>
             <option value="ja">日本語</option>
             <option value="zh">中文</option>
@@ -195,7 +196,7 @@ function CharacterChat() {
           />
           <button type="submit" disabled={isSending}
                   style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '4px' }}>
-            보내기
+            <Bi en="Send">보내기</Bi>
           </button>
         </form>
       </div>

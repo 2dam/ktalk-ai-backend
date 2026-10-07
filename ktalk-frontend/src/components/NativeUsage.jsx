@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { AI_URL } from '../api'
 import { TAB_COLORS } from '../theme'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -9,8 +10,8 @@ const ACCENT_TINT = TAB_COLORS.navigation.tint
 
 // 장르별 검색 보조어. 관심사/핵심어에 붙여서 실제 한국어가 쓰이는 클립을 찾는다.
 const GENRES = [
-  { id: 'kpop', label: '🎵 K-POP', suffix: '가사', hint: '노래 속에서 이 표현 만나기' },
-  { id: 'drama', label: '🎬 드라마', suffix: '드라마 명장면', hint: '드라마 대사 속 실제 사용' },
+  { id: 'kpop', label: '🎵 K-POP', suffix: '가사', hint: '노래 속에서 이 표현 만나기', hintEn: 'Meet this expression in songs' },
+  { id: 'drama', label: '🎬 드라마', suffix: '드라마 명장면', hint: '드라마 대사 속 실제 사용', hintEn: 'Real use in drama lines' },
 ]
 
 function speak(text) {
@@ -90,10 +91,12 @@ function NativeUsage({ lesson, onNext }) {
 
   return (
     <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-      <h3 style={{ marginTop: 0 }}>원어민은 이렇게 써요 🎤</h3>
+      <h3 style={{ marginTop: 0 }}><Bi en="This is how natives use it">원어민은 이렇게 써요 🎤</Bi></h3>
       <p style={{ color: '#666', marginTop: 0 }}>
-        방금 뜻을 짐작해본 이 표현, 실제로 K-POP과 드라마 속 한국인들은 이렇게 씁니다.
-        몇 개만 봐도 귀가 트이고, 곧 <b>당신도 이렇게 말하게</b> 돼요.
+        <Bi en="This is how Koreans really use the expression you just guessed, in K-POP and dramas. A few examples will tune your ear, and soon you will say it too.">
+          방금 뜻을 짐작해본 이 표현, 실제로 K-POP과 드라마 속 한국인들은 이렇게 씁니다.
+          몇 개만 봐도 귀가 트이고, 곧 <b>당신도 이렇게 말하게</b> 돼요.
+        </Bi>
       </p>
 
       {/* 목표 문장 다시 상기 + 듣기 */}
@@ -135,7 +138,7 @@ function NativeUsage({ lesson, onNext }) {
               }}
             >
               {g.label}
-              <div style={{ fontSize: '11px', color: '#999', fontWeight: 400, marginTop: '2px' }}>{g.hint}</div>
+              <div style={{ fontSize: '11px', color: '#999', fontWeight: 400, marginTop: '2px' }}><Bi en={g.hintEn}>{g.hint}</Bi></div>
             </button>
           )
         })}
@@ -161,7 +164,7 @@ function NativeUsage({ lesson, onNext }) {
             backgroundColor: loading ? '#ccc' : ACCENT, color: 'white', border: 'none', borderRadius: '8px',
           }}
         >
-          {loading ? '찾는 중…' : '검색'}
+          <Bi en={loading ? 'Searching...' : 'Search'}>{loading ? '찾는 중…' : '검색'}</Bi>
         </button>
       </form>
 
@@ -169,7 +172,7 @@ function NativeUsage({ lesson, onNext }) {
 
       {/* 클립 결과 */}
       {loading && videos.length === 0 ? (
-        <p style={{ color: '#999' }}>클립을 불러오는 중…</p>
+        <p style={{ color: '#999' }}><Bi en="Loading clips...">클립을 불러오는 중…</Bi></p>
       ) : videos.length > 0 ? (
         <>
           {videos.every((v) => !v.matched) && (
@@ -217,11 +220,11 @@ function NativeUsage({ lesson, onNext }) {
           </div>
         </>
       ) : (
-        !loading && <p style={{ color: '#999' }}>클립이 없어요. 검색어를 바꿔보세요.</p>
+        !loading && <p style={{ color: '#999' }}><Bi en="No clips found. Try a different search term.">클립이 없어요. 검색어를 바꿔보세요.</Bi></p>
       )}
 
       <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-        썸네일을 누르면 유튜브에서 영상이 열립니다. {watchedCount > 0 && `· ${watchedCount}개 감상함`}
+        <Bi en="Tap a thumbnail to open the video on YouTube.">썸네일을 누르면 유튜브에서 영상이 열립니다. {watchedCount > 0 && `· ${watchedCount}개 감상함`}</Bi>
       </p>
 
       {/* 다음 단계 CTA (Action으로 연결) */}
@@ -233,7 +236,7 @@ function NativeUsage({ lesson, onNext }) {
           backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px', marginTop: '16px',
         }}
       >
-        나도 이렇게 말해보기 → 패턴 응용
+        <Bi en="Let me say it too → apply the pattern">나도 이렇게 말해보기 → 패턴 응용</Bi>
       </button>
     </div>
   )

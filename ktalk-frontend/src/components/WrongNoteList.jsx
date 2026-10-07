@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_BASE, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
+import { Bi } from '../EnglishHint'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -41,7 +42,7 @@ function WrongNoteCard({ note, onRemove }) {
             fontSize: '12px', color: '#999',
           }}
         >
-          {removing ? '지우는 중...' : '✕ 복습 완료, 지우기'}
+          <Bi en={removing ? 'Removing...' : 'Reviewed - remove'}>{removing ? '지우는 중...' : '✕ 복습 완료, 지우기'}</Bi>
         </button>
       </div>
 
@@ -128,15 +129,15 @@ export function WrongNotesPanel() {
 
   return (
     <>
-      {loading && <p>불러오는 중...</p>}
+      {loading && <p><Bi en="Loading...">불러오는 중...</Bi></p>}
       {!loading && error && <p style={{ color: '#dc3545' }}>⚠ {error}</p>}
       {!loading && !error && notes?.length === 0 && (
-        <p style={{ color: '#666' }}>아직 틀린 문제가 없어요. 문제를 풀다 틀리면 여기 자동으로 쌓여요!</p>
+        <p style={{ color: '#666' }}><Bi en="No wrong answers yet. Questions you miss will be collected here automatically!">아직 틀린 문제가 없어요. 문제를 풀다 틀리면 여기 자동으로 쌓여요!</Bi></p>
       )}
       {!loading && !error && notes?.length > 0 && (
         <>
           <p style={{ fontSize: '13px', color: ACCENT, marginTop: 0, marginBottom: '16px' }}>
-            총 {notes.length}개의 복습할 문제가 있어요.
+            <Bi en={`${notes.length} question(s) to review.`}>총 {notes.length}개의 복습할 문제가 있어요.</Bi>
           </p>
           {notes.map((note) => (
             <WrongNoteCard key={note.problemId} note={note} onRemove={handleRemove} />
@@ -154,10 +155,13 @@ function WrongNoteList({ onBack, onRequireAuth }) {
     return (
       <main className="topik-page" id="top">
         <div className="topik-page-head">
-          <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+          <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
           <span className="topik-badge">TOPIK 코스</span>
-          <h1>로그인하고 오답노트를 확인하세요</h1>
-          <p>틀린 문제만 모아 반복 학습하고 취약점을 보완해요.</p>
+          <h1>
+            로그인하고 오답노트를 확인하세요
+            <Bi en="Log in to see your wrong-answer notes">{''}</Bi>
+          </h1>
+          <p><Bi en="Review only the questions you missed and fix your weak spots.">틀린 문제만 모아 반복 학습하고 취약점을 보완해요.</Bi></p>
         </div>
         <button
           type="button"
@@ -165,7 +169,7 @@ function WrongNoteList({ onBack, onRequireAuth }) {
           onClick={onRequireAuth}
           style={{ margin: '0 auto', display: 'block' }}
         >
-          로그인하기
+          <Bi en="Log in">로그인하기</Bi>
         </button>
       </main>
     )
@@ -174,10 +178,10 @@ function WrongNoteList({ onBack, onRequireAuth }) {
   return (
     <main className="topik-page" id="top">
       <div className="topik-page-head">
-        <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+        <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
         <span className="topik-badge">TOPIK 코스</span>
-        <h1>오답노트</h1>
-        <p>틀린 문제만 모아 반복 학습하고 취약점을 보완해요.</p>
+        <h1><Bi en="Wrong-answer notes">오답노트</Bi></h1>
+        <p><Bi en="Review only the questions you missed and fix your weak spots.">틀린 문제만 모아 반복 학습하고 취약점을 보완해요.</Bi></p>
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>

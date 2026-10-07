@@ -3,6 +3,7 @@ import axios from 'axios'
 import { TOPIK_URL, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -116,10 +117,13 @@ function TopikQuiz({ onBack, onRequireAuth }) {
     return (
       <main className="topik-page" id="top">
         <div className="topik-page-head">
-          <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+          <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
           <span className="topik-badge">TOPIK 코스</span>
-          <h1>로그인하고 실력에 맞는 문제를 풀어보세요</h1>
-          <p>정답률에 따라 자동으로 난이도가 조정되는 적응형 퀴즈예요.</p>
+          <h1>
+            로그인하고 실력에 맞는 문제를 풀어보세요
+            <Bi en="Log in to solve questions that fit your level">{''}</Bi>
+          </h1>
+          <p><Bi en="An adaptive quiz whose difficulty adjusts automatically to your accuracy.">정답률에 따라 자동으로 난이도가 조정되는 적응형 퀴즈예요.</Bi></p>
         </div>
         <button
           type="button"
@@ -127,7 +131,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
           onClick={onRequireAuth}
           style={{ margin: '0 auto', display: 'block' }}
         >
-          로그인하기
+          <Bi en="Log in">로그인하기</Bi>
         </button>
       </main>
     )
@@ -136,10 +140,10 @@ function TopikQuiz({ onBack, onRequireAuth }) {
   return (
     <main className="topik-page" id="top">
       <div className="topik-page-head">
-        <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+        <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
         <span className="topik-badge">TOPIK 코스</span>
-        <h1>적응형 TOPIK 퀴즈</h1>
-        <p>정답률이 쌓일수록 난이도가 자동으로 오르내려요. 모르는 단어는 눌러서 뜻을 확인하세요.</p>
+        <h1><Bi en="Adaptive TOPIK quiz">적응형 TOPIK 퀴즈</Bi></h1>
+        <p><Bi en="Difficulty moves up and down automatically as your accuracy builds. Tap a word you do not know to see its meaning.">정답률이 쌓일수록 난이도가 자동으로 오르내려요. 모르는 단어는 눌러서 뜻을 확인하세요.</Bi></p>
       </div>
 
       {progress && (
@@ -151,18 +155,18 @@ function TopikQuiz({ onBack, onRequireAuth }) {
             {GROUP_LABELS[progress.topikGroup]} · {LEVEL_LABELS[progress.topikLevel]}
           </span>
           <span style={{ fontSize: '13px', color: '#666' }}>
-            누적 {progress.attemptCount}문제 중 {progress.correctCount}개 정답
+            <Bi en={`${progress.correctCount} correct out of ${progress.attemptCount} so far`}>누적 {progress.attemptCount}문제 중 {progress.correctCount}개 정답</Bi>
             {progress.attemptCount > 0 && ` (${Math.round(progress.accuracy * 100)}%)`}
           </span>
         </div>
       )}
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-        {loading && <p>불러오는 중...</p>}
+        {loading && <p><Bi en="Loading...">불러오는 중...</Bi></p>}
 
         {!loading && noItems && (
           <div>
-            <p style={{ color: '#666' }}>아직 출제할 수 있는 문항이 없어요. 등록된 단어로 문항을 만들어볼까요?</p>
+            <p style={{ color: '#666' }}><Bi en="There are no questions yet. Shall we create some from the registered words?">아직 출제할 수 있는 문항이 없어요. 등록된 단어로 문항을 만들어볼까요?</Bi></p>
             <button
               type="button"
               onClick={handleGenerate}
@@ -172,7 +176,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
                 backgroundColor: generating ? '#ccc' : ACCENT, color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              {generating ? '문항 만드는 중...' : '문항 만들기'}
+              <Bi en={generating ? 'Creating questions...' : 'Create questions'}>{generating ? '문항 만드는 중...' : '문항 만들기'}</Bi>
             </button>
           </div>
         )}
@@ -243,7 +247,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
                 border: '1px solid ' + (result.correct ? '#bbf7d0' : '#fde68a'),
               }}>
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-                  {result.correct ? '✅ 정답이에요!' : `❌ 아쉬워요. 정답: ${result.correctAnswer}`}
+                  <Bi en={result.correct ? 'Correct!' : 'Not quite. See the correct answer.'}>{result.correct ? '✅ 정답이에요!' : `❌ 아쉬워요. 정답: ${result.correctAnswer}`}</Bi>
                 </div>
                 {result.levelChanged && !result.curriculumTierChanged && (
                   <div style={{ fontSize: '13px', color: '#666' }}>
@@ -262,7 +266,7 @@ function TopikQuiz({ onBack, onRequireAuth }) {
                   backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px',
                 }}
               >
-                다음 문제 →
+                <Bi en="Next question →">다음 문제 →</Bi>
               </button>
             )}
           </>

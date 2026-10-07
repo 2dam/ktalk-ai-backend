@@ -12,12 +12,18 @@ import { euroRoSuffix } from '../korean'
 import ReviewAlarm from './ReviewAlarm'
 import NativeUsage from './NativeUsage'
 import ClickableKorean from './ClickableKorean'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
 const ACCENT_TINT = TAB_COLORS.navigation.tint
 
 const SUGGESTED_INTERESTS = ['축구', 'K-POP', '드라마', '게임', '요리', '여행', '영화', '반려동물']
+
+const INTEREST_EN = {
+  축구: 'Soccer', 'K-POP': 'K-POP', 드라마: 'Drama', 게임: 'Games',
+  요리: 'Cooking', 여행: 'Travel', 영화: 'Movies', 반려동물: 'Pets',
+}
 
 const STAGE_LABELS = {
   interest: '관심사 찾기',
@@ -27,6 +33,16 @@ const STAGE_LABELS = {
   sensory: '언어 감각',
   review: '복습 알람',
   done: '완료',
+}
+
+const STAGE_LABELS_EN = {
+  interest: 'Find interest',
+  infer: 'Guess meaning',
+  native: 'Native usage',
+  pattern: 'Use the pattern',
+  sensory: 'Feel the word',
+  review: 'Review alarm',
+  done: 'Done',
 }
 
 const DEFAULT_STAGES = ['interest', 'infer', 'native', 'pattern', 'sensory', 'review', 'done']
@@ -99,13 +115,13 @@ function StageTracker({ stage, stages }) {
               className="stage-label"
               style={{ fontSize: '11px', color: idx <= currentIndex ? ACCENT_DARK : '#999', fontWeight: idx === currentIndex ? 700 : 400 }}
             >
-              {s.label}
+              <Bi en={STAGE_LABELS_EN[s.id]}>{s.label}</Bi>
             </span>
           </div>
         ))}
       </div>
       <div className="stage-current" style={{ color: ACCENT_DARK }}>
-        {currentIndex + 1}/{stages.length} · {stages[currentIndex]?.label}
+        {currentIndex + 1}/{stages.length} · <Bi en={STAGE_LABELS_EN[stages[currentIndex]?.id]}>{stages[currentIndex]?.label}</Bi>
       </div>
     </div>
   )
@@ -117,7 +133,7 @@ function EmptyLessonNotice({ onStart }) {
       padding: '16px', borderRadius: '8px', backgroundColor: '#fff7ed',
       border: '1px solid #fde68a', marginBottom: '16px', textAlign: 'left',
     }}>
-      <p style={{ margin: '0 0 10px' }}>아직 시작한 학습이 없어요. 관심사를 먼저 골라야 이 단계의 문장/패턴이 준비돼요.</p>
+      <p style={{ margin: '0 0 10px' }}><Bi en="You have not started yet. Pick an interest first so this step's sentence and pattern can be prepared.">아직 시작한 학습이 없어요. 관심사를 먼저 골라야 이 단계의 문장/패턴이 준비돼요.</Bi></p>
       <button
         type="button"
         onClick={onStart}
@@ -126,7 +142,7 @@ function EmptyLessonNotice({ onStart }) {
           border: 'none', borderRadius: '999px', fontSize: '13px',
         }}
       >
-        관심사 고르러 가기 →
+        <Bi en="Go pick an interest →">관심사 고르러 가기 →</Bi>
       </button>
     </div>
   )
@@ -174,7 +190,7 @@ function ConnectionsPanel({ connections, onJump }) {
   )
 }
 
-function PracticeTool({ id, title, openTool, setOpenTool, children }) {
+function PracticeTool({ id, title, titleEn, openTool, setOpenTool, children }) {
   const isOpen = openTool === id
   return (
     <details
@@ -190,7 +206,7 @@ function PracticeTool({ id, title, openTool, setOpenTool, children }) {
       }}
       style={{ marginTop: '16px', border: '1px solid #eee', borderRadius: '8px', padding: '14px 16px' }}
     >
-      <summary style={{ cursor: 'pointer', fontWeight: 700, color: ACCENT_DARK }}>{title}</summary>
+      <summary style={{ cursor: 'pointer', fontWeight: 700, color: ACCENT_DARK }}><Bi en={titleEn}>{title}</Bi></summary>
       {isOpen && <div style={{ marginTop: '16px' }}>{children}</div>}
     </details>
   )
@@ -339,7 +355,9 @@ function LearningNavigation({ target, onRequireAuth }) {
       <div style={{ padding: '20px', border: '2px solid ' + ACCENT, borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '20px' }}>
         <h2>🧭 Learning Navigation</h2>
         <p style={{ margin: 0 }}>
-          관심사에서 시작해 유추 → 원어민 실사용 → 패턴 응용 → 언어 감각 → 복습까지, 스스로 찾아가는 학습 흐름이에요.
+          <Bi en="Start from your interest: guess the meaning, see native usage, apply the pattern, feel the word, then review - a flow you discover on your own.">
+            관심사에서 시작해 유추 → 원어민 실사용 → 패턴 응용 → 언어 감각 → 복습까지, 스스로 찾아가는 학습 흐름이에요.
+          </Bi>
         </p>
       </div>
 
@@ -360,9 +378,9 @@ function LearningNavigation({ target, onRequireAuth }) {
           }}
         >
           <span style={{ fontWeight: 700, color: ACCENT_DARK }}>
-            🔔 복습할 문장이 {dueCount}개 있어요
+            <Bi en={`${dueCount} sentence(s) due for review`}>🔔 복습할 문장이 {dueCount}개 있어요</Bi>
           </span>
-          <span style={{ color: ACCENT_DARK, fontSize: '14px' }}>지금 복습하기 →</span>
+          <span style={{ color: ACCENT_DARK, fontSize: '14px' }}><Bi en="Review now →">지금 복습하기 →</Bi></span>
         </div>
       )}
 
@@ -374,8 +392,8 @@ function LearningNavigation({ target, onRequireAuth }) {
 
       {stage === 'interest' && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-          <h3 style={{ fontSize: '22px', marginTop: 0 }}>너의 관심은 뭐니?</h3>
-          <p style={{ color: '#666' }}>무엇이든 좋아요. 그 주제로 된 한국어 문장을 만들어드릴게요.</p>
+          <h3 style={{ fontSize: '22px', marginTop: 0 }}><Bi en="What are you interested in?">너의 관심은 뭐니?</Bi></h3>
+          <p style={{ color: '#666' }}><Bi en="Anything is fine. We will make Korean sentences about that topic.">무엇이든 좋아요. 그 주제로 된 한국어 문장을 만들어드릴게요.</Bi></p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
             {SUGGESTED_INTERESTS.map((topic) => (
@@ -389,7 +407,7 @@ function LearningNavigation({ target, onRequireAuth }) {
                   backgroundColor: '#fff', color: ACCENT_DARK, cursor: isGenerating ? 'not-allowed' : 'pointer', fontSize: '14px',
                 }}
               >
-                {topic}
+                <Bi en={INTEREST_EN[topic]}>{topic}</Bi>
               </button>
             ))}
           </div>
@@ -413,11 +431,11 @@ function LearningNavigation({ target, onRequireAuth }) {
                 backgroundColor: isGenerating ? '#ccc' : ACCENT, color: 'white', border: 'none', borderRadius: '4px',
               }}
             >
-              {isGenerating ? '만드는 중...' : '시작하기 →'}
+              <Bi en={isGenerating ? 'Creating...' : 'Start →'}>{isGenerating ? '만드는 중...' : '시작하기 →'}</Bi>
             </button>
           </div>
 
-          <PracticeTool id="assessment" title="🧠 아직 내 학습 유형을 모른다면? 진단부터 해보기" openTool={openTool} setOpenTool={setOpenTool}>
+          <PracticeTool id="assessment" title="🧠 아직 내 학습 유형을 모른다면? 진단부터 해보기" titleEn="Not sure of your learner type? Start with the test" openTool={openTool} setOpenTool={setOpenTool}>
             <AssessmentSurvey />
           </PracticeTool>
         </div>
@@ -429,7 +447,7 @@ function LearningNavigation({ target, onRequireAuth }) {
           {lesson && (
           <>
           <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
-            관심사: {lesson.interest} · 이 문장은 무슨 뜻일까요?
+            <Bi en="What does this sentence mean?">관심사: {lesson.interest} · 이 문장은 무슨 뜻일까요?</Bi>
           </div>
 
           <div style={{
@@ -448,7 +466,7 @@ function LearningNavigation({ target, onRequireAuth }) {
           </div>
 
           <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
-            내가 생각하는 뜻
+            <Bi en="What I think it means">내가 생각하는 뜻</Bi>
           </label>
           <textarea
             value={guess}
@@ -480,7 +498,7 @@ function LearningNavigation({ target, onRequireAuth }) {
                 backgroundColor: '#fff', color: ACCENT_DARK, border: '1px solid ' + ACCENT, borderRadius: '999px', fontSize: '13px',
               }}
             >
-              힌트 보기 ({hintCount}/{lesson.hints.length})
+              <Bi en="Show hint">힌트 보기 ({hintCount}/{lesson.hints.length})</Bi>
             </button>
             <button
               type="button"
@@ -490,7 +508,7 @@ function LearningNavigation({ target, onRequireAuth }) {
                 border: '1px solid #ccc', borderRadius: '999px', fontSize: '13px',
               }}
             >
-              정답 확인하기
+              <Bi en="Check the answer">정답 확인하기</Bi>
             </button>
           </div>
 
@@ -516,15 +534,15 @@ function LearningNavigation({ target, onRequireAuth }) {
               backgroundColor: revealedMeaning ? ACCENT : '#ccc', color: 'white', border: 'none', borderRadius: '8px',
             }}
           >
-            다음: 원어민은 이렇게 써요 →
+            <Bi en="Next: how natives write it →">다음: 원어민은 이렇게 써요 →</Bi>
           </button>
           </>
           )}
 
-          <PracticeTool id="contents" title="📚 내가 만든 콘텐츠로 유추 연습 더 하기" openTool={openTool} setOpenTool={setOpenTool}>
+          <PracticeTool id="contents" title="📚 내가 만든 콘텐츠로 유추 연습 더 하기" titleEn="More guessing practice with my own content" openTool={openTool} setOpenTool={setOpenTool}>
             <ContentManager />
           </PracticeTool>
-          <PracticeTool id="clip" title="🎬 유튜브 클립에서 표현 찾아 유추하기" openTool={openTool} setOpenTool={setOpenTool}>
+          <PracticeTool id="clip" title="🎬 유튜브 클립에서 표현 찾아 유추하기" titleEn="Find and guess expressions from YouTube clips" openTool={openTool} setOpenTool={setOpenTool}>
             <ClipAndLearn />
           </PracticeTool>
         </div>
@@ -547,15 +565,15 @@ function LearningNavigation({ target, onRequireAuth }) {
           {!lesson && <EmptyLessonNotice onStart={() => setStage('interest')} />}
           {lesson && (
           <>
-          <h3 style={{ marginTop: 0 }}>이제 당신이 선생님이에요 🧑‍🏫</h3>
-          <p style={{ color: '#666' }}>방금 배운 문장의 패턴을 다른 사람에게 설명한다고 생각하고 적어보세요.</p>
+          <h3 style={{ marginTop: 0 }}><Bi en="Now you are the teacher">이제 당신이 선생님이에요 🧑‍🏫</Bi></h3>
+          <p style={{ color: '#666' }}><Bi en="Write as if you are explaining this sentence's pattern to someone else.">방금 배운 문장의 패턴을 다른 사람에게 설명한다고 생각하고 적어보세요.</Bi></p>
 
           <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: ACCENT_TINT, marginBottom: '16px', fontSize: '15px' }}>
             <ClickableKorean text={lesson.sentence} /> <span style={{ color: '#999', fontSize: '13px' }}>({lesson.meaning})</span>
           </div>
 
           <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
-            이 문장에서 쓰인 패턴을 내 말로 설명하기
+            <Bi en="Explain the pattern used in this sentence in your own words">이 문장에서 쓰인 패턴을 내 말로 설명하기</Bi>
           </label>
           <textarea
             value={studentExplanation}
@@ -565,7 +583,7 @@ function LearningNavigation({ target, onRequireAuth }) {
           />
 
           <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
-            같은 패턴으로 나만의 문장 만들기 (선택)
+            <Bi en="Make your own sentence with the same pattern (optional)">같은 패턴으로 나만의 문장 만들기 (선택)</Bi>
           </label>
           <input
             type="text"
@@ -585,7 +603,7 @@ function LearningNavigation({ target, onRequireAuth }) {
                 backgroundColor: isEvaluating ? '#ccc' : ACCENT, color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              {isEvaluating ? '선생님이 확인하는 중...' : '선생님께 확인받기'}
+              <Bi en={isEvaluating ? 'Teacher is checking...' : 'Ask the teacher to check'}>{isEvaluating ? '선생님이 확인하는 중...' : '선생님께 확인받기'}</Bi>
             </button>
           ) : (
             <>
@@ -595,12 +613,12 @@ function LearningNavigation({ target, onRequireAuth }) {
                 border: '1px solid ' + (teachBackFeedback.patternUnderstood ? '#bbf7d0' : '#fde68a'),
               }}>
                 <div style={{ fontWeight: 700, marginBottom: '6px' }}>
-                  {teachBackFeedback.patternUnderstood ? '✅ 선생님 피드백' : '📝 선생님 피드백'}
+                  <Bi en="Teacher's feedback">{teachBackFeedback.patternUnderstood ? '✅ 선생님 피드백' : '📝 선생님 피드백'}</Bi>
                 </div>
                 <div style={{ fontSize: '14px', lineHeight: 1.6 }}>{teachBackFeedback.feedback}</div>
               </div>
               <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
-                <summary style={{ cursor: 'pointer' }}>참고: 원래 패턴 설명 보기</summary>
+                <summary style={{ cursor: 'pointer' }}><Bi en="See the original pattern explanation">참고: 원래 패턴 설명 보기</Bi></summary>
                 <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
                   <b>{lesson.pattern}</b>
                   <div style={{ marginTop: '4px' }}>{lesson.patternExplanation}</div>
@@ -614,14 +632,14 @@ function LearningNavigation({ target, onRequireAuth }) {
                   backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px',
                 }}
               >
-                다음: 언어 감각 훈련하기 →
+                <Bi en="Next: train your feel for the word →">다음: 언어 감각 훈련하기 →</Bi>
               </button>
             </>
           )}
           </>
           )}
 
-          <PracticeTool id="chat" title="💬 AI와 실전 회화로 패턴 응용해보기" openTool={openTool} setOpenTool={setOpenTool}>
+          <PracticeTool id="chat" title="💬 AI와 실전 회화로 패턴 응용해보기" titleEn="Use the pattern in real AI conversation" openTool={openTool} setOpenTool={setOpenTool}>
             <CharacterChat />
           </PracticeTool>
         </div>
@@ -632,7 +650,7 @@ function LearningNavigation({ target, onRequireAuth }) {
           {!lesson && <EmptyLessonNotice onStart={() => setStage('interest')} />}
           {lesson && (
           <>
-          <h3 style={{ marginTop: 0 }}>언어 감각 훈련</h3>
+          <h3 style={{ marginTop: 0 }}><Bi en="Feel the word">언어 감각 훈련</Bi></h3>
           <p style={{ color: '#666' }}>{lesson.sensoryImagery}</p>
 
           <div style={{
@@ -659,7 +677,7 @@ function LearningNavigation({ target, onRequireAuth }) {
             }} />
           </div>
           <div style={{ fontSize: '13px', color: '#999', marginBottom: '20px' }}>
-            {Math.min(repeatCount, SENSORY_TARGET_REPEATS)} / {SENSORY_TARGET_REPEATS}번 소리 내어 말했어요
+            <Bi en="times said out loud">{Math.min(repeatCount, SENSORY_TARGET_REPEATS)} / {SENSORY_TARGET_REPEATS}번 소리 내어 말했어요</Bi>
           </div>
 
           <button
@@ -670,7 +688,7 @@ function LearningNavigation({ target, onRequireAuth }) {
               color: 'white', border: 'none', borderRadius: '999px', marginBottom: '16px',
             }}
           >
-            🗣 소리 내어 말했어요
+            <Bi en="I said it out loud">🗣 소리 내어 말했어요</Bi>
           </button>
 
           <div>
@@ -685,17 +703,17 @@ function LearningNavigation({ target, onRequireAuth }) {
                 color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              다음: 복습 알람 →
+              <Bi en="Next: review alarm →">다음: 복습 알람 →</Bi>
             </button>
           </div>
           </>
           )}
 
           <div style={{ textAlign: 'left' }}>
-            <PracticeTool id="pronunciation" title="🎙 발음 코치에게 확인받기" openTool={openTool} setOpenTool={setOpenTool}>
+            <PracticeTool id="pronunciation" title="🎙 발음 코치에게 확인받기" titleEn="Check with the pronunciation coach" openTool={openTool} setOpenTool={setOpenTool}>
               <PronunciationCoach />
             </PracticeTool>
-            <PracticeTool id="personalized" title="🔁 개인화 복습으로 반복하기" openTool={openTool} setOpenTool={setOpenTool}>
+            <PracticeTool id="personalized" title="🔁 개인화 복습으로 반복하기" titleEn="Repeat with personalized review" openTool={openTool} setOpenTool={setOpenTool}>
               <PersonalizedLearning onNavigate={() => { setStage('infer'); setOpenTool('contents') }} />
             </PracticeTool>
           </div>
@@ -713,7 +731,7 @@ function LearningNavigation({ target, onRequireAuth }) {
       {stage === 'done' && !lesson && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '10px' }}>🎉</div>
-          <h3 style={{ marginTop: 0 }}>복습을 마쳤어요!</h3>
+          <h3 style={{ marginTop: 0 }}><Bi en="You finished the review!">복습을 마쳤어요!</Bi></h3>
           <button
             type="button"
             onClick={resetAll}
@@ -722,7 +740,7 @@ function LearningNavigation({ target, onRequireAuth }) {
               color: 'white', border: 'none', borderRadius: '8px',
             }}
           >
-            새로운 관심사로 학습 시작하기
+            <Bi en="Start learning a new interest">새로운 관심사로 학습 시작하기</Bi>
           </button>
         </div>
       )}
@@ -730,11 +748,11 @@ function LearningNavigation({ target, onRequireAuth }) {
       {stage === 'done' && lesson && (
         <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '10px' }}>🎉</div>
-          <h3 style={{ marginTop: 0 }}>'{lesson.interest}'{euroRoSuffix(lesson.interest)} 한 학습을 마쳤어요!</h3>
+          <h3 style={{ marginTop: 0 }}>'{lesson.interest}'{euroRoSuffix(lesson.interest)} 한 학습을 마쳤어요!<Bi en="You finished a lesson on this interest!">{''}</Bi></h3>
           <div style={{ textAlign: 'left', padding: '16px', backgroundColor: ACCENT_TINT, borderRadius: '12px', marginBottom: '20px' }}>
-            <div style={{ marginBottom: '8px' }}><b>문장:</b> {lesson.sentence} ({lesson.meaning})</div>
-            <div style={{ marginBottom: '8px' }}><b>패턴:</b> {lesson.pattern}</div>
-            <div><b>오늘의 감각 단어:</b> {lesson.sensoryWord}</div>
+            <div style={{ marginBottom: '8px' }}><b><Bi en="Sentence">문장:</Bi></b> {lesson.sentence} ({lesson.meaning})</div>
+            <div style={{ marginBottom: '8px' }}><b><Bi en="Pattern">패턴:</Bi></b> {lesson.pattern}</div>
+            <div><b><Bi en="Word of the day">오늘의 감각 단어:</Bi></b> {lesson.sensoryWord}</div>
           </div>
           <button
             type="button"
@@ -744,7 +762,7 @@ function LearningNavigation({ target, onRequireAuth }) {
               color: 'white', border: 'none', borderRadius: '8px',
             }}
           >
-            새로운 관심사로 다시 시작하기
+            <Bi en="Start again with a new interest">새로운 관심사로 다시 시작하기</Bi>
           </button>
         </div>
       )}

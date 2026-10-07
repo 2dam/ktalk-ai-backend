@@ -5,6 +5,7 @@ import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
 import CurriculumPassageCard from './CurriculumPassageCard'
 import { WrongNotesPanel } from './WrongNoteList'
+import { Bi } from '../EnglishHint'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -95,10 +96,13 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
     return (
       <main className="topik-page" id="top">
         <div className="topik-page-head">
-          <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+          <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
           <span className="topik-badge">TOPIK 코스</span>
-          <h1>로그인하고 나만의 8주 커리큘럼을 시작하세요</h1>
-          <p>학습 유형 진단 결과에 맞춰 매일 할 일이 자동으로 배정돼요.</p>
+          <h1>
+            로그인하고 나만의 8주 커리큘럼을 시작하세요
+            <Bi en="Log in to start your own 8-week plan">{''}</Bi>
+          </h1>
+          <p><Bi en="Your daily tasks are assigned automatically from your learner-type result.">학습 유형 진단 결과에 맞춰 매일 할 일이 자동으로 배정돼요.</Bi></p>
         </div>
         <button
           type="button"
@@ -106,7 +110,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
           onClick={onRequireAuth}
           style={{ margin: '0 auto', display: 'block' }}
         >
-          로그인하기
+          <Bi en="Log in">로그인하기</Bi>
         </button>
       </main>
     )
@@ -115,10 +119,10 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
   return (
     <main className="topik-page" id="top">
       <div className="topik-page-head">
-        <button type="button" className="topik-back" onClick={onBack}>← TOPIK 메뉴로</button>
+        <button type="button" className="topik-back" onClick={onBack}><Bi en="Back to TOPIK menu">← TOPIK 메뉴로</Bi></button>
         <span className="topik-badge">TOPIK 코스</span>
-        <h1>오늘의 커리큘럼</h1>
-        <p>학습 유형 진단 결과에 맞춘 8주 커리큘럼을 하루 단위로 진행해요.</p>
+        <h1><Bi en="Today's curriculum">오늘의 커리큘럼</Bi></h1>
+        <p><Bi en="Follow the 8-week plan matched to your learner-type result, one day at a time.">학습 유형 진단 결과에 맞춘 8주 커리큘럼을 하루 단위로 진행해요.</Bi></p>
       </div>
 
       <div style={{
@@ -146,7 +150,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '24px' }}>
-        {loading && <p>불러오는 중...</p>}
+        {loading && <p><Bi en="Loading...">불러오는 중...</Bi></p>}
 
         {!loading && error === NEEDS_ASSESSMENT_MESSAGE && (
           <div>
@@ -159,7 +163,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                 backgroundColor: ACCENT, color: 'white', border: 'none', borderRadius: '8px',
               }}
             >
-              학습 유형 진단 하러 가기
+              <Bi en="Go to the learner-type test">학습 유형 진단 하러 가기</Bi>
             </button>
           </div>
         )}
@@ -178,7 +182,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                 {data.curriculumTitle} · {data.learnerTypeLabel}
               </span>
               <span style={{ fontSize: '13px', color: '#666' }}>
-                {data.completedDayCount} / {data.totalDays}일 완료
+                <Bi en={`${data.completedDayCount} / ${data.totalDays} days done`}>{data.completedDayCount} / {data.totalDays}일 완료</Bi>
               </span>
             </div>
 
@@ -210,7 +214,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
 
                 {data.template && (
                   <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
-                    <summary style={{ cursor: 'pointer' }}>📎 이번 주 학습지 템플릿 보기</summary>
+                    <summary style={{ cursor: 'pointer' }}><Bi en="View this week's worksheet template">📎 이번 주 학습지 템플릿 보기</Bi></summary>
                     <pre style={{
                       marginTop: '8px', padding: '14px', backgroundColor: '#f9f9f9', borderRadius: '8px',
                       whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: 1.6, fontFamily: 'inherit',
@@ -234,8 +238,10 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                       padding: '14px 16px', borderRadius: '10px', marginBottom: '14px',
                       backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '14px', lineHeight: 1.6,
                     }}>
-                      📝 오늘은 복습일이에요. 지금까지 풀다 틀린 문제를 아래에서 다시 확인하고,
-                      이해했으면 각 문제의 삭제 버튼으로 정리하세요. 다 끝났으면 완료 버튼을 눌러 다음으로 넘어가요.
+                      <Bi en="Today is a review day. Revisit the questions you missed below, clear each one once you understand it, then press complete to move on.">
+                        📝 오늘은 복습일이에요. 지금까지 풀다 틀린 문제를 아래에서 다시 확인하고,
+                        이해했으면 각 문제의 삭제 버튼으로 정리하세요. 다 끝났으면 완료 버튼을 눌러 다음으로 넘어가요.
+                      </Bi>
                     </div>
                     <WrongNotesPanel />
                   </div>
@@ -244,7 +250,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                 {data.recommendedWords?.length > 0 && (
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '6px' }}>
-                      이번 주 추천 어휘 (눌러서 뜻 보기)
+                      <Bi en="Recommended words this week (tap for meaning)">이번 주 추천 어휘 (눌러서 뜻 보기)</Bi>
                     </label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {data.recommendedWords.map((word, idx) => (
@@ -265,7 +271,7 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                     backgroundColor: completing ? '#ccc' : ACCENT, color: 'white', border: 'none', borderRadius: '8px',
                   }}
                 >
-                  {completing ? '처리 중...' : '오늘 학습 완료 →'}
+                  <Bi en={completing ? 'Processing...' : 'Complete today →'}>{completing ? '처리 중...' : '오늘 학습 완료 →'}</Bi>
                 </button>
               </>
             )}

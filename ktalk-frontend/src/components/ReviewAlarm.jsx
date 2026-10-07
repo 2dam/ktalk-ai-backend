@@ -3,6 +3,7 @@ import axios from 'axios'
 import { REVIEW_URL, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
+import { Bi } from '../EnglishHint'
 
 const ACCENT = TAB_COLORS.navigation.accent
 const ACCENT_DARK = TAB_COLORS.navigation.dark
@@ -10,10 +11,10 @@ const ACCENT_TINT = TAB_COLORS.navigation.tint
 
 // SM-2 quality 매핑: 사용자에게는 4단계로 물어보고 내부적으로 0~5점으로 변환한다.
 const GRADES = [
-  { label: '다시', quality: 2, color: '#ef4444', hint: '전혀 기억 안 남' },
-  { label: '어려움', quality: 3, color: '#f59e0b', hint: '겨우 기억함' },
-  { label: '좋음', quality: 4, color: '#10b981', hint: '무난하게 기억함' },
-  { label: '쉬움', quality: 5, color: '#3b82f6', hint: '아주 쉬웠음' },
+  { label: '다시', en: 'Again', quality: 2, color: '#ef4444', hint: '전혀 기억 안 남' },
+  { label: '어려움', en: 'Hard', quality: 3, color: '#f59e0b', hint: '겨우 기억함' },
+  { label: '좋음', en: 'Good', quality: 4, color: '#10b981', hint: '무난하게 기억함' },
+  { label: '쉬움', en: 'Easy', quality: 5, color: '#3b82f6', hint: '아주 쉬웠음' },
 ]
 
 function speak(text) {
@@ -167,15 +168,17 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
   if (status === 'need-login') {
     return (
       <div style={box}>
-        <h3 style={{ marginTop: 0 }}>🔔 복습 알람은 회원 전용이에요</h3>
+        <h3 style={{ marginTop: 0 }}><Bi en="Review alarm is for members only">🔔 복습 알람은 회원 전용이에요</Bi></h3>
         <p style={{ color: '#666' }}>
-          복습 알람은 배운 문장을 <b>망각곡선(간격 반복)</b>에 따라 다시 꺼내주는 기능이에요.
-          어디서 어떤 문장을 배웠는지 기억해 두려면 계정이 필요해요.
+          <Bi en="The review alarm brings back sentences you learned on a forgetting-curve (spaced repetition) schedule. An account is needed to remember what you learned.">
+            복습 알람은 배운 문장을 <b>망각곡선(간격 반복)</b>에 따라 다시 꺼내주는 기능이에요.
+            어디서 어떤 문장을 배웠는지 기억해 두려면 계정이 필요해요.
+          </Bi>
         </p>
-        <p style={{ color: '#999', fontSize: '14px' }}>가입은 몇 초면 끝나고, 바로 복습이 시작됩니다.</p>
+        <p style={{ color: '#999', fontSize: '14px' }}><Bi en="Signing up takes seconds, and review starts right away.">가입은 몇 초면 끝나고, 바로 복습이 시작됩니다.</Bi></p>
         {onRequireAuth && (
           <button type="button" onClick={onRequireAuth} style={primaryBtn}>
-            로그인 / 회원가입하고 복습 시작하기
+            <Bi en="Log in / Sign up and start reviewing">로그인 / 회원가입하고 복습 시작하기</Bi>
           </button>
         )}
         {onComplete && (
@@ -184,7 +187,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
             onClick={onComplete}
             style={{ ...primaryBtn, backgroundColor: '#fff', color: '#666', border: '1px solid #ddd', marginTop: '8px' }}
           >
-            지금은 건너뛰기 →
+            <Bi en="Skip for now →">지금은 건너뛰기 →</Bi>
           </button>
         )}
       </div>
@@ -197,7 +200,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
         <p style={{ color: '#dc3545' }}>⚠ {error}</p>
         {onComplete && (
           <button type="button" onClick={onComplete} style={primaryBtn}>
-            학습 완료 🎉
+            <Bi en="Finish learning">학습 완료 🎉</Bi>
           </button>
         )}
       </div>
@@ -209,7 +212,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
 
   return (
     <div style={box}>
-      <h3 style={{ marginTop: 0 }}>🔔 복습 알람</h3>
+      <h3 style={{ marginTop: 0 }}><Bi en="Review alarm">🔔 복습 알람</Bi></h3>
 
       {/* 방금 배운 문장 저장 안내 */}
       {savedInfo && (
@@ -228,7 +231,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
       {!sessionDone && card && (
         <>
           <div style={{ fontSize: '13px', color: '#999', marginBottom: '10px' }}>
-            지금 복습할 문장 {queue.length - index}개 남음
+            <Bi en={`${queue.length - index} sentence(s) left to review now`}>지금 복습할 문장 {queue.length - index}개 남음</Bi>
           </div>
 
           <div style={{
@@ -250,7 +253,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
           {!revealed ? (
             <>
               <label style={{ fontSize: '13px', color: '#999', display: 'block', marginBottom: '4px' }}>
-                이 문장의 뜻을 떠올려 적어보세요
+                <Bi en="Recall and write the meaning of this sentence">이 문장의 뜻을 떠올려 적어보세요</Bi>
               </label>
               <textarea
                 value={answer}
@@ -259,7 +262,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
                 style={{ width: '100%', padding: '10px', fontSize: '15px', minHeight: '70px', marginBottom: '14px' }}
               />
               <button type="button" onClick={() => setRevealed(true)} style={primaryBtn}>
-                확인하기
+                <Bi en="Check">확인하기</Bi>
               </button>
             </>
           ) : (
@@ -275,7 +278,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
               </div>
 
               <div style={{ fontSize: '13px', color: '#999', marginBottom: '8px' }}>
-                얼마나 잘 기억했나요? (다음 복습 간격이 자동으로 정해져요)
+                <Bi en="How well did you remember? (The next review interval is set automatically)">얼마나 잘 기억했나요? (다음 복습 간격이 자동으로 정해져요)</Bi>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {GRADES.map((g) => (
@@ -291,7 +294,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
                       borderRadius: '10px', fontSize: '14px', fontWeight: 700,
                     }}
                   >
-                    {g.label}
+                    <Bi en={g.en}>{g.label}</Bi>
                   </button>
                 ))}
               </div>
@@ -306,7 +309,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
           {reviewedCount > 0 ? (
             <>
               <div style={{ fontSize: '40px', marginBottom: '8px' }}>🎉</div>
-              <p style={{ fontWeight: 700, marginBottom: '4px' }}>복습 완료! {reviewedCount}개 문장을 복습했어요.</p>
+              <p style={{ fontWeight: 700, marginBottom: '4px' }}><Bi en={`Review complete! You reviewed ${reviewedCount} sentence(s).`}>복습 완료! {reviewedCount}개 문장을 복습했어요.</Bi></p>
             </>
           ) : (
             <p style={{ color: '#666' }}>
@@ -315,7 +318,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
           )}
           {upcomingCount > 0 && (
             <button type="button" onClick={startEarlyReview} style={{ ...secondaryBtn, marginBottom: '10px' }}>
-              🔁 미리 복습해보기
+              <Bi en="Review ahead">🔁 미리 복습해보기</Bi>
             </button>
           )}
         </div>
@@ -323,7 +326,7 @@ function ReviewAlarm({ justLearned, onComplete, onRequireAuth }) {
 
       {onComplete && (
         <button type="button" onClick={onComplete} style={{ ...primaryBtn, marginTop: '16px' }}>
-          학습 완료 🎉
+          <Bi en="Finish learning">학습 완료 🎉</Bi>
         </button>
       )}
     </div>
