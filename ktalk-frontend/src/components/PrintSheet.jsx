@@ -13,6 +13,35 @@ const MODES = [
   { id: 'both', ko: '문제지 + 정답·해설지', en: 'Questions + answers' },
 ]
 
+// 오답노트 목록(WrongAnswerResponse[])을 인쇄 문서 형식으로 바꾼다. 서버 호출 없이 이미 불러온
+// 목록(문제·보기·정답·해설·내가 고른 답)을 그대로 쓴다. 틀린 문제마다 지문 하나에 문제 하나.
+function notesToPrintable(notes) {
+  return {
+    curriculumTitle: '오답노트 / Wrong-answer notes',
+    learnerTypeLabel: `${notes.length}문항`,
+    levelLabel: new Date().toLocaleDateString('ko-KR'),
+    title: '오답노트 복습지',
+    days: [{
+      dayNumber: 0,
+      task: '오답노트',
+      passages: notes.map((note) => ({
+        category: note.passageCategory,
+        subType: note.passageSubType,
+        passageText: note.passageText,
+        problems: [{
+          questionText: note.questionText,
+          options: note.options,
+          correctAnswerIndex: note.correctAnswerIndex,
+          optionExplanations: note.optionExplanations,
+          trapNote: note.trapNote,
+          strategyTip: note.strategyTip,
+          selectedIndex: note.selectedIndex,
+        }],
+      })),
+    }],
+  }
+}
+
 // "모의고사 1회 - 듣기 1~10번 (이어질 …)" 같은 일자 과제 문구에서 구간 이름("듣기 1~10번")만 뽑는다.
 function dayLabel(day) {
   const after = day.task.includes(' - ') ? day.task.split(' - ').slice(1).join(' - ') : day.task
@@ -119,7 +148,10 @@ function AnswerSheet({ data }) {
             {firstOfListening && (
               <div className="print-script"><b>🎧 듣기 대본 / Script</b><div>{passage.passageText}</div></div>
             )}
-            <div className="print-q"><b>{no}.</b> 정답 {CIRCLED[problem.correctAnswerIndex]} {problem.options[problem.correctAnswerIndex]}</div>
+            <div className="print-q">
+              <b>{no}.</b> 정답 {CIRCLED[problem.correctAnswerIndex]} {problem.options[problem.correctAnswerIndex]}
+              {problem.selectedIndex != null && <span className="print-mine"> (내가 고른 답 {CIRCLED[problem.selectedIndex]})</span>}
+            </div>
             {problem.optionExplanations && (
               <ul className="print-notes">
                 {problem.optionExplanations.map((note, i) => (
@@ -150,7 +182,7 @@ function PrintDocument({ data, mode }) {
  * 인쇄 메뉴 버튼. week(주차 전체) 또는 day(하루치)를 받아 서버에서 정답까지 포함한 데이터를 가져온 뒤
  * 브라우저 인쇄 창을 연다. 인쇄 창에서 "PDF로 저장"을 고르면 파일로 내려받을 수 있다.
  */
-function PrintMenu({ week, day, label, labelEn }) {
+function PrintMenu({ week, day, notes, label, labelEn }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [job, setJob] = useState(null) // { data, mode }
@@ -173,6 +205,11 @@ function PrintMenu({ week, day, label, labelEn }) {
   }, [job])
 
   const start = async (mode) => {
+    if (notes) {
+      // 오답노트는 이미 화면에 불러온 목록을 그대로 인쇄한다(서버 호출 없음).
+      setJob({ data: notesToPrintable(notes), mode })
+      return
+    }
     setBusy(true)
     setError('')
     try {

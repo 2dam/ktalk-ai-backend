@@ -4,6 +4,7 @@ import { API_BASE, authHeaders, hasToken } from '../api'
 import { TAB_COLORS } from '../theme'
 import ClickableKorean from './ClickableKorean'
 import { Bi } from '../EnglishHint'
+import PrintMenu from './PrintSheet'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -136,6 +137,7 @@ export function WrongNotesPanel() {
       )}
       {!loading && !error && notes?.length > 0 && (
         <>
+          <PrintMenu notes={notes} label="오답노트 인쇄 / PDF 저장" labelEn="Print wrong-answer notes / Save as PDF" />
           <p style={{ fontSize: '13px', color: ACCENT, marginTop: 0, marginBottom: '16px' }}>
             <Bi en={`${notes.length} question(s) to review.`}>총 {notes.length}개의 복습할 문제가 있어요.</Bi>
           </p>

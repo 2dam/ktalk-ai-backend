@@ -1778,3 +1778,10 @@ h3 > .bi-en {
     white-space: pre-wrap;
   }
 }
+
+@media print {
+  .print-mine {
+    font-weight: 400;
+    color: #444;
+  }
+}
