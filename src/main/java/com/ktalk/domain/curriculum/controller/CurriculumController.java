@@ -85,6 +85,21 @@ public class CurriculumController {
         }
     }
 
+    /** 문제지/정답·해설지 인쇄용 데이터. week(주차 전체) 또는 day(하루치) 중 하나를 지정한다. */
+    @GetMapping("/print")
+    public ResponseEntity<ApiResponse> printable(
+            @RequestParam(required = false) Integer week, @RequestParam(required = false) Integer day) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("로그인 후 이용할 수 있어요."));
+        }
+        try {
+            return ResponseEntity.ok(ApiResponse.success(curriculumService.getPrintable(userId, week, day)));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     /** 지문 하나의 문제 하나를 채점하고 해설(보기별 오답 분석 + 함정 포인트)을 돌려준다.
      * 로그인 상태면 틀린 문제를 오답노트에 자동으로 기록한다. */
     @PostMapping("/problems/{problemId}/answer")

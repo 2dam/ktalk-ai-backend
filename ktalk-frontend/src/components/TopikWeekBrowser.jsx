@@ -7,6 +7,7 @@ import CurriculumPassageCard from './CurriculumPassageCard'
 import { WrongNotesPanel } from './WrongNoteList'
 import { withEulReul } from '../korean'
 import { Bi } from '../EnglishHint'
+import PrintMenu from './PrintSheet'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -167,6 +168,8 @@ function TopikWeekBrowser({ heading, headingEn, description, descriptionEn, filt
                   <ClickableKorean text={dayContent.task} />
                 </div>
 
+                <PrintMenu day={dayNumber} label="이 회차 인쇄 / PDF 저장" labelEn="Print this session / Save as PDF" />
+
                 {dayContent.template && (
                   <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
                     <summary style={{ cursor: 'pointer' }}><Bi en="View this session's worksheet template">📎 이 회차 학습지 템플릿 보기</Bi></summary>
@@ -209,6 +212,7 @@ function TopikWeekBrowser({ heading, headingEn, description, descriptionEn, filt
         {!loading && !error && dayNumber === null && selectedWeek !== null && (
           <>
             <h2 style={{ marginTop: 0 }}>{selectedWeek.title}</h2>
+            <PrintMenu week={selectedWeek.weekNumber} label="이 주차 전체 인쇄 / PDF 저장" labelEn="Print the whole week / Save as PDF" />
             <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>{selectedWeek.goal}</p>
             <div className="topik-page-grid">
               {selectedWeek.days.map((day) => (

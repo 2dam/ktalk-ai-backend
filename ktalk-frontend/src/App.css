@@ -1585,3 +1585,196 @@ h3 > .bi-en {
 .stage-label .bi-en {
   font-size: 10px;
 }
+
+/* ---- 인쇄(문제지/정답·해설지) ---- */
+.print-root {
+  display: none;
+}
+
+.print-menu {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 14px;
+}
+
+.print-menu-button {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid rgba(20, 35, 33, 0.25);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.print-menu-button::-webkit-details-marker {
+  display: none;
+}
+
+.print-menu-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.print-menu-list button {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.print-menu-list button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.print-menu-hint {
+  color: #888;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.print-menu-error {
+  margin: 6px 0 0;
+  color: #dc3545;
+  font-size: 13px;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body.printing #root {
+    display: none !important;
+  }
+
+  body.printing .print-root {
+    display: block;
+    color: #000;
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    word-break: keep-all;
+  }
+
+  .print-page + .print-page {
+    break-before: page;
+  }
+
+  .print-header {
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #000;
+  }
+
+  .print-header h1 {
+    margin: 2px 0 8px;
+    font-size: 17pt;
+  }
+
+  .print-header h1 small {
+    font-size: 10pt;
+    font-weight: 400;
+    color: #444;
+  }
+
+  .print-kicker {
+    font-size: 9pt;
+    color: #444;
+  }
+
+  .print-fill {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 10pt;
+  }
+
+  .print-day-title {
+    margin: 16px 0 6px;
+    padding: 3px 8px;
+    border-left: 4px solid #000;
+    background: #eee;
+    font-size: 11.5pt;
+  }
+
+  .print-passage {
+    margin-bottom: 10px;
+  }
+
+  .print-subtype,
+  .print-listening {
+    margin-bottom: 4px;
+    font-size: 9pt;
+    color: #444;
+  }
+
+  .print-text {
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    border: 1px solid #888;
+    white-space: pre-wrap;
+  }
+
+  .print-question,
+  .print-explain {
+    break-inside: avoid;
+    margin-bottom: 8px;
+  }
+
+  .print-options {
+    margin: 2px 0 0 14px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .print-answer-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px 8px;
+    margin-bottom: 14px;
+    padding: 8px;
+    border: 1px solid #000;
+    font-size: 10pt;
+  }
+
+  .print-notes {
+    margin: 2px 0 2px 14px;
+    padding: 0;
+    list-style: none;
+    font-size: 9.5pt;
+  }
+
+  .print-tip {
+    margin-left: 14px;
+    font-size: 9.5pt;
+    color: #222;
+  }
+
+  .print-script {
+    margin: 10px 0 6px;
+    padding: 6px 10px;
+    border: 1px dashed #666;
+    font-size: 9.5pt;
+    white-space: pre-wrap;
+  }
+}

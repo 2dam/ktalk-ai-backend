@@ -6,6 +6,7 @@ import ClickableKorean from './ClickableKorean'
 import CurriculumPassageCard from './CurriculumPassageCard'
 import { WrongNotesPanel } from './WrongNoteList'
 import { Bi } from '../EnglishHint'
+import PrintMenu from './PrintSheet'
 
 const CURRICULUM_URL = `${API_BASE}/api/curriculum`
 
@@ -211,6 +212,8 @@ function TodayCurriculum({ onBack, onRequireAuth, onGoToAssessment }) {
                 }}>
                   <ClickableKorean text={data.task} />
                 </div>
+
+                <PrintMenu day={data.dayNumber} label="오늘 학습 인쇄 / PDF 저장" labelEn="Print today's lesson / Save as PDF" />
 
                 {data.template && (
                   <details style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>

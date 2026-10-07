@@ -5,6 +5,7 @@ import com.ktalk.domain.assessment.repository.AssessmentResultRepository;
 import com.ktalk.domain.curriculum.dto.CurriculumDayResponse;
 import com.ktalk.domain.curriculum.dto.CurriculumWeekSummaryResponse;
 import com.ktalk.domain.curriculum.dto.PassageResponse;
+import com.ktalk.domain.curriculum.dto.PrintableSetResponse;
 import com.ktalk.domain.curriculum.dto.ProblemAnswerResponse;
 import com.ktalk.domain.curriculum.dto.WrongAnswerResponse;
 import com.ktalk.domain.curriculum.entity.Curriculum;
@@ -117,6 +118,64 @@ public class CurriculumService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 학습 내용을 찾을 수 없습니다: " + dayNumber + "일째"));
 
         return toResponse(curriculum, progress, day, false);
+    }
+
+    /** 인쇄용 문제지/정답·해설지 데이터. weekNumber가 있으면 그 주차 전체, dayNumber가 있으면 그 하루치를
+     * 정답·해설까지 포함해 내려준다(둘 중 정확히 하나만 지정). */
+    @Transactional(readOnly = true)
+    public PrintableSetResponse getPrintable(Long userId, Integer weekNumber, Integer dayNumber) {
+        if ((weekNumber == null) == (dayNumber == null)) {
+            throw new IllegalArgumentException("week 또는 day 중 하나만 지정해주세요.");
+        }
+        UserCurriculumProgress progress = getOrAssignProgress(userId);
+        Curriculum curriculum = progress.getCurriculum();
+
+        List<CurriculumDay> days;
+        String title;
+        if (weekNumber != null) {
+            var week = curriculumWeekRepository.findByCurriculumIdOrderByWeekNumberAsc(curriculum.getId()).stream()
+                    .filter(w -> w.getWeekNumber() == weekNumber)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("해당 주차를 찾을 수 없습니다: " + weekNumber + "주차"));
+            days = curriculumDayRepository.findByCurriculumId(curriculum.getId()).stream()
+                    .filter(d -> d.getWeek().getId().equals(week.getId()))
+                    .sorted(Comparator.comparingInt(CurriculumDay::getDayNumber))
+                    .toList();
+            title = week.getTitle();
+        } else {
+            CurriculumDay day = curriculumDayRepository.findByCurriculumIdAndDayNumber(curriculum.getId(), dayNumber)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 학습 내용을 찾을 수 없습니다: " + dayNumber + "일째"));
+            days = List.of(day);
+            title = day.getWeek().getTitle() + " · " + day.getDayInWeek() + "회차";
+        }
+
+        List<PrintableSetResponse.PrintableDay> printableDays = days.stream()
+                .map(day -> new PrintableSetResponse.PrintableDay(
+                        day.getDayNumber(),
+                        day.getTask(),
+                        day.getPassages().stream()
+                                .map(passage -> new PrintableSetResponse.PrintablePassage(
+                                        passage.getCategory().name(),
+                                        passage.getSubType(),
+                                        passage.getPassageText(),
+                                        passage.getProblems().stream()
+                                                .map(problem -> new PrintableSetResponse.PrintableProblem(
+                                                        problem.getQuestionText(),
+                                                        problem.getOptions(),
+                                                        problem.getCorrectAnswerIndex(),
+                                                        problem.getOptionExplanations(),
+                                                        problem.getTrapNote(),
+                                                        problem.getStrategyTip()))
+                                                .toList()))
+                                .toList()))
+                .toList();
+
+        return new PrintableSetResponse(
+                curriculum.getTitle(),
+                curriculum.getLearnerType().getLabel(),
+                curriculum.getTargetLevelLabel(),
+                title,
+                printableDays);
     }
 
     /** 지문 하나에 딸린 문제 하나를 채점한다. 로그인 없이도 풀 수 있는 정적 문제집이라
