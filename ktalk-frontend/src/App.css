@@ -1911,3 +1911,61 @@ h3 > .bi-en {
   color: #666;
   word-break: break-all;
 }
+
+/* ---- 설치 가이드 탭/보조 요소 ---- */
+.install-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #eef1f0;
+}
+
+.install-tabs button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  color: #555;
+  cursor: pointer;
+}
+
+.install-tabs button.on {
+  background: #fff;
+  color: var(--k-green);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.install-sub {
+  margin: 14px 0 8px;
+  font-size: 15px;
+}
+
+.install-native {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: var(--k-coral);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.install-pdf {
+  display: block;
+  margin: 0 0 12px;
+  padding: 11px;
+  border: 1px dashed #b8c4c0;
+  border-radius: 10px;
+  text-align: center;
+  color: var(--k-green);
+  font-weight: 700;
+  text-decoration: none;
+}
