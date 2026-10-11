@@ -1878,3 +1878,36 @@ h3 > .bi-en {
   font-weight: 700;
   cursor: pointer;
 }
+
+.ios-install-fallback {
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ios-install-fallback p {
+  margin: 6px 0 10px;
+}
+
+.ios-install-copy {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--k-green);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--k-green);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ios-install-url {
+  display: block;
+  margin-top: 8px;
+  text-align: center;
+  color: #666;
+  word-break: break-all;
+}

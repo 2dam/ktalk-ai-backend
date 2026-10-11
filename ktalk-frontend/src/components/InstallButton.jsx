@@ -39,6 +39,24 @@ const STEPS = [
 
 function IosInstallGuide({ onClose }) {
   const inApp = isInAppBrowser()
+  const [copied, setCopied] = useState(false)
+
+  // 공유 메뉴에 "홈 화면에 추가"가 없는 화면(앱 안 브라우저 등)에서는 Safari로 옮겨야 하므로 주소를 복사해 준다.
+  const copyLink = async () => {
+    const url = window.location.origin + '/'
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      const input = document.createElement('input')
+      input.value = url
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+    setCopied(true)
+  }
+
   return createPortal(
     <div className="ios-install-overlay" onClick={onClose}>
       <div className="ios-install-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -61,6 +79,19 @@ function IosInstallGuide({ onClose }) {
             </li>
           ))}
         </ol>
+
+        <div className="ios-install-fallback">
+          <b><Bi en="Can't find &quot;Add to Home Screen&quot;?">공유 메뉴에 &quot;홈 화면에 추가&quot;가 안 보이나요?</Bi></b>
+          <p>
+            <Bi en="You are probably in a browser inside another app. Copy the link, open the Safari app, paste it into the address bar, then repeat the steps above.">
+              다른 앱 안에서 열린 화면일 수 있어요. 아래 버튼으로 주소를 복사한 뒤, 아이폰의 <b>Safari 앱</b>을 열어 주소창에 붙여넣고 위 단계를 다시 해 주세요.
+            </Bi>
+          </p>
+          <button type="button" className="ios-install-copy" onClick={copyLink}>
+            <Bi en={copied ? 'Copied! Paste it in Safari.' : 'Copy link'}>{copied ? '복사됨! Safari에 붙여넣으세요' : '주소 복사'}</Bi>
+          </button>
+          <small className="ios-install-url">{window.location.origin}/</small>
+        </div>
 
         <button type="button" className="ios-install-ok" onClick={onClose}><Bi en="Got it">알겠어요</Bi></button>
       </div>
