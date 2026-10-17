@@ -1969,3 +1969,41 @@ h3 > .bi-en {
   font-weight: 700;
   text-decoration: none;
 }
+
+/* 의견 보내기 */
+.feedback-card .install-tabs {
+  margin-bottom: 12px;
+}
+
+.feedback-text {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 12px;
+  font: inherit;
+  resize: vertical;
+}
+
+.feedback-count {
+  display: block;
+  margin: 6px 0 12px;
+  text-align: right;
+  color: #64748b;
+}
+
+.feedback-error {
+  margin: 0 0 12px;
+  color: #dc2626;
+}
+
+.feedback-thanks {
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.feedback-card .ios-install-ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

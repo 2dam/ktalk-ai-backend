@@ -5,6 +5,7 @@ import TopikPage from './components/TopikPage'
 import LearningNavigation from './components/LearningNavigation'
 import RecommendedChannels from './components/RecommendedChannels'
 import InstallButton from './components/InstallButton'
+import FeedbackButton from './components/FeedbackButton'
 import { Bi, EnglishHintToggle } from './EnglishHint'
 import { API_BASE, AUTH_URL, authHeaders } from './api'
 import ktalkLogo from './assets/ktalk-logo.png'
@@ -273,6 +274,7 @@ function App() {
         <div className="header-actions">
           <EnglishHintToggle />
           <InstallButton />
+          <FeedbackButton />
           {isLoggedIn ? (
             <div className="user-chip">
               <span>{user.username}</span>
